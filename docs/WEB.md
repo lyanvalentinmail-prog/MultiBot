@@ -57,7 +57,7 @@ Las variables `BOT_UNIVERSAL_BOT_*` se pasan solo al proceso hijo de Universal B
 1. Despliega el Blueprint y agrega el email de tu cuenta a `WEB_RUNTIME_ADMIN_EMAILS` en Render.
 2. Entra al panel con esa cuenta, abre **Crear bot** y selecciona Universal Bot.
 3. Elige **Pairing Code real** o **Código QR real**. Para Pairing Code ingresa tu número en formato internacional (con prefijo de país); para QR no necesitas escribirlo.
-4. Pulsa **Crear bot y vincular**. El panel muestra el Pairing Code o QR real que llega desde Baileys. Escanea el QR o introduce el código en WhatsApp → Dispositivos vinculados.
+4. Pulsa **Desplegar bot y vincular**. Esto inicia Universal Bot como proceso dentro del servicio web ya desplegado; no crea otro servicio de Render. El panel muestra el Pairing Code o QR real que llega desde Baileys. Escanea el QR o introduce el código en WhatsApp → Dispositivos vinculados.
 5. Cuando se vincule, el panel indicará el estado conectado. Usa **Detener** para cerrar el proceso. Solo se permite un runtime a la vez.
 
 El QR, Pairing Code y logs son información sensible: solo el email administrador configurado debe tener acceso. No compartas capturas/códigos. La cuenta administradora y el teléfono de pairing son conceptos distintos. La interfaz no inventa códigos: el código mostrado proviene del proceso Baileys.

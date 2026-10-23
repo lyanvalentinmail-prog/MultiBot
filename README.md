@@ -43,7 +43,7 @@ Guías completas: [`docs/TERMUX_GUIDE.md`](docs/TERMUX_GUIDE.md) · [`bots/unive
 
 ## Panel web y runtime
 
-La web descubre bots y plugins y ofrece **Crear bot** para iniciar Universal Bot y vincular WhatsApp con un QR o Pairing Code real. Los controles del runtime se limitan a administradores autorizados. Consulta [`docs/WEB.md`](docs/WEB.md): despliega el Blueprint con `WEB_RUNTIME_ADMIN_EMAILS` vacío, crea primero tu cuenta, agrega su email exacto a esa variable en Render y reinicia el servicio. Luego abre **Crear bot**.
+La web descubre bots y plugins y ofrece **Crear bot** para desplegar/iniciar Universal Bot como proceso dentro del servicio web existente y vincular WhatsApp con un QR o Pairing Code real. Esto no aprovisiona un servicio Render nuevo; los controles del runtime se limitan a administradores autorizados. Consulta [`docs/WEB.md`](docs/WEB.md): despliega el Blueprint con `WEB_RUNTIME_ADMIN_EMAILS` vacío, crea primero tu cuenta, agrega su email exacto a esa variable en Render y reinicia el servicio. Luego abre **Crear bot**.
 
 El Pairing Code puede requerir ingresar el teléfono internacional en el panel. Ese número se envía al runtime protegido para solicitar el código y no se guarda. Las credenciales no van a PostgreSQL.
 
