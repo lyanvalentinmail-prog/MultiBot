@@ -1,5 +1,4 @@
 import { join, dirname } from 'path'
-import { createRequire } from 'module'
 import { fileURLToPath } from 'url'
 import cluster from 'node:cluster'
 import { enforceTermuxOnly } from './lib/termux-guard.js'
@@ -13,7 +12,6 @@ import { watchFile, unwatchFile } from 'fs'
 import cfonts from 'cfonts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const require = createRequire(__dirname)
 
 cfonts.say('UNIVERSAL', {
   font: 'block',
@@ -27,33 +25,55 @@ cfonts.say('MultiBot - Universal Bot', {
   gradient: ['blue', 'white']
 })
 
+// Reinicio controlado: si el bot muere al arrancar (config rota, dependencia
+// faltante, sesión corrupta…) no entramos en un bucle infinito de logs.
+const RESTART_DELAY_MS = 3000
+const MAX_FAST_CRASHES = 4
 let isWorking = false
+let fastCrashes = 0
+let lastStartAt = 0
 
-async function launch(scripts) {
-  if (isWorking) return
+function launch(scripts) {
+  const script = scripts[0]
+  const args = [join(__dirname, script), ...process.argv.slice(2)]
+
+  setupMaster({
+    exec: args[0],
+    args: args.slice(1),
+  })
+
   isWorking = true
+  lastStartAt = Date.now()
 
-  for (const script of scripts) {
-    const args = [join(__dirname, script), ...process.argv.slice(2)]
+  const child = fork()
 
-    setupMaster({
-      exec: args[0],
-      args: args.slice(1),
-    })
+  child.on('exit', (code, signal) => {
+    isWorking = false
 
-    let child = fork()
+    // Salida limpia (0) o detenida por señal: es intencional, no se reinicia.
+    if (signal || code === 0) return
 
-    child.on('exit', (code) => {
-      isWorking = false
-      launch(scripts)
+    if (Date.now() - lastStartAt < 15000) fastCrashes += 1
+    else fastCrashes = 1
 
-      if (code === 0) return
-      watchFile(args[0], () => {
-        unwatchFile(args[0])
-        launch(scripts)
-      })
-    })
-  }
+    if (fastCrashes > MAX_FAST_CRASHES) {
+      console.error('\n✖ El bot falló varias veces al iniciar; se detuvo el reinicio automático.')
+      console.error('  Revisa el error de arriba. Ayuda rápida:')
+      console.error('    npm run doctor               # diagnóstico de Node, dependencias y config')
+      console.error('    npm run setup -- --fix       # repara config.js si pegaste comandos por error')
+      console.error('    npm run start:raw            # inicia sin el wrapper de reinicio\n')
+      process.exit(1)
+    }
+
+    console.log(`\n↻ Reiniciando en ${Math.round(RESTART_DELAY_MS / 1000)}s (intento ${fastCrashes}/${MAX_FAST_CRASHES})…`)
+    setTimeout(() => launch(scripts), RESTART_DELAY_MS)
+  })
+
+  // Recarga manual al editar el entrypoint (comportamiento previo conservado).
+  watchFile(args[0], () => {
+    unwatchFile(args[0])
+    if (!isWorking) launch(scripts)
+  })
 }
 
 launch(['main.js'])
