@@ -108,6 +108,12 @@ test('MultiBot web API: auth, profile CRUD, catalog, and Termux-only boundary', 
   assert.deepEqual(restoredProfiles.data.instances, [])
 })
 
+test('Render Blueprint uses free plans for both services', async () => {
+  const blueprint = await readFile(new URL('../render.yaml', import.meta.url), 'utf8')
+  const plans = [...blueprint.matchAll(/^\s+plan:\s*(\S+)/gm)].map((match) => match[1])
+  assert.deepEqual(plans, ['free', 'free'])
+})
+
 test('adult-marked bots are excluded from the public catalog', async (t) => {
   const rootDir = await mkdtemp(path.join(os.tmpdir(), 'multibot-catalog-test-'))
   const dataDir = path.join(rootDir, 'data')

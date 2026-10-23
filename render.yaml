@@ -1,4 +1,5 @@
-# Render Blueprint: MultiBot web + PostgreSQL.
+# Render Blueprint: free web service + free PostgreSQL (temporary plan).
+# Free PostgreSQL instances expire after 30 days; export data before expiration.
 # Universal Bot remains Termux-only; this service deploys the portal, not the bot.
 services:
   - type: web
@@ -20,7 +21,7 @@ services:
 
 databases:
   - name: multibot-db
-    plan: basic-256mb
+    plan: free
     region: oregon
     databaseName: multibot
     user: multibot

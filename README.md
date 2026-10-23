@@ -67,7 +67,7 @@ Si `DATABASE_URL` está configurada, se utiliza PostgreSQL; en local, sin esa va
 3. Render crea el servicio web `multibot-panel` y PostgreSQL `multibot-db`, y conecta `DATABASE_URL`.
 4. Abre la URL del servicio y crea una cuenta para guardar perfiles.
 
-El Blueprint usa web service **Free** y base de datos PostgreSQL **Basic 256 MB** (la base tiene costo; verifica el precio actual de Render antes de aplicar). El plan Free del servicio puede suspenderse cuando está inactivo. Render aloja el panel y la base de datos, no Universal Bot.
+El Blueprint usa el servicio web y PostgreSQL en plan **Free**, por lo que no debe crear recursos pagos. El servicio puede suspenderse cuando está inactivo y la base PostgreSQL gratis de Render vence a los **30 días**: exporta los datos antes. Para evitar cargos, no actualices la base a un plan pago. Render aloja el panel y la base de datos, no Universal Bot; para conservar datos más tiempo sin pagar, conecta un PostgreSQL externo con nivel gratuito.
 
 Más detalles: [`docs/WEB.md`](docs/WEB.md).
 
