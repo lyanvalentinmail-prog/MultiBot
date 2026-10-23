@@ -10,7 +10,7 @@ MultiBot/
 │   ├── universal-bot/       # Todo-en-uno; Termux + web admin; sin NSFW/+18
 │   └── _template/           # Plantilla ligera para nuevos bots
 ├── web/                     # SPA/PWA MultiBot (diseño adaptado de TomiOka)
-├── scripts/serve-web.js     # Servidor/API de catálogo, perfiles y runtime
+├── scripts/serve-web.js     # Servidor/API del catálogo, cuentas y runtime (más rutas heredadas)
 ├── scripts/web-runtime.js   # Gestión protegida de procesos hijos
 ├── data/                    # Fallback local ignorado por Git
 ├── docs/                    # Guías de repositorio, Termux y web
@@ -43,9 +43,9 @@ Guías completas: [`docs/TERMUX_GUIDE.md`](docs/TERMUX_GUIDE.md) · [`bots/unive
 
 ## Panel web y runtime
 
-La web descubre bots y plugins, permite crear cuentas/perfiles y muestra estado básico de procesos web a administradores autorizados. Para iniciar Universal Bot desde el panel, consulta [`docs/WEB.md`](docs/WEB.md): despliega el Blueprint con `WEB_RUNTIME_ADMIN_EMAILS` vacío, crea primero tu cuenta, agrega su email exacto a esa variable en Render y reinicia el servicio. Luego abre **Bots → Universal Bot** para pedir el QR o Pairing Code real.
+La web descubre bots y plugins y ofrece **Crear bot** para iniciar Universal Bot y vincular WhatsApp con un QR o Pairing Code real. Los controles del runtime se limitan a administradores autorizados. Consulta [`docs/WEB.md`](docs/WEB.md): despliega el Blueprint con `WEB_RUNTIME_ADMIN_EMAILS` vacío, crea primero tu cuenta, agrega su email exacto a esa variable en Render y reinicia el servicio. Luego abre **Crear bot**.
 
-El Pairing Code puede requerir ingresar el teléfono internacional en el panel. Ese número se envía al runtime protegido para solicitar el código, no se guarda en el perfil. Las credenciales no van a PostgreSQL.
+El Pairing Code puede requerir ingresar el teléfono internacional en el panel. Ese número se envía al runtime protegido para solicitar el código y no se guarda. Las credenciales no van a PostgreSQL.
 
 ### Ejecutar localmente
 
@@ -62,7 +62,7 @@ Sin `DATABASE_URL`, la persistencia local usa `data/multibot-local.json` (ignora
 
 El Blueprint configura web service y PostgreSQL en plan **Free**, sin cambiar a recursos pagos. El servicio puede dormir cuando está inactivo; sus procesos de bot pueden detenerse en suspensión, reinicio o deploy. Render Free no ofrece almacenamiento persistente aquí; las sesiones locales de Baileys pueden perderse.
 
-La base de datos PostgreSQL Free de Render vence a los **30 días**: exporta cuentas/perfiles o migra antes de esa fecha. No actualices a un plan pago si no quieres cargos. La base del panel nunca almacena credenciales de Baileys.
+La base de datos PostgreSQL Free de Render vence a los **30 días**: exporta cuentas y configuraciones antiguas o migra antes de esa fecha. No actualices a un plan pago si no quieres cargos. La base del panel nunca almacena credenciales de Baileys.
 
 Más detalles: [`docs/WEB.md`](docs/WEB.md).
 

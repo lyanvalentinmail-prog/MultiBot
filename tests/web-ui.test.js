@@ -1,15 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { Window } from 'happy-dom'
 import { createApplication, createDatabase } from '../scripts/serve-web.js'
 
-async function createUiContext(t, { webRuntimeEnabled = false, webRuntimeAdminEmails = '' } = {}) {
+async function createUiContext(t, { webRuntimeEnabled = false, webRuntimeAdminEmails = '', rootDir, removeRootDir = false } = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'multibot-ui-test-'))
   const app = await createApplication({
     database: createDatabase({ dataDir }),
+    rootDir,
     webRuntimeEnabled,
     webRuntimeAdminEmails,
   })
@@ -24,6 +25,7 @@ async function createUiContext(t, { webRuntimeEnabled = false, webRuntimeAdminEm
     await Promise.all([...windows].map((window) => window.happyDOM.abort()))
     await app.close()
     await rm(dataDir, { recursive: true, force: true })
+    if (removeRootDir && rootDir) await rm(rootDir, { recursive: true, force: true })
   })
 
   return {
@@ -42,7 +44,8 @@ async function createUiContext(t, { webRuntimeEnabled = false, webRuntimeAdminEm
       window.document.write(await response.text())
       if (token) window.localStorage.setItem('multibot_session', JSON.stringify(token))
       window.fetch = (input, init) => fetch(new URL(String(input), window.location.href), init)
-      window.setInterval = () => 0
+      window.__intervals = []
+      window.setInterval = (callback, delay) => { window.__intervals.push({ callback, delay }); return 0 }
       window.console = { error: (...args) => { window.__startupErrors ||= []; window.__startupErrors.push(args) } }
       if (removeDrawer) window.document.querySelector('#menu-drawer')?.remove()
       window.eval(script)
@@ -73,7 +76,7 @@ test('SPA deep links render their views and load their data', async (t) => {
     ['/home', 'WELCOME'],
     ['/bots', 'Bots disponibles'],
     ['/bots/universal-bot', 'Universal Bot'],
-    ['/register', 'PASO 1 DE 3'],
+    ['/register', 'Crear bot'],
     ['/metrics', 'Telemetría web'],
     ['/store', 'Universal Bot en Termux'],
     ['/endpoints', 'Rutas HTTP reales'],
@@ -100,7 +103,7 @@ test('SPA deep links render their views and load their data', async (t) => {
   }
 })
 
-test('account, theme, favorites, and profile CRUD work through the UI and API', async (t) => {
+test('account, theme, favorites, and create-bot navigation work through the UI', async (t) => {
   const context = await createUiContext(t)
   const window = await context.mount('/home')
   const main = window.document.querySelector('#main-content')
@@ -132,34 +135,11 @@ test('account, theme, favorites, and profile CRUD work through the UI and API', 
   await waitFor(() => window.location.pathname === '/favorites' && main.textContent.includes('Universal Bot'), 'saved favorite')
 
   click(window, '.header-link[data-page="register"]')
-  const profileName = window.document.querySelector('#flow-name')
-  profileName.value = 'UI audit profile'
-  profileName.dispatchEvent(new window.Event('input', { bubbles: true }))
-  click(window, '[data-action="wizard-next"]')
-  click(window, '[data-action="select-method"][data-method="qr"]')
-  click(window, '[data-action="wizard-next"]')
-  click(window, '[data-action="save-profile"]')
-  await waitFor(() => main.textContent.includes('Configuración guardada'), 'profile creation')
-  assert.match(main.textContent, /No se inició ningún bot/)
-
-  click(window, '.header-link[data-page="bots"]')
-  await waitFor(() => main.textContent.includes('UI audit profile'), 'profile in catalog view')
-  click(window, '[data-action="edit-profile"]')
-  const editForm = window.document.querySelector('form[data-form="edit"]')
-  editForm.elements.namedItem('name').value = 'Edited UI profile'
-  editForm.elements.namedItem('prefix').value = '!'
-  editForm.dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true }))
-  await waitFor(
-    () => window.document.querySelector('#modal-layer').hidden && main.textContent.includes('Edited UI profile'),
-    'profile edit',
-  )
-
-  click(window, '[data-action="delete-profile"]')
-  click(window, '[data-action="confirm-dialog"]')
-  await waitFor(() => main.textContent.includes('No guardaste perfiles todavía'), 'profile deletion')
-  const token = JSON.parse(window.localStorage.getItem('multibot_session'))
-  const state = await (await fetch(`${context.origin}/api/state`, { headers: { Authorization: `Bearer ${token}` } })).json()
-  assert.equal(state.instances.length, 0)
+  await waitFor(() => main.querySelector('.create-bot-page'), 'create-bot page')
+  assert.equal(main.querySelector('#flow-name'), null, 'the old profile wizard must not be rendered')
+  assert.equal(main.querySelector('[data-action="wizard-next"]'), null)
+  assert.doesNotMatch(main.textContent, /Crear perfil|Guardar preferencias/)
+  assert.match(main.textContent, /Pairing Code requiere tu número internacional/)
 
   click(window, '[data-action="open-drawer"]')
   click(window, '#menu-drawer [data-action="logout"]')
@@ -180,8 +160,36 @@ test('account, theme, favorites, and profile CRUD work through the UI and API', 
   )
 })
 
-test('authorized Universal Bot detail shows real pairing controls and keeps them hidden from other accounts', async (t) => {
+test('Create bot starts real pairing and QR events and keeps runtime controls allowlisted', async (t) => {
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), 'multibot-ui-runtime-'))
+  const botDir = path.join(rootDir, 'bots', 'universal-bot')
+  await mkdir(botDir, { recursive: true })
+  await writeFile(path.join(botDir, 'package.json'), JSON.stringify({
+    name: 'universal-bot', version: '1.0.0', type: 'module', main: 'main.js',
+  }))
+  await writeFile(path.join(botDir, 'bot.json'), JSON.stringify({
+    id: 'universal-bot', name: 'Universal Bot', description: 'Fixture for web runtime UI.',
+    version: '1.0.0', executionMode: 'web', webRuntime: true, webEntrypoint: 'main.js',
+    supportsQr: true, supportsPairingCode: true, adultContent: false,
+  }))
+  await writeFile(path.join(botDir, 'main.js'), [
+    "const isPairing = process.env.MULTIBOT_LOGIN_METHOD === 'pairing-code';",
+    "const event = isPairing ? { type: 'pairing-code', value: 'ABCD-1234' } : { type: 'qr', value: 'fixture-whatsapp-qr-payload' };",
+    "process.stdout.write('MULTIBOT_RUNTIME_EVENT:' + JSON.stringify(event) + String.fromCharCode(10));",
+    'setInterval(() => {}, 1000);',
+  ].join('\n'))
+  const secondBotDir = path.join(rootDir, 'bots', 'zz-test-bot')
+  await mkdir(secondBotDir, { recursive: true })
+  await writeFile(path.join(secondBotDir, 'package.json'), JSON.stringify({ name: 'zz-test-bot', version: '1.0.0', type: 'module', main: 'main.js' }))
+  await writeFile(path.join(secondBotDir, 'bot.json'), JSON.stringify({
+    id: 'zz-test-bot', name: 'ZZ Test Bot', description: 'Selector fixture.',
+    version: '1.0.0', executionMode: 'web', webRuntime: true, webEntrypoint: 'main.js', adultContent: false,
+  }))
+  await writeFile(path.join(secondBotDir, 'main.js'), 'setInterval(() => {}, 1000);')
+
   const context = await createUiContext(t, {
+    rootDir,
+    removeRootDir: true,
     webRuntimeEnabled: true,
     webRuntimeAdminEmails: '',
   })
@@ -197,23 +205,56 @@ test('authorized Universal Bot detail shows real pairing controls and keeps them
   context.app.runtimeManager.adminEmails.add('runtime-owner@example.test')
   const otherToken = await register('not-allowlisted@example.test', 'runtime-guest')
 
-  const adminWindow = await context.mount('/bots/universal-bot', { token: adminToken })
+  const adminWindow = await context.mount('/bots', { token: adminToken })
   const adminMain = adminWindow.document.querySelector('#main-content')
-  await waitFor(() => adminMain.textContent.includes('Ejecutar Universal Bot en la web'), 'admin runtime panel')
-  assert.ok(adminWindow.document.querySelector('[data-action="runtime-start"]'))
-  assert.ok(adminWindow.document.querySelector('[data-action="runtime-stop"]'))
-  const method = adminWindow.document.querySelector('#runtime-method')
-  method.value = 'pairing-code'
-  method.dispatchEvent(new adminWindow.Event('change', { bubbles: true }))
-  const phoneField = adminWindow.document.querySelector('#runtime-phone-field')
-  assert.equal(phoneField.hidden, false)
-  adminWindow.document.querySelector('#runtime-phone').value = '123'
-  adminWindow.document.querySelector('[data-action="runtime-start"]').click()
+  await waitFor(() => adminMain.textContent.includes('Universal Bot'), 'admin catalog')
+  click(adminWindow, '.bot-card [data-action="create-from-bot"]')
+  await waitFor(() => adminWindow.location.pathname === '/register' && adminMain.querySelector('.create-bot-page'), 'Create bot navigation')
+  assert.equal(adminMain.querySelector('#flow-name'), null)
+  assert.equal(adminMain.querySelector('#runtime-method').value, 'pairing-code', 'Pairing Code is the initial method')
+  assert.equal(adminMain.querySelector('#runtime-phone-field').hidden, false, 'Pairing Code asks for the number')
+  const botSelector = adminMain.querySelector('#create-bot-select')
+  assert.ok(botSelector, 'a selector is shown when more than one web runtime is available')
+  assert.equal(botSelector.value, 'universal-bot')
+  botSelector.value = 'zz-test-bot'
+  botSelector.dispatchEvent(new adminWindow.Event('change', { bubbles: true }))
+  assert.equal(adminMain.querySelector('[data-action="runtime-start"]').dataset.id, 'zz-test-bot')
+  const universalSelector = adminMain.querySelector('#create-bot-select')
+  universalSelector.value = 'universal-bot'
+  universalSelector.dispatchEvent(new adminWindow.Event('change', { bubbles: true }))
+
+  adminMain.querySelector('#runtime-phone').value = '123'
+  click(adminWindow, '[data-action="runtime-start"]')
   await waitFor(() => adminWindow.document.querySelector('#toast-stack')?.textContent.includes('teléfono internacional válido'), 'pairing phone validation')
   const noProcess = await (await fetch(`${context.origin}/api/runtime`, { headers: { Authorization: `Bearer ${adminToken}` } })).json()
   assert.equal(noProcess.runtimes.length, 0)
 
-  const otherWindow = await context.mount('/bots/universal-bot', { token: otherToken })
+  adminMain.querySelector('#runtime-phone').value = '+598 99 123 456'
+  click(adminWindow, '[data-action="runtime-start"]')
+  await waitFor(() => context.app.runtimeManager.list()[0]?.pairingCode === 'ABCD-1234', 'Pairing Code from Baileys')
+  const runtimePoll = adminWindow.__intervals.find((interval) => interval.delay === 3000)
+  assert.ok(runtimePoll, 'the runtime polling interval should be registered')
+  await runtimePoll.callback()
+  await waitFor(() => adminMain.querySelector('.runtime-code code')?.textContent === 'ABCD-1234', 'real Pairing Code event')
+  assert.match(adminMain.textContent, /Pairing Code de WhatsApp/)
+  const pairingStatus = await (await fetch(`${context.origin}/api/runtime`, { headers: { Authorization: `Bearer ${adminToken}` } })).json()
+  assert.equal(pairingStatus.runtimes[0].pairingCode, 'ABCD-1234')
+  assert.equal(JSON.stringify(pairingStatus).includes('59899123456'), false, 'the phone number is not returned or stored in runtime status')
+
+  click(adminWindow, '[data-action="runtime-stop"]')
+  await waitFor(() => adminMain.textContent.includes('Detenido'), 'stop Pairing Code runtime')
+  const method = adminMain.querySelector('#runtime-method')
+  method.value = 'qr'
+  method.dispatchEvent(new adminWindow.Event('change', { bubbles: true }))
+  assert.equal(adminMain.querySelector('#runtime-phone-field').hidden, true, 'QR does not require the phone number')
+  click(adminWindow, '[data-action="runtime-start"]')
+  await waitFor(() => Boolean(context.app.runtimeManager.list()[0]?.qrDataUrl), 'QR from Baileys')
+  await runtimePoll.callback()
+  await waitFor(() => adminMain.querySelector('.runtime-credential img')?.getAttribute('src').startsWith('data:image/png;base64,'), 'real QR event')
+  click(adminWindow, '[data-action="runtime-stop"]')
+  await waitFor(() => adminMain.textContent.includes('Detenido'), 'stop QR runtime')
+
+  const otherWindow = await context.mount('/register', { token: otherToken })
   const otherMain = otherWindow.document.querySelector('#main-content')
   await waitFor(() => otherMain.textContent.includes('Solo las cuentas administradoras'), 'non-admin runtime denial')
   assert.equal(otherWindow.document.querySelector('[data-action="runtime-start"]'), null)

@@ -1045,8 +1045,7 @@ code { font-family: var(--mono); }
   .profile-name { display: none; }
   .uhamburger.mobile-menu-toggle { display: inline-flex; }
   .main-content { padding-bottom: calc(var(--bottomnav-h) + 40px + env(safe-area-inset-bottom)); }
-  .main-content.is-wizard { padding-top: 12px; }
-  .main-content.is-wizard .wizard-footer-note { display: none; }
+  .main-content.is-create-bot { padding-top: 12px; }
 
   /* Menú desplegable de la landing */
   .landing-header .header-links.mobile-open {
@@ -1795,3 +1794,8 @@ body.dark-theme .runtime-credential { border-color: #37313e; }
   .runtime-actions { grid-column: 1; }
   .runtime-actions .btn { flex: 1 1 auto; }
 }
+
+.create-bot-page .page-heading { margin-bottom: 22px; }
+.create-bot-selector-card { margin: 0 0 18px; padding: 16px 20px; }
+.create-bot-selector { max-width: 420px; margin: 0; }
+.create-bot-selector .select-input { width: 100%; }

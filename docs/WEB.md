@@ -1,13 +1,13 @@
 # 🌐 MultiBot Web
 
-Panel responsive/PWA con la línea visual adaptada de [TomiOka](https://github.com/lyanvalentinmail-prog/TomiOka). Descubre los bots de `bots/`, administra perfiles y, cuando el manifiesto lo permite, controla un runtime web protegido.
+Panel responsive/PWA con la línea visual adaptada de [TomiOka](https://github.com/lyanvalentinmail-prog/TomiOka). Descubre bots de `bots/` y crea/inicia una vinculación real desde **Crear bot** (`/register`), cuando el manifiesto habilita runtime web protegido.
 
 > **Universal Bot admite dos modos:** Termux y runtime web autorizado. En web, Pairing Code/QR son los reales que entrega Baileys. El control está limitado a emails allowlisted y a **un proceso simultáneo** para respetar Render Free. No se ofrece garantía 24/7.
 
 ## Funciones
 
 - Catálogo y plugins descubiertos desde `bots/*`.
-- Cuentas del panel y perfiles guardados en PostgreSQL o JSON local.
+- Cuenta del panel en PostgreSQL o JSON local. El flujo web ya no crea perfiles de configuración.
 - Inicio/parada de procesos únicamente para bots que declaran `webRuntime: true` y un entrypoint web.
 - Presentación privada del QR o Pairing Code real, estado básico y registro reciente del runtime.
 - Enlace a la guía Termux como alternativa.
@@ -20,7 +20,7 @@ npm ci --prefix bots/universal-bot --omit=dev
 WEB_RUNTIME_ENABLED=true WEB_RUNTIME_ADMIN_EMAILS=tu-email@example.com npm start
 ```
 
-Abre `http://localhost:3000`, crea una cuenta con ese email y entra al detalle de Universal Bot. Si no defines `DATABASE_URL`, el panel usa `data/multibot-local.json`. El servidor Node no carga `.env` por sí solo; exporta las variables en la terminal o usa una herramienta dotenv. El proceso del bot debe poder acceder a Internet para conectar con WhatsApp.
+Abre `http://localhost:3000`, crea una cuenta con ese email, inicia sesión y abre **Crear bot**. Si no defines `DATABASE_URL`, el panel usa `data/multibot-local.json`. El servidor Node no carga `.env` por sí solo; exporta las variables en la terminal o usa una herramienta dotenv. El proceso del bot debe poder acceder a Internet para conectar con WhatsApp.
 
 ## Render Free
 
@@ -34,7 +34,7 @@ En Render: **New → Blueprint → selecciona el repositorio/rama MultiBot → A
 
 **Costos y límites aceptados:** el blueprint mantiene servicio web y base de datos en Free; no cambies a planes pagos. El web service Free tiene 512 MB de RAM y 0.1 CPU; el panel y Universal Bot comparten esos recursos, así que plugins de IA/OCR u otras tareas pesadas pueden quedarse sin memoria o tardar demasiado. Render Free puede suspender el servicio cuando está inactivo, reiniciarlo o desplegar una nueva versión. Los procesos de bots se detendrán en esos ciclos y la sesión de Baileys podría perderse. El filesystem de la instancia web es efímero: las credenciales se guardan localmente bajo `bots/universal-bot/sessions/`, no en PostgreSQL ni en un disco persistente. No se garantiza 24/7.
 
-PostgreSQL Free de Render vence a los **30 días**; exporta o migra tus cuentas/perfiles antes del vencimiento. Esta base de datos guarda datos del panel, nunca credenciales Baileys. Si la base se elimina y debes recrear la cuenta administradora, vacía temporalmente `WEB_RUNTIME_ADMIN_EMAILS`, registra la cuenta, vuelve a configurar la allowlist y reinicia. No se requiere ni se configura disco persistente.
+PostgreSQL Free de Render vence a los **30 días**; exporta o migra tus cuentas y cualquier configuración antigua antes del vencimiento. Esta base de datos guarda datos del panel, nunca credenciales Baileys. Si la base se elimina y debes recrear la cuenta administradora, vacía temporalmente `WEB_RUNTIME_ADMIN_EMAILS`, registra la cuenta, vuelve a configurar la allowlist y reinicia. No se requiere ni se configura disco persistente.
 
 ### Variables de entorno
 
@@ -55,10 +55,10 @@ Las variables `BOT_UNIVERSAL_BOT_*` se pasan solo al proceso hijo de Universal B
 ## Iniciar desde la web
 
 1. Despliega el Blueprint y agrega el email de tu cuenta a `WEB_RUNTIME_ADMIN_EMAILS` en Render.
-2. Entra al panel con esa cuenta y abre **Bots → Universal Bot → Ejecutar en la web**.
-3. Selecciona **Código QR real** o **Pairing Code real**. Para pairing ingresa el número internacional que recibirá el código; no se guarda en el perfil.
-4. Inicia el proceso. Escanea el QR o introduce el código en WhatsApp → Dispositivos vinculados. Cuando se vincule, el panel mostrará el estado conectado.
-5. Pulsa **Detener** para cerrar el proceso. Solo se permite un runtime a la vez en esta versión.
+2. Entra al panel con esa cuenta, abre **Crear bot** y selecciona Universal Bot.
+3. Elige **Pairing Code real** o **Código QR real**. Para Pairing Code ingresa tu número en formato internacional (con prefijo de país); para QR no necesitas escribirlo.
+4. Pulsa **Crear bot y vincular**. El panel muestra el Pairing Code o QR real que llega desde Baileys. Escanea el QR o introduce el código en WhatsApp → Dispositivos vinculados.
+5. Cuando se vincule, el panel indicará el estado conectado. Usa **Detener** para cerrar el proceso. Solo se permite un runtime a la vez.
 
 El QR, Pairing Code y logs son información sensible: solo el email administrador configurado debe tener acceso. No compartas capturas/códigos. La cuenta administradora y el teléfono de pairing son conceptos distintos. La interfaz no inventa códigos: el código mostrado proviene del proceso Baileys.
 
@@ -66,8 +66,8 @@ El runtime ejecuta `bots/universal-bot/main.js` directamente (no el wrapper `ind
 
 ## Datos y privacidad
 
-- PostgreSQL/JSON guarda cuentas del panel, hash scrypt de contraseñas, hash del token de sesión y preferencias de perfiles.
-- El teléfono de pairing se envía al endpoint protegido para solicitar un código; no se añade al perfil ni se devuelve en el estado.
+- PostgreSQL/JSON guarda cuentas del panel, hash scrypt de contraseñas, hash del token de sesión y datos heredados creados a través de la API de instancias. La interfaz **Crear bot** no crea perfiles.
+- El teléfono de Pairing Code se envía al endpoint protegido para solicitarlo; no se guarda en la base de datos ni se devuelve en el estado.
 - QR y Pairing Code se mantienen temporalmente en memoria del proceso web y solo se devuelven a una cuenta allowlisted.
 - Las credenciales de Baileys se escriben en el filesystem efímero del servicio web. Render puede borrarlas al suspender, reiniciar o desplegar; no hay promesa de conservación.
 - Los logs visibles al administrador se limitan y filtran; no contienen la carga del evento QR/Pairing Code.
@@ -80,7 +80,7 @@ El runtime ejecuta `bots/universal-bot/main.js` directamente (no el wrapper `ind
 | Método | Ruta | Auth | Uso |
 |---|---|---:|---|
 | GET | `/api/health` | No | Salud web/base de datos. |
-| GET | `/api/state` | Opcional | Catálogo y perfiles propios. |
+| GET | `/api/state` | Opcional | Catálogo y datos heredados de instancias propias. |
 | GET | `/api/system` | No | Métricas del proceso web, base y catálogo. |
 | GET | `/api/bots` | No | Lista bots del repositorio. |
 | GET | `/api/bots/:id` | No | Detalles y plugins. |
@@ -92,10 +92,10 @@ El runtime ejecuta `bots/universal-bot/main.js` directamente (no el wrapper `ind
 | POST | `/api/auth/login` | No | Inicia sesión. |
 | POST | `/api/auth/logout` | Sí | Revoca la sesión actual. |
 | GET | `/api/auth/me` | Sí | Devuelve la cuenta actual. |
-| GET/POST | `/api/instances` | Sí | Lista/crea perfiles de configuración. |
-| GET/PATCH/DELETE | `/api/instances/:id` | Sí | Lee/edita/elimina un perfil propio. |
+| GET/POST | `/api/instances` | Sí | API heredada de configuraciones; no forma parte del flujo web Crear bot. |
+| GET/PATCH/DELETE | `/api/instances/:id` | Sí | API heredada para configuraciones propias. |
 
-Los perfiles son preferencias, no procesos. Las rutas antiguas `/api/instances/:id/pairing` y `/qr` no inician un bot; usa el endpoint del runtime asociado al id del bot.
+Las rutas `/api/instances` se conservan por compatibilidad con datos/clientes anteriores; no inician procesos ni las usa la interfaz de creación. Para conectar WhatsApp, usa **Crear bot** o los endpoints de runtime. Las rutas antiguas `/api/instances/:id/pairing` y `/qr` no inician un bot.
 
 ## Atribución
 
