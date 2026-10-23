@@ -228,3 +228,51 @@ test('termux-go: sintaxis válida; clona, actualiza y respalda sin borrar', asyn
   assert.ok(backup, 'debió crear un respaldo con fecha')
   assert.equal(await readFile(path.join(work, backup, 'sessions.txt'), 'utf8'), 'mi-sesion')
 })
+
+test('termux terminal: --install corre npm install en el bot y verifica (fakes)', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'multibot-install-root-'))
+  const home = await mkdtemp(path.join(os.tmpdir(), 'multibot-install-home-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  t.after(() => rm(home, { recursive: true, force: true }))
+
+  const botDir = path.join(root, 'bots', 'fake-bot')
+  await mkdir(botDir, { recursive: true })
+  await writeFile(path.join(root, 'termux.sh'), await readFile(terminal, 'utf8'))
+  await writeFile(path.join(botDir, 'package.json'), JSON.stringify({ name: 'fake-bot' }))
+  await writeFile(path.join(botDir, 'index.js'), 'console.log("demo")\n')
+
+  // npm + ffmpeg + convert falsos para no tocar la red.
+  const bindir = path.join(root, 'bin')
+  await mkdir(bindir, { recursive: true })
+  await writeFile(
+    path.join(bindir, 'npm'),
+    `#!/usr/bin/env bash\necho "NPM $* (en $PWD)" >> "${path.join(root, 'npm.log')}"\nmkdir -p "$PWD/node_modules/@whiskeysockets/baileys"\nexit 0\n`,
+    { mode: 0o755 },
+  )
+  await writeFile(path.join(bindir, 'ffmpeg'), '#!/usr/bin/env bash\necho "ffmpeg version fake"\n', { mode: 0o755 })
+  await writeFile(path.join(bindir, 'convert'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 })
+
+  const result = spawnSync('bash', [path.join(root, 'termux.sh'), '--bot', 'fake-bot', '--install'], {
+    cwd: root, encoding: 'utf8', timeout: 60000,
+    env: { ...process.env, HOME: home, TERM: 'dumb', PATH: `${bindir}${path.delimiter}${process.env.PATH}` },
+  })
+  assert.equal(result.status, 0, result.stderr)
+  const log = await readFile(path.join(root, 'npm.log'), 'utf8')
+  assert.ok(log.includes('NPM install'), log)
+  assert.ok(log.includes(`en ${botDir}`), log)
+  assert.match(result.stdout, /ffmpeg listo/)
+  assert.match(result.stdout, /ImageMagick listo/)
+  assert.match(result.stdout, /Baileys instalado/)
+  assert.match(result.stdout, /Todo instalado/)
+})
+
+test('termux terminal: instalación cubre sistema + npm + sharp', async () => {
+  const source = await readFile(terminal, 'utf8')
+  assert.match(source, /install_termux_system/)
+  for (const pkg of ['nodejs-lts', 'ffmpeg', 'imagemagick', 'git', 'python', 'make', 'clang', 'pkg-config']) {
+    assert.ok(source.includes(`"${pkg}"`), `falta paquete ${pkg}`)
+  }
+  assert.match(source, /npm install --no-audit --no-fund/)
+  assert.match(source, /npm run fix:sharp/)
+  assert.match(source, /Node v\$major muy viejo/)
+})

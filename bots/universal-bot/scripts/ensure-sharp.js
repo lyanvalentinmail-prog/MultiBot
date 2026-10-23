@@ -67,7 +67,7 @@ async function main() {
   if (!ok) {
     console.error('[sharp] instalación WASM falló')
     console.error('[sharp] ejecuta a mano en Termux:')
-    console.error('  cd ~/pain-bot')
+    console.error('  cd ~/MultiBot/bots/universal-bot')
     console.error('  npm install --cpu=wasm32 sharp@0.35.5 @img/sharp-wasm32@0.35.5 --no-bin-links')
     if (isTermuxOrAndroid()) {
       console.error('[sharp] el bot arrancará, pero plugins de imagen (ocr, stickers, hd…) pueden fallar')
