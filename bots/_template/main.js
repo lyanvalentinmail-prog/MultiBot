@@ -56,11 +56,23 @@ let conn = global.conn
 
 async function handleLogin(){
   if(conn.authState.creds.registered){ console.log(chalk.green('Sesión ya registrada.')); return }
-  let method = await question(chalk.green('¿Cómo deseas iniciar sesión? Escribe "qr" o "code":\n'))
+  // La terminal MultiBot (termux.sh) puede preseleccionar con
+  // MULTIBOT_LOGIN_METHOD=qr|code y MULTIBOT_LOGIN_PHONE=<número>.
+  const preset = String(process.env.MULTIBOT_LOGIN_METHOD || '').toLowerCase().trim()
+  const usePreset = preset === 'qr' || preset === 'code' || preset === 'pairing-code'
+  let method = usePreset ? preset : await question(chalk.green('¿Cómo deseas iniciar sesión? Escribe "qr" o "code":\n'))
   method = method.toLowerCase().trim()
-  if(method==='code'){
-    let phone = await question(chalk.blue('Número con código país (ej: 521XXXXXXXXXX):\n'))
-    phone = phone.replace(/\D/g,'')
+  if(usePreset) console.log(chalk.gray(`· Método elegido en la terminal: ${method === 'qr' ? 'qr' : 'code'}`))
+  if(method==='code' || method==='pairing-code'){
+    const presetPhone = String(process.env.MULTIBOT_LOGIN_PHONE || '').replace(/\D/g,'')
+    let phone = presetPhone
+    if(phone.length < 8 || phone.length > 15){
+      if(presetPhone) console.log(chalk.yellow('El número guardado en la terminal no es válido, escríbelo de nuevo.'))
+      phone = (await question(chalk.blue('Número con código país (ej: 521XXXXXXXXXX):\n'))).replace(/\D/g,'')
+    } else {
+      console.log(chalk.gray(`· Número desde la terminal: ${phone}`))
+    }
+    if(phone.length < 8 || phone.length > 15){ console.log(chalk.red('Número no válido (8-15 dígitos con código de país).')); return }
     if(conn.ws.readyState===ws.OPEN){
       try{ let code = await conn.requestPairingCode(phone); code = code?.match(/.{1,4}/g)?.join('-') || code; console.log(chalk.cyan('Tu código:', code)) } catch(e){ console.log(chalk.red('Error pairing:', e.message)) }
     } else console.log(chalk.red('Conexión no abierta, reintenta.'))

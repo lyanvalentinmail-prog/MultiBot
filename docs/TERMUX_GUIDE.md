@@ -1,6 +1,9 @@
 # 📱 Guía Termux — Universal Bot
 
 > Esta guía es para **Universal Bot** (`bots/universal-bot`) que solo corre en **Termux**.
+> ¿Quieres lo fácil? Usa la **terminal personalizada**: desde la raíz del repo
+> ejecuta `bash termux.sh` — menú para elegir bot, pedir Pairing Code o QR,
+> configurar e instalar todo. Detalles en [`TERMUX_TERMINAL.md`](TERMUX_TERMINAL.md).
 
 ## Requisitos
 
