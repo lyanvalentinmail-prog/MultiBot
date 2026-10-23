@@ -16,6 +16,42 @@ bash termux.sh
 ```
 
 > También funciona con `./termux.sh` (ya tiene permiso de ejecución).
+>
+> **¿Estás dentro de `bots/universal-bot`?** No importa: desde esa carpeta
+> `bash termux.sh` también funciona, hay un acceso directo que abre la
+> terminal real con los mismos argumentos.
+
+## ❓ Error: «bash: termux.sh: No such file or directory»
+
+Pasa por una de estas causas (de más a menos común):
+
+1. **Estás en la carpeta equivocada.** Las guías viejas te mandan a
+   `cd MultiBot/bots/universal-bot`, pero `termux.sh` vive en la **raíz**.
+   Solución:
+   ```bash
+   cd ~/MultiBot && bash termux.sh
+   ```
+2. **Tu clon está desactualizado** (la terminal se agregó después de tu
+   `git clone`). Solución:
+   ```bash
+   cd ~/MultiBot && git pull && bash termux.sh
+   ```
+3. **Descargaste el ZIP** o tu carpeta no es un clon git. Solución: el
+   instalador de un comando (abajo).
+
+### Arreglo en un solo comando
+
+Pega esto en Termux — clona o actualiza el repo y abre la terminal.
+Si tu carpeta existe pero no es un clon, la **respalda con fecha en vez de
+borrarla** (tu sesión queda a salvo):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/lyanvalentinmail-prog/MultiBot/main/scripts/termux-go.sh)
+```
+
+> Si falta `curl`: `pkg install curl -y`. Si falta `git`:
+> `pkg install git -y`. Acepta argumentos: agrégale `--qr` o
+> `--code 59899123456` al final.
 
 ## Menú principal
 

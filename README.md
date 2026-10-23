@@ -12,6 +12,7 @@ MultiBot/
 ├── web/                     # SPA/PWA MultiBot (diseño adaptado de TomiOka)
 ├── scripts/serve-web.js     # Servidor/API del catálogo, cuentas y runtime (más rutas heredadas)
 ├── scripts/web-runtime.js   # Gestión protegida de procesos hijos
+├── scripts/termux-go.sh     # Bootstrap de un comando: clona/actualiza y abre la terminal
 ├── data/                    # Fallback local ignorado por Git
 ├── docs/                    # Guías de repositorio, Termux y web
 ├── termux.sh                # Terminal personalizada Termux (menú, QR, pairing code)
@@ -59,6 +60,12 @@ bash termux.sh            # menú: elegir bot, QR, pairing code, config…
 bash termux.sh --code 59899123456   # atajo directo a pairing code
 bash termux.sh --qr                 # atajo directo a QR
 ```
+
+> `bash termux.sh` también funciona desde dentro de `bots/*/`
+> (hay un acceso directo que abre la terminal real). ¿Error
+> «No such file or directory»? Haz `cd ~/MultiBot && git pull`, o reinstala
+> con un comando:
+> `bash <(curl -fsSL https://raw.githubusercontent.com/lyanvalentinmail-prog/MultiBot/main/scripts/termux-go.sh)`
 
 Guía completa: [`docs/TERMUX_TERMINAL.md`](docs/TERMUX_TERMINAL.md)
 

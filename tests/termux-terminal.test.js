@@ -144,3 +144,87 @@ test('bots: main.js acepta método/número preseleccionados de la terminal', asy
     assert.match(source, /MULTIBOT_LOGIN_PHONE/, entry)
   }
 })
+
+test('termux forwarder: desde la carpeta del bot abre la terminal raíz con args', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'multibot-fwd-root-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  const botDir = path.join(root, 'bots', 'demo-bot')
+  await mkdir(botDir, { recursive: true })
+  await writeFile(path.join(root, 'termux.sh'), await readFile(terminal, 'utf8'))
+  await writeFile(path.join(botDir, 'termux.sh'), await readFile(path.join(repoRoot, 'bots', 'universal-bot', 'termux.sh'), 'utf8'))
+  await writeFile(path.join(botDir, 'package.json'), JSON.stringify({ name: 'demo-bot' }))
+  await writeFile(path.join(botDir, 'index.js'), 'console.log("demo")\n')
+
+  const result = spawnSync('bash', ['termux.sh', '--list-bots'], {
+    cwd: botDir, encoding: 'utf8',
+    env: { ...process.env, HOME: root, TERM: 'dumb' },
+    timeout: 60000,
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /demo-bot/)
+})
+
+test('termux forwarder: sin terminal raíz explica cómo arreglarlo', async (t) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'multibot-fwd-orphan-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  await writeFile(path.join(dir, 'termux.sh'), await readFile(path.join(repoRoot, 'bots', 'universal-bot', 'termux.sh'), 'utf8'))
+
+  const result = spawnSync('bash', ['termux.sh'], {
+    cwd: dir, encoding: 'utf8',
+    env: { ...process.env, HOME: dir, TERM: 'dumb', GIT_CEILING_DIRECTORIES: dir },
+    timeout: 60000,
+  })
+  assert.notEqual(result.status, 0)
+  assert.match(result.stderr, /No encontré la terminal/)
+  assert.match(result.stderr, /termux-go\.sh/)
+})
+
+test('termux forwarder: el de _template es idéntico (se propaga a bots nuevos)', async () => {
+  const [a, b] = await Promise.all([
+    readFile(path.join(repoRoot, 'bots', 'universal-bot', 'termux.sh'), 'utf8'),
+    readFile(path.join(repoRoot, 'bots', '_template', 'termux.sh'), 'utf8'),
+  ])
+  assert.equal(a, b)
+})
+
+test('termux-go: sintaxis válida; clona, actualiza y respalda sin borrar', async (t) => {
+  const syntax = spawnSync('bash', ['-n', path.join(repoRoot, 'scripts', 'termux-go.sh')], { encoding: 'utf8' })
+  assert.equal(syntax.status, 0, syntax.stderr)
+
+  // Repo "remoto" local con un termux.sh de mentira.
+  const remote = await mkdtemp(path.join(os.tmpdir(), 'multibot-go-remote-'))
+  t.after(() => rm(remote, { recursive: true, force: true }))
+  await writeFile(path.join(remote, 'termux.sh'), '#!/usr/bin/env bash\necho GO-OK "$@"\n')
+  const git = (...args) => spawnSync('git', ['-C', remote, '-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { encoding: 'utf8' })
+  git('init', '-q'); git('add', '.'); git('commit', '-qm', 'init')
+
+  const work = await mkdtemp(path.join(os.tmpdir(), 'multibot-go-work-'))
+  t.after(() => rm(work, { recursive: true, force: true }))
+  const run = (dest, args = []) => spawnSync('bash', [path.join(repoRoot, 'scripts', 'termux-go.sh'), ...args], {
+    cwd: work, encoding: 'utf8', timeout: 120000,
+    env: { ...process.env, HOME: work, TERM: 'dumb', MULTIBOT_DIR: dest, MULTIBOT_REPO_URL: remote },
+  })
+
+  // 1) Clona y ejecuta pasando args.
+  const fresh = path.join(work, 'MultiBot')
+  const cloned = run(fresh, ['--qr'])
+  assert.equal(cloned.status, 0, cloned.stderr)
+  assert.match(cloned.stdout, /GO-OK --qr/)
+
+  // 2) Segunda vez: actualiza y ejecuta.
+  const updated = run(fresh, ['--code', '123'])
+  assert.equal(updated.status, 0, updated.stderr)
+  assert.match(updated.stdout, /GO-OK --code 123/)
+
+  // 3) Carpeta existente que no es git → la respalda, no la borra.
+  const plain = path.join(work, 'Plain')
+  await mkdir(plain, { recursive: true })
+  await writeFile(path.join(plain, 'sessions.txt'), 'mi-sesion')
+  const rescued = run(plain, ['--qr'])
+  assert.equal(rescued.status, 0, rescued.stderr)
+  assert.match(rescued.stdout, /GO-OK --qr/)
+  const { readdir } = await import('node:fs/promises')
+  const backup = (await readdir(work)).find((name) => name.startsWith('Plain.respaldo-'))
+  assert.ok(backup, 'debió crear un respaldo con fecha')
+  assert.equal(await readFile(path.join(work, backup, 'sessions.txt'), 'utf8'), 'mi-sesion')
+})
