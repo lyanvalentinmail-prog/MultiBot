@@ -151,11 +151,46 @@ async function enviarRespuestaCategoria(conn, m, contexto, categorias, categoria
   }
 }
 
+async function enviarMenuLista(conn, m, contexto, categorias, encabezado) {
+  await conn.sendFile(m.chat, contexto.mainImg, 'menu.jpg', encabezado, m, null, {
+    contextInfo: {
+      ...rcanal.contextInfo,
+      mentionedJid: [m.sender],
+    },
+  })
+  try {
+    await conn.sendListLia(
+      m.chat,
+      '𓂃 ࣪ ִֶָ☾. 𝙼𝙴𝙽𝚄',
+      '𓂃 ࣪ ִֶָ☾. 𝙴𝙻𝙸𝙶𝙴 𝚄𝙽𝙰 𝙲𝙰𝚃𝙴𝙶𝙾𝚁Í𝙰 𝚙𝚊𝚛𝚊 𝚟𝚎𝚛 𝚜𝚞𝚜 𝚌𝚘𝚖𝚊𝚗𝚍𝚘𝚜.',
+      MENU_BUTTON_TEXT,
+      buildListSections(categorias),
+      m,
+      { footer: contexto.nombreBot },
+    )
+  } catch (errorLista) {
+    console.error('Menú lista falló, enviando texto completo:', errorLista?.message || errorLista)
+    await conn.sendMessage(m.chat, {
+      text: buildFullMenuText(m, contexto, categorias),
+      contextInfo: {
+        ...rcanal.contextInfo,
+        mentionedJid: [m.sender],
+      },
+    }, { quoted: m })
+  }
+}
+
 const handler = async (m, { conn, usedPrefix }) => {
   try {
     const contexto = await resolveMenuContext(m, conn, usedPrefix)
     const categorias = buildMenuCategories(contexto)
     const encabezado = buildMenuHeader(m, contexto)
+
+    // Terminal → Personalizar bot → "Menú de lista" (global.menuLista).
+    if (global.menuLista === true) {
+      await enviarMenuLista(conn, m, contexto, categorias, encabezado)
+      return
+    }
 
     if (!isInteractiveBaileysEnabled()) {
       const texto = buildFullMenuText(m, contexto, categorias)

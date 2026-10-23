@@ -10,6 +10,7 @@
  */
 
 import { aplicarQuotedVerificado } from './quoted-verificado.js'
+import { aplicarPreferenciaReenviado } from './salida.js'
 
 export const BAILEYS_WHISKEY = '@whiskeysockets/baileys'
 export const BAILEYS_LIA = '@itsliaaa/baileys'
@@ -54,6 +55,8 @@ export async function enviarViaLia(conn, jid, content, options = {}) {
   try {
     const esEdicion = !!(content && typeof content === 'object' && content.edit)
     const opciones = await aplicarQuotedVerificado(conn, options || {})
+    // Terminal → Personalizar bot → "Mensajes reenviados" (global.mensajesReenviados).
+    content = aplicarPreferenciaReenviado(content)
     const msg = await generateWAMessage(jid, content, {
       userJid: conn.user?.id || conn.user?.jid,
       upload: conn.waUploadToServer,

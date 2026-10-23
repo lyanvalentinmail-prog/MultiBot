@@ -59,6 +59,7 @@ cd MultiBot
 bash termux.sh            # menú: elegir bot, QR, pairing code, config…
 bash termux.sh --code 59899123456   # atajo directo a pairing code
 bash termux.sh --qr                 # atajo directo a QR
+bash termux.sh --customize          # personalizar bot: stickers, moneda, banner, owners…
 ```
 
 > `bash termux.sh` también funciona desde dentro de `bots/*/`

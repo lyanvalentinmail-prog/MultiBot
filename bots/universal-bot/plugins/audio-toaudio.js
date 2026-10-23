@@ -105,16 +105,10 @@ let handler = async (m, { conn }) => {
       throw new Error('El audio generado está vacío.')
     }
 
-    await conn.sendMessage(
-      m.chat,
-      {
-        audio: bufer,
-        mimetype: 'audio/mpeg',
-        fileName: `audio-${id}.mp3`,
-        ptt: false
-      },
-      { quoted: m }
-    )
+    await conn.sendAudio(m.chat, bufer, {
+      fileName: `audio-${id}.mp3`,
+      quoted: m
+    })
   } catch (err) {
     console.error('Error en /audio:', err)
     try {

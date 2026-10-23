@@ -57,7 +57,8 @@ title() { printf '\n%b%b%s%b\n' "$C_BOLD" "$C_CYAN" "$*" "$C_RESET"; }
 read_input() {
   local __var="$1" __line=""
   if [ -c /dev/tty ]; then
-    if IFS= read -r __line < /dev/tty 2>/dev/null; then
+    # Ojo: 2>/dev/null VA PRIMERO para silenciar el fallo de < /dev/tty.
+    if IFS= read -r __line 2>/dev/null < /dev/tty; then
       printf -v "$__var" '%s' "$__line"; return 0
     fi
     # /dev/tty existe pero no se puede abrir (sandbox/CI) → usa stdin
@@ -418,6 +419,192 @@ EOF
 }
 
 # ── Menú principal ─────────────────────────────────────────────────
+# ── Personalizar bot (terminal → bot-settings.js) ────────────────────
+CUSTOM_CFG=""
+bsettings() { # $1=id, resto args → corre scripts/bot-settings.js del bot
+  local id="$1"; shift
+  (cd "$BOTS_DIR/$id" && node scripts/bot-settings.js "$@")
+}
+cs_val() { printf '%s' "$CUSTOM_CFG" | grep -m1 "^$1=" | cut -d= -f2-; }
+cs_onoff() {
+  if [ "$(cs_val "$1")" = "true" ]; then printf '%bON%b' "$C_GREEN" "$C_RESET"
+  else printf '%bOFF%b' "$C_RED" "$C_RESET"; fi
+}
+cs_toggle() { # $1=id $2=key $3=etiqueta
+  if [ "$(cs_val "$2")" = "true" ]; then
+    bsettings "$1" set "$2" off >/dev/null && ok "$3: OFF" || err "No se pudo guardar."
+  else
+    bsettings "$1" set "$2" on >/dev/null && ok "$3: ON" || err "No se pudo guardar."
+  fi
+}
+cs_edit() { # $1=id $2=key $3=etiqueta $4=mayúsculas(0/1)
+  local cur; cur="$(cs_val "$2")"
+  printf '%s [%b%s%b]: ' "$3" "$C_GREEN" "${cur:-—}" "$C_RESET"
+  local v; read_input v || return 1
+  v="$(printf '%s' "$v" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  [ -z "$v" ] && { info "Sin cambios."; return 0; }
+  [ "${4:-0}" = "1" ] && v="$(printf '%s' "$v" | tr '[:lower:]' '[:upper:]')"
+  if bsettings "$1" set "$2" "$v" >/dev/null 2>&1; then ok "$3 → $v"
+  else err "No se pudo guardar."; fi
+}
+
+cs_banner() { # $1=id
+  local id="$1" dir="$BOTS_DIR/$1"
+  while true; do
+    CUSTOM_CFG="$(bsettings "$id" list 2>/dev/null)"
+    local cur; cur="$(cs_val botBanner)"; [ -z "$cur" ] && cur="(banner por defecto 🐱)"
+    banner
+    printf '%b🖼️  Banner del bot: %b%s%b\n\n' "$C_BOLD" "$C_MAGENTA" "$id" "$C_RESET"
+    printf '  Actual: %b%s%b\n\n' "$C_CYAN" "$cur" "$C_RESET"
+    printf '%b  1)%b 🐱 Restaurar banner por defecto\n' "$C_YELLOW" "$C_RESET"
+    printf '%b  2)%b 🖼️  Poner imagen local (ej. ~/Download/mi-banner.jpg)\n' "$C_YELLOW" "$C_RESET"
+    printf '%b  3)%b 🔗 Poner URL de imagen (https://...)\n' "$C_YELLOW" "$C_RESET"
+    printf '%b  0)%b ↩ Volver\n' "$C_YELLOW" "$C_RESET"
+    printf '\nElige: '
+    local opt; read_input opt || return 0
+    case "$opt" in
+      1) bsettings "$id" set botBanner >/dev/null 2>&1 && ok "Banner restaurado." || err "No se pudo."; sleep 1 ;;
+      2)
+        printf 'Ruta de la imagen: '
+        local ruta; read_input ruta || continue
+        ruta="$(printf '%s' "$ruta" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        ruta="${ruta/#\~/$HOME}"
+        if [ ! -f "$ruta" ]; then err "No existe ese archivo."; sleep 1; continue; fi
+        local size; size="$(wc -c < "$ruta" 2>/dev/null || echo 0)"
+        if [ "$size" -gt 5242880 ]; then err "Muy pesada (>5 MB), usa una más liviana."; sleep 1; continue; fi
+        local ext; ext="$(printf '%s' "$ruta" | sed 's/.*\.//;s/.*/\L&/')"
+        case "$ext" in jpg|jpeg|png|webp) ;; *) warn "Extensión .$ext (ojalá sea imagen válida)..."; ;; esac
+        mkdir -p "$dir/storage/img"
+        rm -f "$dir"/storage/img/banner-custom.*
+        cp "$ruta" "$dir/storage/img/banner-custom.$ext" || { err "No se pudo copiar."; sleep 1; continue; }
+        bsettings "$id" set botBanner "./storage/img/banner-custom.$ext" >/dev/null 2>&1           && ok "Banner actualizado." || err "Se copió pero no se guardó en config."
+        sleep 1 ;;
+      3)
+        printf 'URL https:// de la imagen: '
+        local url; read_input url || continue
+        url="$(printf '%s' "$url" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        if [[ "$url" != http* ]]; then err "Debe empezar con http(s)://"; sleep 1; continue; fi
+        bsettings "$id" set botBanner "$url" >/dev/null 2>&1 && ok "Banner actualizado." || err "No se pudo."
+        sleep 1 ;;
+      0) return 0 ;;
+      *) err "Opción no válida."; sleep 1 ;;
+    esac
+  done
+}
+
+cs_owners() { # $1=id
+  local id="$1"
+  while true; do
+    CUSTOM_CFG="$(bsettings "$id" list 2>/dev/null)"
+    banner
+    printf '%b👑 Owners y admins: %b%s%b\n\n' "$C_BOLD" "$C_MAGENTA" "$id" "$C_RESET"
+    printf '%bOwners:%b\n' "$C_BOLD" "$C_RESET"
+    local olines; olines="$(printf '%s' "$CUSTOM_CFG" | grep "^owner\." | cut -d= -f2-)"
+    if [ -z "$olines" ]; then printf '  (nadie — el bot necesita un owner)\n'
+    else printf '%s\n' "$olines" | nl -w2 -s') ' | sed 's/^/  /'; fi
+    printf '%bAdmins (mods):%b\n' "$C_BOLD" "$C_RESET"
+    local mlines; mlines="$(printf '%s' "$CUSTOM_CFG" | grep "^mod\." | cut -d= -f2-)"
+    if [ -z "$mlines" ]; then printf '  (nadie)\n'
+    else printf '%s\n' "$mlines" | nl -w2 -s') ' | sed 's/^/  /'; fi
+    printf '\n%b  1)%b ➕ Agregar owner\n' "$C_YELLOW" "$C_RESET"
+    printf '%b  2)%b ➖ Quitar owner\n' "$C_YELLOW" "$C_RESET"
+    printf '%b  3)%b ➕ Agregar admin (mod)\n' "$C_YELLOW" "$C_RESET"
+    printf '%b  4)%b ➖ Quitar admin (mod)\n' "$C_YELLOW" "$C_RESET"
+    printf '%b  0)%b ↩ Volver\n' "$C_YELLOW" "$C_RESET"
+    printf '\nElige: '
+    local opt; read_input opt || return 0
+    case "$opt" in
+      1)
+        printf 'Nombre del owner: '
+        local name; read_input name || continue
+        local phone; phone="$(ask_phone)" || continue
+        bsettings "$id" owner-add "$phone" "${name:-Owner}" >/dev/null 2>&1           && ok "Owner $phone agregado." || err "No se pudo."
+        sleep 1 ;;
+      2)
+        [ -z "$olines" ] && { info "No hay owners."; sleep 1; continue; }
+        printf 'Número de la lista a quitar: '
+        local n; read_input n || continue
+        local line; line="$(printf '%s\n' "$olines" | sed -n "${n}p")"
+        local phone; phone="$(printf '%s' "$line" | cut -d'|' -f1)"
+        [ -z "$phone" ] && { err "Opción no válida."; sleep 1; continue; }
+        bsettings "$id" owner-del "$phone" >/dev/null 2>&1 && ok "Owner $phone quitado." || err "No se pudo."
+        sleep 1 ;;
+      3)
+        local phone; phone="$(ask_phone)" || continue
+        bsettings "$id" mod-add "$phone" >/dev/null 2>&1 && ok "Admin $phone agregado." || err "No se pudo."
+        sleep 1 ;;
+      4)
+        [ -z "$mlines" ] && { info "No hay admins."; sleep 1; continue; }
+        printf 'Número de la lista a quitar: '
+        local n; read_input n || continue
+        local phone; phone="$(printf '%s\n' "$mlines" | sed -n "${n}p")"
+        [ -z "$phone" ] && { err "Opción no válida."; sleep 1; continue; }
+        bsettings "$id" mod-del "$phone" >/dev/null 2>&1 && ok "Admin $phone quitado." || err "No se pudo."
+        sleep 1 ;;
+      0) return 0 ;;
+      *) err "Opción no válida."; sleep 1 ;;
+    esac
+  done
+}
+
+cmd_customize() { # $1 = bot id
+  local id="$1" dir="$BOTS_DIR/$1"
+  if [ ! -f "$dir/scripts/bot-settings.js" ]; then
+    err "Este bot no trae personalización (falta scripts/bot-settings.js)."
+    return 1
+  fi
+  if ! command -v node >/dev/null 2>&1; then err "Falta node."; return 1; fi
+  while true; do
+    CUSTOM_CFG="$(bsettings "$id" list 2>/dev/null)"
+    [ -n "$CUSTOM_CFG" ] || { err "No se pudo leer la config del bot."; return 1; }
+    local nowners nmods; nowners=$(printf '%s' "$CUSTOM_CFG" | grep -c "^owner\."); nmods=$(printf '%s' "$CUSTOM_CFG" | grep -c "^mod\.")
+    local bannerCur; bannerCur="$(cs_val botBanner)"; [ -z "$bannerCur" ] && bannerCur="(defecto 🐱)"
+    local resp; [ "$(cs_val quotedVerificado)" = "true" ] && resp="estado 📢" || resp="responder 💬"
+    banner
+    printf '%b🎛 Personalizar bot: %b%s%b\n\n' "$C_BOLD" "$C_MAGENTA" "$id" "$C_RESET"
+    printf '%b  1)%b ✏️  Nombre del bot ...... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val namebot)" "$C_RESET"
+    printf '%b  2)%b 📦 Nombre de stickers ... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val packname)" "$C_RESET"
+    printf '%b  3)%b 👤 Autor de stickers .... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val author)" "$C_RESET"
+    printf '%b  4)%b 💰 Moneda ............... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val moneda)" "$C_RESET"
+    printf '%b  5)%b 🖼️  Banner ............... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$bannerCur" "$C_RESET"
+    printf '%b  6)%b 👑 Owners/admins ....... %b%s owner(s) · %s admin(s)%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$nowners" "$nmods" "$C_RESET"
+    printf '%b  7)%b ⚡ Comandos ............. %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff comandosEnabled)"
+    printf '%b  8)%b 📨 Reenviados ........... %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff mensajesReenviados)"
+    printf '%b  9)%b 💬 Responder como ....... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$resp" "$C_RESET"
+    printf '%b 10)%b 📋 Menú de lista ........ %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff menuLista)"
+    printf '%b 11)%b 📄 Ver todo\n' "$C_YELLOW" "$C_RESET"
+    printf '%b  0)%b ↩ Volver\n' "$C_YELLOW" "$C_RESET"
+    printf '\nElige: '
+    local opt; read_input opt || return 0
+    case "$opt" in
+      1) cs_edit "$id" namebot "Nombre del bot"; sleep 1 ;;
+      2) cs_edit "$id" packname "Nombre de stickers"; sleep 1 ;;
+      3) cs_edit "$id" author "Autor de stickers"; sleep 1 ;;
+      4) cs_edit "$id" moneda "Moneda (ej. USD, UYU, MXN)" 1; sleep 1 ;;
+      5) cs_banner "$id" ;;
+      6) cs_owners "$id" ;;
+      7) cs_toggle "$id" comandosEnabled "Comandos"; sleep 1 ;;
+      8) cs_toggle "$id" mensajesReenviados "Reenviados"; sleep 1 ;;
+      9)
+        printf 'Responder como: %b1)%b estado 📢  %b2)%b responder citando 💬 : ' "$C_YELLOW" "$C_RESET" "$C_YELLOW" "$C_RESET"
+        local modo; read_input modo || continue
+        case "$modo" in
+          1) bsettings "$id" set respuesta estado >/dev/null 2>&1 && ok "Modo: estado 📢" || err "No se pudo." ;;
+          2) bsettings "$id" set respuesta responder >/dev/null 2>&1 && ok "Modo: responder 💬" || err "No se pudo." ;;
+          *) err "Opción no válida." ;;
+        esac
+        sleep 1 ;;
+      10) cs_toggle "$id" menuLista "Menú de lista"; sleep 1 ;;
+      11)
+        title "📄 Personalización — $id"
+        printf '%s\n' "$CUSTOM_CFG" | sed 's/^/  /'
+        pause ;;
+      0) return 0 ;;
+      *) err "Opción no válida."; sleep 1 ;;
+    esac
+  done
+}
+
 show_menu() {
   banner
   printf '%b  1)%b 🚀 Iniciar bot %b[%s]%b\n' "$C_YELLOW" "$C_RESET" "$C_GRAY" "$DEFAULT_BOT" "$C_RESET"
@@ -431,6 +618,7 @@ show_menu() {
   printf '%b  9)%b 🚪 Borrar sesión (desvincular WhatsApp)\n' "$C_YELLOW" "$C_RESET"
   printf '%b 10)%b ⬆  Actualizar desde GitHub\n' "$C_YELLOW" "$C_RESET"
   printf '%b 11)%b 🎨 Personalizar terminal Termux\n' "$C_YELLOW" "$C_RESET"
+  printf '%b 12)%b 🎛 Personalizar bot (stickers, banner, owners…)\n' "$C_YELLOW" "$C_RESET"
   printf '%b  0)%b 👋 Salir\n' "$C_YELLOW" "$C_RESET"
   printf '\nElige una opción: '
 }
@@ -453,6 +641,7 @@ menu_loop() {
       9) id="$(pick_bot choose)" && cmd_logout "$id"; pause ;;
       10) cmd_update; pause ;;
       11) cmd_personalize; pause ;;
+      12) id="$(pick_bot choose)" && cmd_customize "$id" ;;
       0|q|Q|salir|exit)
         printf '\n%b👋 ¡Nos vemos! MultiBot Terminal%b\n' "$C_MAGENTA" "$C_RESET"
         exit 0 ;;
@@ -476,6 +665,7 @@ Uso:
   bash termux.sh --install [--bot <id>] Instala dependencias
   bash termux.sh --doctor [--bot <id>]  Diagnóstico
   bash termux.sh --setup [--bot <id>]   Configura owner/nombre
+  bash termux.sh --customize [--bot <id>] Personaliza el bot (stickers, banner…)
   bash termux.sh --logout [--bot <id>]  Borra la sesión (desvincula)
   bash termux.sh --update               git pull del repo
   bash termux.sh --personalize          Personaliza el prompt de Termux
@@ -529,6 +719,7 @@ main() {
       --logout) action="logout"; shift ;;
       --update) cmd_update; exit $? ;;
       --personalize) cmd_personalize; exit $? ;;
+      --customize) action="customize"; shift ;;
       --menu) menu_loop; exit 0 ;;
       -h|--help|help) usage; exit 0 ;;
       *) err "Opción desconocida: $1"; usage; exit 1 ;;
@@ -554,6 +745,7 @@ main() {
     install) id="$(resolve_bot "$bot")" || exit 1; cmd_install "$id" ;;
     doctor)  id="$(resolve_bot "$bot")" || exit 1; cmd_doctor "$id" ;;
     setup)   id="$(resolve_bot "$bot")" || exit 1; cmd_setup "$id" ;;
+    customize) id="$(resolve_bot "$bot")" || exit 1; cmd_customize "$id" ;;
     logout)
       id="$(resolve_bot "$bot")" || exit 1
       rm -rf "$BOTS_DIR/$id/sessions"; ok "Sesión de $id borrada." ;;

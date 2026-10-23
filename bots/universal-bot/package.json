@@ -14,6 +14,7 @@
     "start:raw": "node index.js",
     "start:termux": "node scripts/ensure-sharp.js && node index.js",
     "setup": "node scripts/setup-config.js",
+    "settings": "node scripts/bot-settings.js",
     "doctor": "node scripts/doctor.js",
     "check:config": "node scripts/check-config.js",
     "dev": "ALLOW_NON_TERMUX=1 node index.js",

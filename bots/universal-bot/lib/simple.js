@@ -1,5 +1,6 @@
 import path from "path";
-import { toAudio } from "./converter.js";
+import { toAudio, toPTT } from "./converter.js";
+import { aplicarPreferenciaReenviado } from "./salida.js";
 import chalk from "chalk";
 import fetch from "node-fetch";
 import PhoneNumber from "awesome-phonenumber";
@@ -46,7 +47,9 @@ export function makeWASocket(opcionesConexion, opciones = {}) {
   const enviarMensajeOriginal = conn.sendMessage.bind(conn);
   conn.sendMessage = async (jid, content, options = {}) => {
     const opts = await aplicarQuotedVerificado(conn, options || {});
-    return await enviarMensajeOriginal(jid, content, opts);
+    // Terminal → Personalizar bot → "Mensajes reenviados" (global.mensajesReenviados).
+    const contenido = aplicarPreferenciaReenviado(content);
+    return await enviarMensajeOriginal(jid, contenido, opts);
   };
 
   const sock = Object.defineProperties(conn, {
@@ -297,11 +300,18 @@ export function makeWASocket(opcionesConexion, opciones = {}) {
           tipoMsg = "image";
         else if (/video/.test(tipo.mime)) tipoMsg = "video";
         else if (/audio/.test(tipo.mime)) {
-          ((convertido = await toAudio(archivo, tipo.ext)),
-            (archivo = convertido.data),
-            (rutaArchivo = convertido.filename),
-            (tipoMsg = "audio"),
-            (tipoMime = options.mimetype || "audio/mpeg; codecs=opus"));
+          if (ptt) {
+            // Nota de voz: WhatsApp solo reproduce ptt en ogg/opus.
+            convertido = await toPTT(archivo, String(tipo.ext || "mp3").replace(/^\./, ""));
+            archivo = convertido.data;
+            rutaArchivo = convertido.filename;
+            tipoMime = "audio/ogg; codecs=opus";
+          } else {
+            // Audio normal: se conserva el formato original con su mimetype real
+            // (antes se convertía a opus pero se etiquetaba mal y no sonaba).
+            tipoMime = options.mimetype || tipo.mime;
+          }
+          tipoMsg = "audio";
         } else tipoMsg = "document";
         if (options.asDocument) tipoMsg = "document";
 
@@ -340,6 +350,89 @@ export function makeWASocket(opcionesConexion, opciones = {}) {
           await convertido?.delete?.().catch(() => {});
           return m;
         }
+      },
+      enumerable: true,
+    },
+    sendAudio: {
+      /**
+       * Envía un audio garantizando que se pueda escuchar: detecta el formato
+       * real del archivo y, si es nota de voz (ptt), convierte a ogg/opus.
+       * @param {String} jid
+       * @param {String|Buffer|Object} origen ruta local, URL, buffer o { url }
+       * @param {Object} opts { ptt, fileName, quoted, contextInfo, caption, mimetype }
+       */
+      async value(jid, origen, opts = {}) {
+        const {
+          ptt = false,
+          fileName = "",
+          quoted = null,
+          contextInfo = null,
+          caption = "",
+          mimetype = "",
+        } = opts || {};
+        const fuente =
+          origen && typeof origen === "object" && !Buffer.isBuffer(origen) && origen.url
+            ? origen.url
+            : origen;
+        const tipo = await conn.getFile(fuente, false);
+        let datos = tipo.data;
+        let tipoMime = mimetype || tipo.mime || "audio/mpeg";
+        if (tipoMime === "application/octet-stream") tipoMime = "audio/mpeg";
+        let nombre = fileName;
+        let convertido = null;
+        try {
+          if (ptt) {
+            convertido = await toPTT(datos, String(tipo.ext || "mp3").replace(/^\./, ""));
+            datos = convertido.data;
+            tipoMime = "audio/ogg; codecs=opus";
+            nombre = (nombre || `audio-${Date.now()}.ogg`).replace(/\.[a-z0-9]+$/i, ".ogg");
+          } else if (!nombre) {
+            const ext = String(tipoMime.split("/")[1] || "mp3").split(";")[0].replace(/[^a-z0-9]/gi, "") || "mp3";
+            nombre = `audio-${Date.now()}.${ext}`;
+          }
+          const mensaje = {
+            audio: datos,
+            mimetype: tipoMime,
+            ptt: Boolean(ptt),
+            fileName: nombre,
+            ...(caption ? { caption } : {}),
+            ...(contextInfo ? { contextInfo } : {}),
+          };
+          return await conn.sendMessage(jid, mensaje, quoted ? { quoted } : {});
+        } finally {
+          await convertido?.delete?.().catch(() => {});
+          await tipo.deleteFile?.().catch(() => {});
+        }
+      },
+      enumerable: true,
+    },
+    sendAlbum: {
+      /**
+       * Envía varias fotos JUNTAS como álbum de WhatsApp.
+       * El truco: mandarlas seguidas, sin quoted (citar rompe el álbum) y con
+       * la leyenda solo en la primera. WhatsApp las agrupa solo.
+       * @param {String} jid
+       * @param {Array} imagenes buffers, rutas o { url }
+       * @param {Object} opts { caption, contextInfo }
+       */
+      async value(jid, imagenes = [], opts = {}) {
+        const lista = (Array.isArray(imagenes) ? imagenes : [imagenes])
+          .filter(Boolean)
+          .slice(0, 10);
+        if (!lista.length) return [];
+        const { caption = "", contextInfo = null } = opts || {};
+        const enviadas = [];
+        let primera = true;
+        for (const img of lista) {
+          const mensaje = {
+            image: img,
+            ...(primera && caption ? { caption } : {}),
+            ...(contextInfo ? { contextInfo } : {}),
+          };
+          primera = false;
+          enviadas.push(await conn.sendMessage(jid, mensaje, {}));
+        }
+        return enviadas;
       },
       enumerable: true,
     },

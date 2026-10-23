@@ -26,6 +26,18 @@ global.namebot = 'UNIVERSAL BOT'
 global.author = 'MultiBot'
 global.moneda = 'USD'
 
+// ── Personalización (editable desde la terminal: termux.sh → Personalizar bot) ──
+// Banner del menú: '' usa el banner por defecto · también acepta ruta local o URL
+global.botBanner = ''
+// Comandos: false = solo el owner puede usar comandos (el bot no responde a nadie más)
+global.comandosEnabled = true
+// Reenviado: false = los mensajes del bot NO se ven como "reenviados"
+global.mensajesReenviados = true
+// Respuesta: true = cita estilo estado · false = responder normal (cita tu mensaje)
+global.quotedVerificado = true
+// Menú lista: true = .menu envía una lista para elegir · false = menú interactivo
+global.menuLista = false
+
 // Canal newsletter (opcional) — pon JID @newsletter o deja vacío
 // Obtén JID con .canalid <link>
 global.canal = ''

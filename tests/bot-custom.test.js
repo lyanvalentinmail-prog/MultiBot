@@ -1,0 +1,216 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { mkdtemp, readFile, writeFile, mkdir, rm, copyFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import {
+  ALL_KEYS,
+  addMod,
+  addOwner,
+  listMods,
+  listOwners,
+  readAllSettings,
+  readSetting,
+  removeMod,
+  removeOwner,
+  setSetting,
+} from '../bots/universal-bot/lib/bot-settings.js'
+import { sinMarcasReenviado, quiereReenviado } from '../bots/universal-bot/lib/salida.js'
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const botDir = path.join(repoRoot, 'bots', 'universal-bot')
+const template = await readFile(path.join(botDir, 'config.example.js'), 'utf8')
+
+test('bot-settings: get/set escalares con defaults sanos', () => {
+  const all = readAllSettings(template)
+  assert.equal(all.namebot, 'UNIVERSAL BOT')
+  assert.equal(all.packname, 'UNIVERSAL BOT')
+  assert.equal(all.author, 'MultiBot')
+  assert.equal(all.moneda, 'USD')
+  assert.equal(all.botBanner, '')
+  assert.equal(all.comandosEnabled, true)
+  assert.equal(all.mensajesReenviados, true)
+  assert.equal(all.quotedVerificado, true)
+  assert.equal(all.menuLista, false)
+
+  let next = setSetting(template, 'packname', 'Mis Stickers')
+  assert.equal(readSetting(next, 'packname').value, 'Mis Stickers')
+  next = setSetting(next, 'menuLista', true)
+  assert.equal(readSetting(next, 'menuLista').value, true)
+  next = setSetting(next, 'comandosEnabled', false)
+  assert.equal(readSetting(next, 'comandosEnabled').value, false)
+  // No rompe el resto del archivo.
+  assert.match(next, /global\.APIs = \{/)
+  assert.match(next, /watchFile\(file/)
+  assert.throws(() => setSetting(next, 'noexiste', 'x'), /desconocido/)
+})
+
+test('bot-settings: inserta claves que faltan en configs viejas', () => {
+  const vieja = "global.owner = []\nlet file = fileURLToPath(import.meta.url)\nwatchFile(file, () => {})\n"
+  const next = setSetting(vieja, 'moneda', 'UYU')
+  assert.equal(readSetting(next, 'moneda').value, 'UYU')
+  assert.ok(next.indexOf('global.moneda') < next.indexOf('let file ='))
+})
+
+test('bot-settings: owners (placeholder se reemplaza, agregar/actualizar/quitar)', () => {
+  assert.deepEqual(listOwners(template), [])
+  let next = addOwner(template, '59899123456', 'Lyan')
+  assert.deepEqual(listOwners(next), [{ phone: '59899123456', name: 'Lyan' }])
+  assert.doesNotMatch(next, /521XXXXXXXXXX/)
+  next = addOwner(next, '+598 76 123-456', 'Amigo')
+  assert.deepEqual(listOwners(next), [
+    { phone: '59899123456', name: 'Lyan' },
+    { phone: '59876123456', name: 'Amigo' },
+  ])
+  next = addOwner(next, '59899123456', 'Lyan Nuevo')
+  assert.equal(listOwners(next)[0].name, 'Lyan Nuevo')
+  const { source, removed } = removeOwner(next, '59876123456')
+  assert.equal(removed, 1)
+  assert.deepEqual(listOwners(source), [{ phone: '59899123456', name: 'Lyan Nuevo' }])
+  assert.equal(removeOwner(source, '00000000').removed, 0)
+  assert.throws(() => addOwner(source, '123'), /no válido/i)
+})
+
+test('bot-settings: mods (agregar sin duplicar, quitar)', () => {
+  assert.deepEqual(listMods(template), [])
+  let next = addMod(template, '59899123456')
+  next = addMod(next, '59899123456')
+  assert.deepEqual(listMods(next), ['59899123456'])
+  next = addMod(next, '59876123456')
+  assert.deepEqual(listMods(next), ['59899123456', '59876123456'])
+  const { source, removed } = removeMod(next, '59899123456')
+  assert.equal(removed, 1)
+  assert.deepEqual(listMods(source), ['59876123456'])
+  assert.throws(() => addMod(source, 'abc'), /no válido/i)
+})
+
+test('bot-settings CLI: list/set/get/owners/mods sobre config temporal', async (t) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'multibot-settings-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const config = path.join(dir, 'config.js')
+  await writeFile(config, template)
+  const run = (args) => spawnSync('node', [path.join(botDir, 'scripts', 'bot-settings.js'), ...args], {
+    encoding: 'utf8', timeout: 30000,
+    env: { ...process.env, BOT_SETTINGS_CONFIG: config },
+  })
+
+  const list = run(['list'])
+  assert.equal(list.status, 0, list.stderr)
+  assert.match(list.stdout, /^moneda=USD$/m)
+
+  assert.equal(run(['set', 'moneda', 'UYU']).status, 0)
+  assert.match(run(['get', 'moneda']).stdout, /^moneda=UYU$/m)
+  assert.equal(run(['set', 'comandos', 'off']).status, 0)
+  assert.match(run(['get', 'comandosEnabled']).stdout, /^comandosEnabled=false$/m)
+  assert.equal(run(['set', 'respuesta', 'responder']).status, 0)
+  assert.match(run(['get', 'quotedVerificado']).stdout, /^quotedVerificado=false$/m)
+  assert.equal(run(['set', 'respuesta', 'estado']).status, 0)
+  assert.equal(run(['owner-add', '59899123456', 'Lyan']).status, 0)
+  assert.match(run(['owners']).stdout, /59899123456\|Lyan/)
+  assert.equal(run(['mod-add', '59876123456']).status, 0)
+  assert.match(run(['mods']).stdout, /59876123456/)
+
+  assert.notEqual(run(['set', 'noexiste', 'x']).status, 0)
+  assert.notEqual(run(['owner-add', '123']).status, 0)
+  assert.notEqual(run(['set', 'banner', 'no-es-ruta']).status, 0)
+
+  // La config resultante sigue siendo JS válido.
+  const check = spawnSync('node', ['--check', config], { encoding: 'utf8' })
+  assert.equal(check.status, 0, check.stderr)
+})
+
+test('salida: quitar marcas de reenviado clona sin mutar', () => {
+  const original = { text: 'hola', contextInfo: { isForwarded: true, forwardingScore: 5, forwardedNewsletterMessageInfo: { newsletterJid: 'x' }, mentionedJid: ['a'] } }
+  const limpio = sinMarcasReenviado(original)
+  assert.equal(limpio.contextInfo.isForwarded, undefined)
+  assert.equal(limpio.contextInfo.forwardingScore, undefined)
+  assert.equal(limpio.contextInfo.forwardedNewsletterMessageInfo, undefined)
+  assert.deepEqual(limpio.contextInfo.mentionedJid, ['a'])
+  assert.equal(limpio.text, 'hola')
+  // El original (p. ej. global.rcanal reutilizado) queda intacto.
+  assert.equal(original.contextInfo.isForwarded, true)
+  assert.equal(sinMarcasReenviado({ text: 'x' }).text, 'x')
+
+  delete global.mensajesReenviados
+  assert.equal(quiereReenviado(), true)
+  global.mensajesReenviados = false
+  assert.equal(quiereReenviado(), false)
+  delete global.mensajesReenviados
+})
+
+test('banner por defecto: existe y es un JPEG válido', async () => {
+  const banner = await readFile(path.join(botDir, 'storage', 'img', 'banner-default.jpg'))
+  assert.ok(banner.length > 1000)
+  assert.equal(banner[0], 0xff)
+  assert.equal(banner[1], 0xd8)
+  assert.equal(banner[2], 0xff)
+})
+
+test('bot: personalización cableada (comandos, reenviados, banner, lista, stickers)', async () => {
+  const handler = await readFile(path.join(botDir, 'handler.js'), 'utf8')
+  assert.match(handler, /global\.comandosEnabled === false/)
+  const simple = await readFile(path.join(botDir, 'lib', 'simple.js'), 'utf8')
+  assert.match(simple, /aplicarPreferenciaReenviado\(content\)/)
+  assert.match(simple, /toPTT\(archivo/)
+  assert.match(simple, /audio\/ogg; codecs=opus/)
+  assert.doesNotMatch(simple, /audio\/mpeg; codecs=opus/)
+  assert.match(simple, /sendAudio:\s*\{/)
+  assert.match(simple, /sendAlbum:\s*\{/)
+  const dual = await readFile(path.join(botDir, 'lib', 'baileys-dual.js'), 'utf8')
+  assert.match(dual, /aplicarPreferenciaReenviado\(content\)/)
+  const menuCtx = await readFile(path.join(botDir, 'lib', 'menu-categories.js'), 'utf8')
+  assert.match(menuCtx, /global\.botBanner \|\| '.\/storage\/img\/banner-default\.jpg'/)
+  const menu = await readFile(path.join(botDir, 'plugins', 'main-menu2.js'), 'utf8')
+  assert.match(menu, /global\.menuLista === true/)
+  assert.match(menu, /enviarMenuLista/)
+  const sticker = await readFile(path.join(botDir, 'plugins', 'stickers-sticker.js'), 'utf8')
+  assert.match(sticker, /global\.packname/)
+  assert.match(sticker, /global\.author/)
+})
+
+test('bot: álbumes y audios usan los helpers', async () => {
+  for (const plugin of ['download-img.js', 'download-pinterest.js', 'tiktok-2.js', 'tiktok-search.js']) {
+    const source = await readFile(path.join(botDir, 'plugins', plugin), 'utf8')
+    assert.match(source, /conn\.sendAlbum\(/, plugin)
+  }
+  for (const plugin of ['audio-slow.js', 'audio-speed.js', 'audio-toaudio.js', 'tiktok-2.js']) {
+    const source = await readFile(path.join(botDir, 'plugins', plugin), 'utf8')
+    assert.match(source, /conn\.sendAudio\(/, plugin)
+  }
+  const tagall = await readFile(path.join(botDir, 'plugins', 'tag-all.js'), 'utf8')
+  assert.match(tagall, /esNotaVoz/)
+  // Resultados numerados (cada foto con su leyenda) siguen por separado.
+  for (const plugin of ['download-igsearch.js', 'search-wallcraft.js']) {
+    const source = await readFile(path.join(botDir, 'plugins', plugin), 'utf8')
+    assert.doesNotMatch(source, /conn\.sendAlbum\(/, plugin)
+  }
+})
+
+test('termux.sh: --customize edita la config del bot', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'multibot-custom-root-'))
+  const home = await mkdtemp(path.join(os.tmpdir(), 'multibot-custom-home-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  t.after(() => rm(home, { recursive: true, force: true }))
+  const fake = path.join(root, 'bots', 'fake')
+  await mkdir(path.join(fake, 'scripts'), { recursive: true })
+  await mkdir(path.join(fake, 'lib'), { recursive: true })
+  await copyFile(path.join(repoRoot, 'termux.sh'), path.join(root, 'termux.sh'))
+  await copyFile(path.join(botDir, 'scripts', 'bot-settings.js'), path.join(fake, 'scripts', 'bot-settings.js'))
+  await copyFile(path.join(botDir, 'lib', 'bot-settings.js'), path.join(fake, 'lib', 'bot-settings.js'))
+  await copyFile(path.join(botDir, 'lib', 'config-repair.js'), path.join(fake, 'lib', 'config-repair.js'))
+  await copyFile(path.join(botDir, 'config.example.js'), path.join(fake, 'config.example.js'))
+  await writeFile(path.join(fake, 'package.json'), JSON.stringify({ name: 'fake' }))
+  await writeFile(path.join(fake, 'index.js'), 'console.log(1)\n')
+
+  // 4 (moneda) → UYU, 7 (toggle comandos), 0 (volver).
+  const result = spawnSync('bash', [path.join(root, 'termux.sh'), '--bot', 'fake', '--customize'], {
+    cwd: root, input: '4\nUYU\n7\n0\n', encoding: 'utf8', timeout: 90000,
+    env: { ...process.env, HOME: home, TERM: 'dumb' },
+  })
+  assert.equal(result.status, 0, result.stderr)
+  const config = await readFile(path.join(fake, 'config.js'), 'utf8')
+  assert.match(config, /global\.moneda = 'UYU'/)
+  assert.match(config, /global\.comandosEnabled = false/)
+})

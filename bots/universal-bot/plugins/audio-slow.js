@@ -79,12 +79,10 @@ let handler = async (m, { conn, text }) => {
     }
 
     
-    await conn.sendMessage(m.chat, { 
-      audio: buferAudioFinal, 
-      mimetype: 'audio/mpeg',
+    await conn.sendAudio(m.chat, buferAudioFinal, {
       fileName: `slow-${id}.mp3`,
-      ptt: false 
-    }, { quoted: m })
+      quoted: m
+    })
 
   } catch (err) {
     console.error('Error crítico en el plugin slow:', err)

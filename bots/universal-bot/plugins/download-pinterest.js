@@ -105,13 +105,10 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
       }, { quoted: m })
     }
 
-    for (const urlImg of resultados.slice(0, 3)) {
-      await conn.sendMessage(m.chat, {
-        image: { url: urlImg },
-        caption: `> *Búsqueda:* ${consulta}`,
-        contextInfo: { ...rcanal?.contextInfo }
-      }, { quoted: m })
-    }
+    await conn.sendAlbum(m.chat, resultados.slice(0, 3).map((urlImg) => ({ url: urlImg })), {
+      caption: `> *Búsqueda:* ${consulta}`,
+      contextInfo: { ...rcanal?.contextInfo }
+    })
   } catch (e) {
     console.error('Error en Pinterest:', e)
     conn.sendMessage(m.chat, {

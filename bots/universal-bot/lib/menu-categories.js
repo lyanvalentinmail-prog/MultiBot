@@ -448,7 +448,8 @@ export async function resolverContextoMenu(m, conn, usedPrefix) {
   )
 
   let nombreBot = global.namebot || 'PAIN BOT'
-  let mainImg = './storage/img/menu3.jpg'
+  // Terminal → Personalizar bot → "Banner" (global.botBanner: '' = defecto, ruta o URL).
+  let mainImg = global.botBanner || './storage/img/banner-default.jpg'
   const botActual = cleanBotNum(conn.user?.jid || conn.user?.id)
   const esPrincipal = isMainBotConn(conn)
   const tipo = esPrincipal ? 'Principal Bot' : 'Sub Bot'
