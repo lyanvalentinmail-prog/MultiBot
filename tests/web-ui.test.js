@@ -6,9 +6,13 @@ import path from 'node:path'
 import { Window } from 'happy-dom'
 import { createApplication, createDatabase } from '../scripts/serve-web.js'
 
-async function createUiContext(t) {
+async function createUiContext(t, { webRuntimeEnabled = false, webRuntimeAdminEmails = '' } = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'multibot-ui-test-'))
-  const app = await createApplication({ database: createDatabase({ dataDir }) })
+  const app = await createApplication({
+    database: createDatabase({ dataDir }),
+    webRuntimeEnabled,
+    webRuntimeAdminEmails,
+  })
   const address = await app.listen(0, '127.0.0.1')
   const origin = `http://127.0.0.1:${address.port}`
   const scriptResponse = await fetch(`${origin}/app.js`)
@@ -23,6 +27,7 @@ async function createUiContext(t) {
   })
 
   return {
+    app,
     origin,
     windows,
     async mount(route, { token = '', removeDrawer = false } = {}) {
@@ -173,6 +178,46 @@ test('account, theme, favorites, and profile CRUD work through the UI and API', 
       && window.document.querySelector('.profile-name')?.textContent.includes('ui-auditor'),
     'login',
   )
+})
+
+test('authorized Universal Bot detail shows real pairing controls and keeps them hidden from other accounts', async (t) => {
+  const context = await createUiContext(t, {
+    webRuntimeEnabled: true,
+    webRuntimeAdminEmails: '',
+  })
+  const register = async (email, username) => {
+    const response = await fetch(`${context.origin}/api/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, username, password: 'strong runtime test password' }),
+    })
+    assert.equal(response.status, 201)
+    return (await response.json()).token
+  }
+  const adminToken = await register('runtime-owner@example.test', 'runtime-owner')
+  context.app.runtimeManager.adminEmails.add('runtime-owner@example.test')
+  const otherToken = await register('not-allowlisted@example.test', 'runtime-guest')
+
+  const adminWindow = await context.mount('/bots/universal-bot', { token: adminToken })
+  const adminMain = adminWindow.document.querySelector('#main-content')
+  await waitFor(() => adminMain.textContent.includes('Ejecutar Universal Bot en la web'), 'admin runtime panel')
+  assert.ok(adminWindow.document.querySelector('[data-action="runtime-start"]'))
+  assert.ok(adminWindow.document.querySelector('[data-action="runtime-stop"]'))
+  const method = adminWindow.document.querySelector('#runtime-method')
+  method.value = 'pairing-code'
+  method.dispatchEvent(new adminWindow.Event('change', { bubbles: true }))
+  const phoneField = adminWindow.document.querySelector('#runtime-phone-field')
+  assert.equal(phoneField.hidden, false)
+  adminWindow.document.querySelector('#runtime-phone').value = '123'
+  adminWindow.document.querySelector('[data-action="runtime-start"]').click()
+  await waitFor(() => adminWindow.document.querySelector('#toast-stack')?.textContent.includes('teléfono internacional válido'), 'pairing phone validation')
+  const noProcess = await (await fetch(`${context.origin}/api/runtime`, { headers: { Authorization: `Bearer ${adminToken}` } })).json()
+  assert.equal(noProcess.runtimes.length, 0)
+
+  const otherWindow = await context.mount('/bots/universal-bot', { token: otherToken })
+  const otherMain = otherWindow.document.querySelector('#main-content')
+  await waitFor(() => otherMain.textContent.includes('Solo las cuentas administradoras'), 'non-admin runtime denial')
+  assert.equal(otherWindow.document.querySelector('[data-action="runtime-start"]'), null)
+  assert.equal(otherWindow.document.querySelector('[data-action="runtime-stop"]'), null)
 })
 
 test('startup errors show a retry screen rather than leaving the app blank', async (t) => {

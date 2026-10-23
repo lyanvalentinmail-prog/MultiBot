@@ -10,7 +10,7 @@ process.on('unhandledRejection', (reason) => {
 })
 
 import { PROJECT_TMP, cleanupTmpFiles, startTmpCleanupInterval } from './lib/tmp-cleanup.js'
-import './config.js'
+import './config-loader.js'
 import './lib/bot-uptime.js'
 import { createRequire } from 'module'
 import path, { join } from 'path'
@@ -32,8 +32,10 @@ import lodash from 'lodash'
 import readline from 'readline'
 import NodeCache from 'node-cache'
 import qrcode from 'qrcode-terminal'
-import { enforceTermuxOnly } from './lib/termux-guard.js'
+import { enforceTermuxOnly, isAuthorizedWebRuntime } from './lib/termux-guard.js'
 
+const webRuntime = isAuthorizedWebRuntime()
+const runtimeLoginMethod = process.env.MULTIBOT_LOGIN_METHOD === 'pairing-code' ? 'code' : 'qr'
 enforceTermuxOnly()
 
 
@@ -44,7 +46,6 @@ const {
   fetchLatestBaileysVersion,
   Browsers,
   makeCacheableSignalKeyStore,
-  jidNormalizedUser,
 } = await import('@whiskeysockets/baileys')
 
 const PORT = process.env.PORT || process.env.SERVER_PORT || 3000
@@ -151,7 +152,7 @@ const { state, saveCreds } = await useMultiFileAuthState(global.authFile)
 
 const { version } = await fetchLatestBaileysVersion()
 
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+const rl = webRuntime ? null : readline.createInterface({ input: process.stdin, output: process.stdout })
 const question = (texto) => new Promise((resolver) => rl.question(texto, resolver))
 
 const logger = pino({
@@ -179,8 +180,7 @@ const connectionOptions = {
     snapshot: false,
   },
   getMessage: async (key) => {
-    const jid = jidNormalizedUser(key.remoteJid)
-    const msg = await store.loadMessage(jid, key.id)
+    const msg = global.conn?.loadMessage?.(key.id)
     return msg?.message || ''
   },
 }
@@ -188,8 +188,70 @@ const connectionOptions = {
 global.conn = makeWASocket(connectionOptions)
 /** Alias vivo del socket principal (se actualiza en reloadHandler). */
 let conn = global.conn
+const pendingConnectionUpdates = []
+let connectionHandlersReady = false
+const qrListeners = new WeakSet()
+let latestQrPayload = ''
+let termuxQrSelected = false
+
+function emitRuntimeEvent(type, value = undefined) {
+  if (!webRuntime) return
+  const event = value === undefined ? { type } : { type, value }
+  try { process.stdout.write(`MULTIBOT_RUNTIME_EVENT:${JSON.stringify(event)}\n`) } catch {}
+}
+
+function attachRuntimeQrListener(sock) {
+  if (!sock?.ev || qrListeners.has(sock)) return
+  qrListeners.add(sock)
+  sock.ev.on('connection.update', ({ qr, connection }) => {
+    if (qr) {
+      latestQrPayload = qr
+      if (webRuntime && runtimeLoginMethod === 'qr') emitRuntimeEvent('qr', qr)
+      else if (!webRuntime && termuxQrSelected) qrcode.generate(qr, { small: true })
+    }
+    if (connection === 'open') latestQrPayload = ''
+  })
+}
+
+attachRuntimeQrListener(conn)
+const bufferEarlyConnectionUpdate = (update) => {
+  if (!connectionHandlersReady && pendingConnectionUpdates.length < 50) pendingConnectionUpdates.push(update)
+}
+conn.ev.on('connection.update', bufferEarlyConnectionUpdate)
 
 global.mainBotJid = null
+
+async function waitForWebSocketOpen(sock, timeoutMs = 20000) {
+  if (sock?.ws?.readyState === ws.OPEN) return
+  const socket = sock?.ws
+  if (!socket?.once) throw new Error('No se pudo esperar la apertura de la conexión de WhatsApp.')
+  await new Promise((resolve, reject) => {
+    let settled = false
+    const cleanup = () => {
+      clearTimeout(timer)
+      socket.off?.('open', onOpen)
+      socket.off?.('error', onError)
+      sock.ev.off?.('connection.update', onUpdate)
+    }
+    const finish = (error = null) => {
+      if (settled) return
+      settled = true
+      cleanup()
+      error ? reject(error) : resolve()
+    }
+    const onOpen = () => finish()
+    const onError = (error) => finish(error || new Error('Falló la conexión de WhatsApp.'))
+    const onUpdate = ({ connection } = {}) => {
+      if (connection === 'close') finish(new Error('WhatsApp cerró la conexión antes de generar el código.'))
+    }
+    const timer = setTimeout(() => finish(new Error('Tiempo agotado esperando la conexión de WhatsApp.')), timeoutMs)
+    timer.unref?.()
+    socket.once('open', onOpen)
+    socket.once('error', onError)
+    sock.ev.on('connection.update', onUpdate)
+    if (socket.readyState === ws.OPEN) finish()
+  })
+}
 
 async function handleLogin() {
   if (conn.authState.creds.registered) {
@@ -197,16 +259,17 @@ async function handleLogin() {
     return
   }
 
-  let loginMethod = await question(
+  let loginMethod = webRuntime ? runtimeLoginMethod : await question(
     chalk.green(
       '¿Cómo deseas iniciar sesión?\nEscribe "qr" para escanear el código QR o "code" para usar un código de 8 dígitos:\n'
     )
   )
+  loginMethod = String(loginMethod).toLowerCase().trim()
 
-  loginMethod = loginMethod.toLowerCase().trim()
-
-  if (loginMethod === 'code') {
-    let phoneNumber = await question(chalk.blue('Ingresa el número de WhatsApp donde estará el bot (incluye código país, ej: 521XXXXXXXXXX):\n'))
+  if (loginMethod === 'code' || loginMethod === 'pairing-code') {
+    let phoneNumber = webRuntime
+      ? String(process.env.MULTIBOT_LOGIN_PHONE || '')
+      : await question(chalk.blue('Ingresa el número de WhatsApp (incluye el código de país, sin necesidad de +):\n'))
     phoneNumber = phoneNumber.replace(/\D/g, '').replace(/^0+/, '')
 
     // México: WhatsApp usa 521. Si ya trae 521, no volver a insertar el 1.
@@ -216,31 +279,27 @@ async function handleLogin() {
       phoneNumber = `521${phoneNumber.slice(2)}`
     }
 
-    if (typeof conn.requestPairingCode === 'function') {
-      try {
-        
-        if (conn.ws.readyState === ws.OPEN) {
-          let code = await conn.requestPairingCode(phoneNumber)
-          code = code?.match(/.{1,4}/g)?.join('-') || code
-          console.log(chalk.cyan('Tu código de emparejamiento es:', code))
-        } else {
-          console.log(chalk.red('La conexión no está abierta. Intenta nuevamente.'))
-        }
-      } catch (e) {
-        console.log(chalk.red('Error al solicitar código de emparejamiento:'), e.message || e)
-      }
-    } else {
+    if (typeof conn.requestPairingCode !== 'function') {
       console.log(chalk.red('Tu versión de Baileys no soporta emparejamiento por código.'))
+      return
+    }
+    try {
+      if (conn.ws?.readyState !== ws.OPEN) await waitForWebSocketOpen(conn)
+      let code = await conn.requestPairingCode(phoneNumber)
+      code = code?.match(/.{1,4}/g)?.join('-') || code
+      if (webRuntime) emitRuntimeEvent('pairing-code', code)
+      else console.log(chalk.cyan('Tu código de emparejamiento es:', code))
+    } catch (e) {
+      console.log(chalk.red('Error al solicitar código de emparejamiento:'), e.message || e)
     }
   } else {
-    console.log(chalk.yellow('Generando código QR, escanéalo con tu WhatsApp...'))
-    conn.ev.on('connection.update', ({ qr }) => {
-      if (qr) qrcode.generate(qr, { small: true })
-    })
+    console.log(chalk.yellow(webRuntime ? 'Esperando el QR real de WhatsApp...' : 'Generando código QR, escanéalo con tu WhatsApp...'))
+    if (!webRuntime) {
+      termuxQrSelected = true
+      if (latestQrPayload) qrcode.generate(latestQrPayload, { small: true })
+    }
   }
 }
-
-await handleLogin()
 
 conn.isInit = false
 conn.well = false
@@ -262,6 +321,8 @@ async function connectionUpdate(update) {
   const sock = this?.ev ? this : conn
   const { connection, lastDisconnect, isNewLogin } = update
   global.stopped = connection
+  if (connection === 'open') emitRuntimeEvent('connected')
+  else if (connection === 'close') emitRuntimeEvent('disconnected')
   if (isNewLogin) sock.isInit = true
   const code =
     lastDisconnect?.error?.output?.statusCode ||
@@ -295,7 +356,8 @@ async function connectionUpdate(update) {
         `Conexión reemplazada, por favor espera un momento. Reiniciando...\nSi aparecen errores, vuelve a iniciar con: npm start`
       )
     )
-    process.send('reset')
+    if (typeof process.send === 'function') process.send('reset')
+    else setTimeout(() => process.exit(1), 1000).unref()
   }
   if (connection === 'close') {
     switch (reason) {
@@ -355,6 +417,7 @@ global.reloadHandler = async function (restartConn) {
     
     global.conn = makeWASocket(connectionOptions)
     conn = global.conn
+    attachRuntimeQrListener(conn)
     
    
     if (preservedStartTime) {
@@ -388,6 +451,13 @@ global.reloadHandler = async function (restartConn) {
   global.conn.ev.on('messages.upsert', global.conn.handler)
   global.conn.ev.on('connection.update', global.conn.connectionUpdate)
   global.conn.ev.on('creds.update', global.conn.credsUpdate)
+
+  if (!connectionHandlersReady) {
+    connectionHandlersReady = true
+    global.conn.ev.off('connection.update', bufferEarlyConnectionUpdate)
+    const queuedUpdates = pendingConnectionUpdates.splice(0)
+    for (const update of queuedUpdates) queueMicrotask(() => global.conn.connectionUpdate?.(update))
+  }
 
   isInit = false
   return true
@@ -463,6 +533,7 @@ Object.freeze(global.reload)
 
 watch(pluginFolder, global.reload)
 await global.reloadHandler()
+await handleLogin()
 
 global.reconnectSubBots = async function() {
   if (!global.conns || !Array.isArray(global.conns)) {

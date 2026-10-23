@@ -1,29 +1,30 @@
 # 🤖 MultiBot
 
-Repositorio para mantener **varios bots de WhatsApp aislados por carpeta**, con Baileys, Pairing Code/QR, Universal Bot para Termux y un panel web desplegable en **Render con Blueprint + PostgreSQL**.
+Repositorio para mantener **bots de WhatsApp aislados por carpeta**, con Baileys, Pairing Code/QR, Universal Bot compatible con **Termux y runtime web autorizado**, y un panel web desplegable en Render Free.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/MultiBot)
 
 ```text
 MultiBot/
 ├── bots/
-│   ├── universal-bot/       # Todo-en-uno, 200 plugins, Termux-only, sin NSFW/+18
+│   ├── universal-bot/       # Todo-en-uno; Termux + web admin; sin NSFW/+18
 │   └── _template/           # Plantilla ligera para nuevos bots
-├── web/                     # SPA/PWA de MultiBot (diseño inspirado en TomiOka)
-├── scripts/serve-web.js     # Servidor/API del portal; PostgreSQL o JSON local
+├── web/                     # SPA/PWA MultiBot (diseño adaptado de TomiOka)
+├── scripts/serve-web.js     # Servidor/API de catálogo, perfiles y runtime
+├── scripts/web-runtime.js   # Gestión protegida de procesos hijos
 ├── data/                    # Fallback local ignorado por Git
 ├── docs/                    # Guías de repositorio, Termux y web
-└── render.yaml              # Blueprint: web service + PostgreSQL
+└── render.yaml              # Blueprint Free: panel + PostgreSQL
 ```
 
 ## Bots
 
-| Bot | Plataforma | Estado | Qué incluye |
-|---|---|---|---|
-| **Universal Bot** | **Termux solamente** | ✅ | RPG, juegos, IA, descargas, stickers, grupos, antis y más; sin contenido NSFW/+18. Pairing Code y QR en la terminal. |
-| `_template` | Para desarrollar un bot nuevo | 📦 | Base pequeña para duplicar y adaptar. |
+| Bot | Plataforma | Qué incluye |
+|---|---|---|
+| **Universal Bot** | **Termux o runtime web autorizado** | RPG, juegos, IA, descargas, stickers, grupos y más; sin contenido NSFW/+18. QR/Pairing Code reales de Baileys. |
+| `_template` | Desarrollo | Plantilla pequeña, oculta del catálogo público. |
 
-> Universal Bot conserva el guard de Termux. El panel web **no ejecuta el bot**: cataloga componentes y guarda perfiles de configuración. WhatsApp se vincula desde Termux y las credenciales permanecen en el dispositivo.
+> La ejecución web solo está disponible para bots con `webRuntime: true` y requiere un email incluido en `WEB_RUNTIME_ADMIN_EMAILS`. Por límites de Render Free se inicia **un proceso de bot a la vez**; el web service ofrece 512 MB de RAM y 0.1 CPU compartidos entre panel y bot, por lo que algunas tareas pesadas de IA/OCR pueden fallar. El servicio puede suspenderse/reiniciarse y las credenciales de Baileys se guardan en filesystem efímero; no hay garantía 24/7 ni persistencia de sesión.
 
 ## Universal Bot en Termux
 
@@ -40,63 +41,39 @@ npm start                  # elige "code" (pairing) o "qr"
 
 Guías completas: [`docs/TERMUX_GUIDE.md`](docs/TERMUX_GUIDE.md) · [`bots/universal-bot/docs/TERMUX.md`](bots/universal-bot/docs/TERMUX.md)
 
-## Panel web
+## Panel web y runtime
 
-Diseño responsive/PWA inspirado en [TomiOka](https://github.com/lyanvalentinmail-prog/TomiOka), adaptado al catálogo `bots/`:
+La web descubre bots y plugins, permite crear cuentas/perfiles y muestra estado básico de procesos web a administradores autorizados. Para iniciar Universal Bot desde el panel, consulta [`docs/WEB.md`](docs/WEB.md): despliega el Blueprint con `WEB_RUNTIME_ADMIN_EMAILS` vacío, crea primero tu cuenta, agrega su email exacto a esa variable en Render y reinicia el servicio. Luego abre **Bots → Universal Bot** para pedir el QR o Pairing Code real.
 
-- Descubre bots y plugins del repositorio.
-- Permite registrar una cuenta y guardar/editar/eliminar perfiles de configuración.
-- Muestra métricas reales del proceso web y estado de la base de datos.
-- Documenta la instalación Termux, Pairing Code, QR y API del panel.
-- No solicita el número de WhatsApp, no crea sesiones, y no afirma que un bot Termux esté conectado al servidor.
+El Pairing Code puede requerir ingresar el teléfono internacional en el panel. Ese número se envía al runtime protegido para solicitar el código, no se guarda en el perfil. Las credenciales no van a PostgreSQL.
 
 ### Ejecutar localmente
 
 ```bash
 npm ci
-npm start
+npm ci --prefix bots/universal-bot --omit=dev
+WEB_RUNTIME_ENABLED=true WEB_RUNTIME_ADMIN_EMAILS=tu-email@example.com npm start
 # http://localhost:3000
 ```
 
-Si `DATABASE_URL` está configurada, se utiliza PostgreSQL; en local, sin esa variable, la persistencia usa `data/multibot-local.json` (ignorado por Git).
+Sin `DATABASE_URL`, la persistencia local usa `data/multibot-local.json` (ignorado por Git). El servidor no carga `.env` automáticamente; exporta variables o usa una herramienta dotenv.
 
-### Desplegar en Render
+### Render Free: costos y límites
 
-1. Abre Render → **New → Blueprint**.
-2. Selecciona el repositorio MultiBot y aplica `render.yaml`.
-3. Render crea el servicio web `multibot-panel` y PostgreSQL `multibot-db`, y conecta `DATABASE_URL`.
-4. Abre la URL del servicio y crea una cuenta para guardar perfiles.
+El Blueprint configura web service y PostgreSQL en plan **Free**, sin cambiar a recursos pagos. El servicio puede dormir cuando está inactivo; sus procesos de bot pueden detenerse en suspensión, reinicio o deploy. Render Free no ofrece almacenamiento persistente aquí; las sesiones locales de Baileys pueden perderse.
 
-El Blueprint usa el servicio web y PostgreSQL en plan **Free**, por lo que no debe crear recursos pagos. El servicio puede suspenderse cuando está inactivo y la base PostgreSQL gratis de Render vence a los **30 días**: exporta los datos antes. Para evitar cargos, no actualices la base a un plan pago. Render aloja el panel y la base de datos, no Universal Bot; para conservar datos más tiempo sin pagar, conecta un PostgreSQL externo con nivel gratuito.
+La base de datos PostgreSQL Free de Render vence a los **30 días**: exporta cuentas/perfiles o migra antes de esa fecha. No actualices a un plan pago si no quieres cargos. La base del panel nunca almacena credenciales de Baileys.
 
 Más detalles: [`docs/WEB.md`](docs/WEB.md).
 
-## Crear otro bot
+## Añadir un bot
 
 ```bash
 bash scripts/create-bot.sh mi-bot
 ```
 
-Agrega un `package.json`, plugins y, opcionalmente, un `bot.json` para declarar el nombre, el modo de ejecución y las capacidades. El panel lee el catálogo desde `bots/` al cargar la API. Ver [`docs/ADD_NEW_BOT.md`](docs/ADD_NEW_BOT.md).
+La carpeta se detecta automáticamente en el catálogo. Para iniciarse desde la web, el bot necesita un entrypoint no interactivo, contrato de eventos seguro, pruebas y opt-in explícito en `bot.json`; consulta [`docs/ADD_NEW_BOT.md`](docs/ADD_NEW_BOT.md).
 
-## API web
+## Atribución y contenido
 
-`GET /api/health`, `/api/state`, `/api/system`, `/api/bots`, `/api/plugins`, `/api/endpoints`; perfiles autenticados en `/api/instances`. La referencia actualizada está en la página [`/endpoints`](docs/WEB.md#api) o en [`docs/WEB.md`](docs/WEB.md#api).
-
-## Seguridad y límites
-
-- Universal Bot fue limpiado de funciones y contenido NSFW/+18.
-- El panel almacena hashes de contraseñas y tokens de sesión; los perfiles pertenecen a la cuenta que los creó.
-- No guardar `config.js`, `sessions/`, tokens o datos privados en commits.
-- Pairing Code/QR se generan en el flujo de inicio del bot desde Termux; nunca compartas el código con terceros.
-
-## Documentación
-
-- [Estructura del repo](docs/STRUCTURE.md)
-- [Instalación Termux](docs/TERMUX_GUIDE.md)
-- [Agregar bot](docs/ADD_NEW_BOT.md)
-- [Panel web + PostgreSQL + Render](docs/WEB.md)
-
-## Créditos y licencias
-
-Universal Bot se basa en [nexusday/pain-bot](https://github.com/nexusday/pain-bot) y mantiene sus obligaciones GPL-3.0-or-later. El diseño web se adaptó de [TomiOka](https://github.com/lyanvalentinmail-prog/TomiOka); ver [`web/THIRD_PARTY_NOTICES.md`](web/THIRD_PARTY_NOTICES.md).
+La interfaz está adaptada de [TomiOka](https://github.com/lyanvalentinmail-prog/TomiOka); se conserva su atribución/licencia en `web/THIRD_PARTY_NOTICES.md` y `web/LICENSE-TOMIOKA.txt`. Universal Bot se mantiene sin contenido NSFW/adulto/+18.

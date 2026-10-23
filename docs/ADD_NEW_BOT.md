@@ -1,13 +1,12 @@
 # ➕ Cómo añadir un bot
 
-Cada bot vive aislado en `bots/<id>`. El catálogo web lo detecta al cargar la API si encuentra un `package.json` válido; no es necesario registrarlo en un archivo central. El panel **no ejecuta** el bot ni administra sus sesiones de WhatsApp.
+Cada bot vive aislado en `bots/<id>`. El catálogo web lo detecta cuando encuentra un `package.json` válido; un `bot.json` opcional declara nombre, seguridad y capacidades. Los bots sin runtime web siguen siendo solo catálogo y no pueden iniciarse desde el panel.
 
-> Universal Bot debe permanecer exclusivo de Termux. Pairing Code y QR se generan desde el flujo de inicio del bot en Termux. No subir credenciales ni contenido NSFW/adulto/+18.
+> No subir credenciales ni contenido NSFW/adulto/+18. Universal Bot puede ejecutarse desde Termux o, para una cuenta autorizada, desde el runtime web de Render Free. El disco del runtime es efímero.
 
 ## Método rápido
 
 ```bash
-# Desde la raíz del repositorio
 bash scripts/create-bot.sh mi-bot
 cd bots/mi-bot
 cp config.example.js config.js
@@ -16,21 +15,11 @@ npm install
 npm start
 ```
 
-El script copia `_template`, actualiza el nombre de `package.json` y prepara las carpetas locales. `config.js`, sesiones y bases mutables deben permanecer sin seguimiento en Git.
+El script copia `_template`, actualiza el nombre de `package.json` y prepara carpetas locales. `config.js`, sesiones y bases mutables deben permanecer fuera de Git.
 
-## Método manual
+## Metadatos del catálogo
 
-```bash
-cp -r bots/_template bots/mi-bot
-cd bots/mi-bot
-cp config.example.js config.js
-```
-
-También se puede crear una carpeta nueva, siempre con `package.json` y un entrypoint funcional. Evita copiar las credenciales, `sessions/`, bases de datos y temporales de otro bot.
-
-## Metadatos opcionales para el catálogo
-
-Agrega `bots/mi-bot/bot.json` para controlar el nombre y las capacidades mostradas. El manifiesto se carga en cada solicitud, sin reiniciar el catálogo:
+Agrega `bots/mi-bot/bot.json` para controlar el nombre y capacidades mostradas:
 
 ```json
 {
@@ -47,20 +36,35 @@ Agrega `bots/mi-bot/bot.json` para controlar el nombre y las capacidades mostrad
 }
 ```
 
-`id` debe coincidir con el nombre de la carpeta. `executionMode: "termux"` o `lib/termux-guard.js` marca el bot como Termux-only. La web fuerza `webRuntime: false` para bots Termux-only. Cualquier bot que declare `adultContent: true` queda fuera del catálogo público.
+`id` debe coincidir con el nombre de la carpeta. `adultContent: true` excluye el bot del catálogo. `executionMode: "termux"` o `lib/termux-guard.js` lo marcan como Termux-only, salvo que el manifest declare explícitamente tanto `executionMode: "web"` como `webRuntime: true`.
 
-Declarar `webRuntime: true` solo describe un runtime web real; no hace que el panel lo ejecute. Los perfiles guardados por usuarios son metadatos de configuración y nunca se muestran como bots conectados.
+## Requisitos para ejecutar desde web
+
+`webRuntime: true` es una autorización para ejecutar código del repositorio en el mismo host que sirve el panel. Solo actívalo tras revisar sus implicancias de seguridad. El bot necesita:
+
+1. Un `webEntrypoint` dentro de su propia carpeta (o un `package.json.main` seguro) que funcione como proceso hijo sin prompts por terminal.
+2. Un contrato de eventos por stdout para el panel:
+   - `MULTIBOT_RUNTIME_EVENT:{"type":"qr","value":"<QR real>"}`
+   - `MULTIBOT_RUNTIME_EVENT:{"type":"pairing-code","value":"<código real>"}`
+   - `MULTIBOT_RUNTIME_EVENT:{"type":"connected"}` / `{"type":"disconnected"}`
+3. Sesiones y datos escritos solo a almacenamiento efímero, nunca a PostgreSQL ni al frontend.
+4. Guard de ejecución que solo permita el modo web autorizado y sin exponer secretos en logs.
+5. Declarar en el manifiesto `executionMode: "web"`, `webRuntime: true` y `webEntrypoint: "main.js"` (ajusta el punto de entrada según el bot).
+6. Añadir la instalación de las dependencias del bot al `buildCommand` de `render.yaml`, con lockfile y sin cambiar el plan Free.
+7. Pruebas de permisos, rutas, código sensible, parada de procesos y límites de memoria.
+
+La versión actual permite un proceso de bot a la vez en Render Free. El servicio puede dormir/reiniciar, matar el proceso y borrar sesiones. No prometas 24/7 ni persistencia de credenciales.
 
 ## Checklist
 
-- [ ] Carpeta `bots/<id>` con nombre único y sin espacios.
-- [ ] `package.json` y entrypoint válidos.
+- [ ] Carpeta `bots/<id>` con nombre único y `package.json`/entrypoint válidos.
 - [ ] `config.example.js` sin secretos; configuración privada ignorada por Git.
-- [ ] `sessions/`, `tmp/` y bases locales ignorados por Git.
-- [ ] Pairing Code/QR probados en el entorno real de ejecución (Termux para Universal Bot).
+- [ ] `sessions/`, `tmp/` y bases locales ignoradas por Git.
+- [ ] `webRuntime` desactivado salvo implementación y autorización expresas.
+- [ ] Pairing Code/QR probados en el entorno real (Termux o runtime web). Nunca inventar códigos.
 - [ ] Sin contenido NSFW/adulto/+18.
-- [ ] `bot.json` con metadatos seguros para el catálogo (recomendado).
-- [ ] Guía agregada a `bots/README.md`.
-- [ ] `npm test` ejecutado desde la raíz para probar el portal.
+- [ ] `bot.json` con metadatos seguros (recomendado).
+- [ ] Dependencias web instaladas en `render.yaml` si aplica.
+- [ ] `npm test` ejecutado desde la raíz.
 
-Consulta [`STRUCTURE.md`](STRUCTURE.md) y [`WEB.md`](WEB.md) para la estructura del portal y el despliegue.
+Consulta [`STRUCTURE.md`](STRUCTURE.md) y [`WEB.md`](WEB.md) para estructura, permisos, API y límites del runtime.

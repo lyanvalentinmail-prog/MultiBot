@@ -57,8 +57,8 @@ async function main() {
 
   const ok = runNpm([
     'install',
-    'sharp@0.34.1',
-    '@img/sharp-wasm32@0.34.1',
+    'sharp@0.35.5',
+    '@img/sharp-wasm32@0.35.5',
     '--cpu=wasm32',
     '--no-bin-links',
     '--prefer-online'
@@ -68,7 +68,7 @@ async function main() {
     console.error('[sharp] instalación WASM falló')
     console.error('[sharp] ejecuta a mano en Termux:')
     console.error('  cd ~/pain-bot')
-    console.error('  npm install --cpu=wasm32 sharp@0.34.1 @img/sharp-wasm32@0.34.1 --no-bin-links')
+    console.error('  npm install --cpu=wasm32 sharp@0.35.5 @img/sharp-wasm32@0.35.5 --no-bin-links')
     if (isTermuxOrAndroid()) {
       console.error('[sharp] el bot arrancará, pero plugins de imagen (ocr, stickers, hd…) pueden fallar')
     }

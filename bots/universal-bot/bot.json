@@ -1,9 +1,10 @@
 {
   "id": "universal-bot",
   "name": "Universal Bot",
-  "description": "Bot todo-en-uno para WhatsApp con RPG, grupos, IA, descargas y herramientas; sin contenido NSFW/+18.",
-  "executionMode": "termux",
-  "webRuntime": false,
+  "description": "Bot todo-en-uno para WhatsApp con RPG, grupos, IA, descargas y herramientas; sin contenido NSFW/+18. Compatible con Termux y runtime web autorizado en Render Free.",
+  "executionMode": "web",
+  "webRuntime": true,
+  "webEntrypoint": "main.js",
   "supportsPairingCode": true,
   "supportsQr": true,
   "adultContent": false,
@@ -13,6 +14,7 @@
     "RPG, gacha y juegos",
     "IA y herramientas multimedia",
     "Descargas y stickers",
-    "Conexión Baileys por código de vinculación o QR"
+    "Conexión Baileys por Pairing Code o QR real",
+    "Ejecución desde Termux o runtime web autorizado"
   ]
 }

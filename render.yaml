@@ -1,19 +1,23 @@
 # Render Blueprint: free web service + free PostgreSQL (temporary plan).
 # Free PostgreSQL instances expire after 30 days; export data before expiration.
-# Universal Bot remains Termux-only; this service deploys the portal, not the bot.
+# The web runtime is admin-allowlisted, process-capped, and uses ephemeral storage only.
 services:
   - type: web
     name: multibot-panel
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm ci
+    buildCommand: npm ci && npm ci --prefix bots/universal-bot --omit=dev
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
+      - key: WEB_RUNTIME_ENABLED
+        value: "true"
+      - key: WEB_RUNTIME_ADMIN_EMAILS
+        sync: false
       - key: DATABASE_URL
         fromDatabase:
           name: multibot-db

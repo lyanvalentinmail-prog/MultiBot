@@ -7,7 +7,6 @@ storage/maxsubs.json
 storage/soporte.json
 storage/sticker-ban/
 storage/msgdels/
-package-lock.json
 tmp/
 node_modules/
 npm-debug.log*
