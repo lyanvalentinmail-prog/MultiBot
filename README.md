@@ -34,10 +34,13 @@ pkg install git nodejs-lts ffmpeg imagemagick python -y
 git clone https://github.com/lyanvalentinmail-prog/MultiBot.git
 cd MultiBot/bots/universal-bot
 npm install
-cp config.example.js config.js
-nano config.js             # configura owner y LID
+npm run setup              # asistente: tu número, nombre y LID (sin nano)
+npm run doctor             # opcional: verifica Node, deps y config
 npm start                  # elige "code" (pairing) o "qr"
 ```
+
+> ¿`SyntaxError: Unexpected identifier 'start'` al arrancar? Pegaste `npm start` dentro del editor.
+> Ejecuta `npm run setup -- --fix` (o `rm config.js && npm run setup`).
 
 Guías completas: [`docs/TERMUX_GUIDE.md`](docs/TERMUX_GUIDE.md) · [`bots/universal-bot/docs/TERMUX.md`](bots/universal-bot/docs/TERMUX.md)
 

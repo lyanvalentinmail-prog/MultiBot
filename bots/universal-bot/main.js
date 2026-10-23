@@ -371,25 +371,25 @@ if (!opts['test']) {
 startTmpCleanupInterval({ verbose: true })
 
 /**
- * En el runtime web no reconectamos en bucle cerrado: cada reintento se agenda
- * con espera incremental (1,5 s → 30 s). Así no se satura WhatsApp ni se piden
- * Pairing Codes en cadena cuando la red está caída.
+ * Reconexión con espera incremental (1,5 s → 30 s) en Termux y en web.
+ * Evita bucles cerrados que saturan WhatsApp o piden Pairing Codes en cadena
+ * cuando la red está caída. El retardo se reinicia al conectar.
  */
-let webReloadTimer = null
-let webReconnectDelayMs = 1500
-function cancelScheduledWebReload() {
-  if (webReloadTimer) clearTimeout(webReloadTimer)
-  webReloadTimer = null
+let reloadTimer = null
+let reconnectDelayMs = 1500
+function cancelScheduledReload() {
+  if (reloadTimer) clearTimeout(reloadTimer)
+  reloadTimer = null
 }
-function scheduleWebReload(delayMs = webReconnectDelayMs) {
-  if (!webRuntime || webReloadTimer) return
+function scheduleReload(delayMs = reconnectDelayMs) {
+  if (reloadTimer) return
   const delay = Math.max(500, delayMs)
-  webReconnectDelayMs = Math.min(30000, webReconnectDelayMs * 2)
-  webReloadTimer = setTimeout(() => {
-    webReloadTimer = null
+  reconnectDelayMs = Math.min(30000, reconnectDelayMs * 2)
+  reloadTimer = setTimeout(() => {
+    reloadTimer = null
     global.reloadHandler(true).catch(console.error)
   }, delay)
-  webReloadTimer.unref?.()
+  reloadTimer.unref?.()
 }
 
 /**
@@ -410,8 +410,8 @@ async function connectionUpdate(update) {
   const { connection, lastDisconnect, isNewLogin } = update
   global.stopped = connection
   if (connection === 'open') {
-    webReconnectDelayMs = 1500
-    cancelScheduledWebReload()
+    reconnectDelayMs = 1500
+    cancelScheduledReload()
     pairingAttempts = 0
     emitRuntimeEvent('connected')
   } else if (connection === 'close') emitRuntimeEvent('disconnected')
@@ -420,8 +420,7 @@ async function connectionUpdate(update) {
     lastDisconnect?.error?.output?.statusCode ||
     lastDisconnect?.error?.output?.payload?.statusCode
   if (code && code !== DisconnectReason.loggedOut && sock?.ws.socket == null) {
-    if (webRuntime) scheduleWebReload()
-    else await global.reloadHandler(true).catch(console.error)
+    scheduleReload()
     global.timestamp.connect = new Date()
   }
   if (global.db.data == null) await loadDatabase()
@@ -456,14 +455,15 @@ async function connectionUpdate(update) {
     switch (reason) {
       case DisconnectReason.badSession:
         sock.logger.error(`Sesión incorrecta, elimina la carpeta ${global.authFile} y escanea nuevamente.`)
-        resetWebSession('La sesión guardada no es válida. Pulsa Desplegar bot y vincular para generar un código nuevo.')
+        if (resetWebSession('La sesión guardada no es válida. Vuelve a vincular con QR o Pairing Code.')) break
+        try { rmSync(global.authFile, { recursive: true, force: true }) } catch {}
+        setTimeout(() => process.exit(1), 500)
         break
       case DisconnectReason.connectionClosed:
       case DisconnectReason.connectionLost:
       case DisconnectReason.timedOut:
         sock.logger.warn(`Conexión perdida o cerrada, reconectando...`)
-        if (webRuntime) scheduleWebReload()
-        else await global.reloadHandler(true).catch(console.error)
+        scheduleReload()
         break
       case DisconnectReason.connectionReplaced:
         sock.logger.error(
@@ -472,17 +472,18 @@ async function connectionUpdate(update) {
         break
       case DisconnectReason.loggedOut:
         sock.logger.error(`Sesión cerrada, elimina la carpeta ${global.authFile} y escanea nuevamente.`)
-        resetWebSession('La sesión de WhatsApp se cerró. Pulsa Desplegar bot y vincular para generar un código nuevo.')
+        if (resetWebSession('La sesión de WhatsApp se cerró. Vuelve a vincular con QR o Pairing Code.')) break
+        try { rmSync(global.authFile, { recursive: true, force: true }) } catch {}
+        console.log(chalk.cyan('Iniciando de nuevo para vincular…'))
+        setTimeout(() => process.exit(1), 500)
         break
       case DisconnectReason.restartRequired:
         sock.logger.info(`Reinicio necesario, reinicia el servidor si hay problemas.`)
-        if (webRuntime) scheduleWebReload(500)
-        else await global.reloadHandler(true).catch(console.error)
+        scheduleReload(500)
         break
       default:
         sock.logger.warn(`Desconexión desconocida: ${reason || ''} - Estado: ${connection || ''}`)
-        if (webRuntime) scheduleWebReload()
-        else await global.reloadHandler(true).catch(console.error)
+        scheduleReload()
         break
     }
   }

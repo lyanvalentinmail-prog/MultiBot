@@ -43,31 +43,36 @@ npm install
 
 Espera 2-5 min en móviles lentos.
 
-### 4. Configurar
+### 4. Configurar (sin nano)
 
 ```bash
-cp config.example.js config.js
-nano config.js
+npm run setup
 ```
 
-Edita:
+El asistente pregunta:
 
-```js
-global.owner = [
-  ['521XXXXXXXXXX', 'TuNombre', true]  // tu número con código país
-]
-global.ownerLid = [
-  ['TU_LID_AQUI', 'TuNombre', true]  // saca tu LID con .id en privado del bot
-]
+```text
+Tu número de WhatsApp con código de país (ej. 59899123456): 59899123456
+Tu nombre (para comandos de owner) [MultiBot Owner]: TuNombre
+Tu LID (opcional, Enter para omitir):
+JID del canal newsletter (opcional, Enter para omitir):
 ```
 
-Guarda: `Ctrl+O`, `Enter`, `Ctrl+X`.
+Escribe `config.js` con `global.owner` y `global.ownerLid` correctos y guarda tu archivo anterior en
+`config.js.bak`. No interactivo:
 
-Opcional cambia:
+```bash
+npm run setup -- --owner 59899123456 --name TuNombre --yes
+```
 
-```js
-global.namebot = 'UNIVERSAL BOT'
-global.moneda = 'USD'
+> El LID lo obtienes con `.id` en privado del bot después del primer inicio; puedes añadirlo luego
+> ejecutando `npm run setup` otra vez.
+
+### 4b. Verificar antes de arrancar
+
+```bash
+npm run doctor      # Node, dependencias, config.js, sesión y carpeta
+npm run check:config
 ```
 
 ### 5. Iniciar
@@ -114,6 +119,10 @@ pm2 logs
 | Comando | Descripción |
 |---------|-------------|
 | `npm start` | Inicia con check sharp + cluster |
+| `npm run setup` | Asistente de `config.js` (número, nombre, LID) |
+| `npm run setup -- --fix` | Repara texto de shell pegado en `config.js` |
+| `npm run doctor` | Diagnóstico completo para Termux |
+| `npm run check:config` | Valida solo `config.js` |
 | `npm run start:raw` | Inicia sin check sharp |
 | `ALLOW_NON_TERMUX=1 npm start` | Bypass guard (solo dev) |
 | `npm run fix:sharp` | Repara sharp |
@@ -126,6 +135,30 @@ pm2 logs
 Ambos usan Baileys `useMultiFileAuthState` en `sessions/`.
 
 ## Troubleshooting
+
+**`SyntaxError: Unexpected identifier 'start'` en `config.js`**
+
+Síntoma exacto:
+
+```text
+file:///data/data/com.termux/files/home/MultiBot/bots/universal-bot/config.js:1
+npm start/* Universal Bot — MultiBot
+    ^^^^^
+SyntaxError: Unexpected identifier 'start'
+```
+
+Causa: se pegó `npm start` (u otro comando de Termux) dentro de `nano config.js` antes del
+comentario. Arreglo:
+
+```bash
+npm run setup -- --fix   # quita el ruido de shell y conserva tu configuración
+# o, si prefieres empezar de cero:
+rm config.js && npm run setup
+```
+
+El bot también lo detecta al arrancar: repara el archivo si solo era ruido de shell, deja
+`config.js.bak`, y si el archivo está irrecuperable arranca con `config.example.js` mostrando el
+error en vez de repetirlo en bucle.
 
 **`sharp` error / android-arm64**
 ```bash
@@ -140,6 +173,7 @@ npm start  # re-loguea
 ```
 
 **Bot no responde**
+- Ejecuta `npm run doctor` para revisar Node, dependencias, config, sesión y carpeta
 - Verifica `sessions/creds.json` existe
 - Revisa `config.js` owner
 - Mira logs de Termux
