@@ -6,7 +6,7 @@
  * - Navegaciones: red primero, con la shell en caché como respaldo.
  * - /api/ y SSE: siempre red, jamás caché (datos en vivo).
  */
-const CACHE = 'multibot-v3';
+const CACHE = 'multibot-v4';
 const SHELL = ['/', '/index.html', '/styles.css', '/app.js', '/manifest.webmanifest', '/icon.svg'];
 const STATIC_RE = /\.(?:css|js|woff2?|svg|png|jpe?g|webp|ico|webmanifest)$/;
 
