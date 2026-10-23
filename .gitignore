@@ -1,0 +1,53 @@
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.env
+.env.local
+.DS_Store
+Thumbs.db
+
+# Sessions Baileys (sensible)
+sessions/
+**/sessions/
+Serbot/
+**/Serbot/
+auth_info/
+creds.json
+
+# Databases mutables
+storage/databases/database.json
+**/storage/databases/database.json
+storage/staff.json
+storage/maxsubs.json
+storage/soporte.json
+storage/sticker-ban/
+storage/msgdels/
+
+# Temps
+tmp/
+**/tmp/
+*.tmp
+*.log
+
+# Bot web build
+web/.next/
+web/dist/
+web/build/
+web/node_modules/
+web/.env
+
+# OS
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.pyc
+
+# Termux guard bypass no commitear
+.allow_non_termux

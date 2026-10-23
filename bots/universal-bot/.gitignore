@@ -1,0 +1,16 @@
+sessions/
+yarn.lock
+Serbot/
+storage/databases/database.json
+storage/staff.json
+storage/maxsubs.json
+storage/soporte.json
+storage/sticker-ban/
+storage/msgdels/
+package-lock.json
+tmp/
+node_modules/
+npm-debug.log*
+.env
+.DS_Store
+*.log

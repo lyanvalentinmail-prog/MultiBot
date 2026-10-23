@@ -1,0 +1,25 @@
+{
+  "name": "template-bot",
+  "version": "1.0.0",
+  "description": "Template Bot — Base limpia para MultiBot (Baileys, Termux, QR & Pairing Code)",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "ALLOW_NON_TERMUX=1 node index.js"
+  },
+  "keywords": ["whatsapp", "bot", "baileys", "termux"],
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "@hapi/boom": "^10.0.1",
+    "chalk": "^5.1.0",
+    "cfonts": "^3.1.1",
+    "pino": "^8.6.1",
+    "qrcode-terminal": "^0.12.0",
+    "lowdb": "^3.0.0",
+    "node-fetch": "^3.3.2",
+    "yargs": "^17.6.0",
+    "ws": "^8.17.1"
+  }
+}
