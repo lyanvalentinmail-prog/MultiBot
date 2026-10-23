@@ -41,7 +41,7 @@ O crea la carpeta manualmente con `package.json`, `config.example.js`, guard y p
 | `universal-bot` | Universal Bot | 200+ plugins, sin +18 | Termux + web Free (admin) |
 | `_template` | Template | Base limpia para clonar | No publicado |
 
-Universal Bot permite QR y Pairing Code reales en ambos entornos. En web solo la cuenta cuyo email aparece en `WEB_RUNTIME_ADMIN_EMAILS` puede operar el proceso y consultar los códigos. Render Free permite un proceso simultáneo, puede suspenderse y usa almacenamiento efímero.
+Universal Bot permite QR y Pairing Code reales en ambos entornos. En web la primera cuenta del panel (propietaria) o los emails de `WEB_RUNTIME_ADMIN_EMAILS` pueden operar el proceso y consultar los códigos. Render Free permite un proceso simultáneo, puede suspenderse y usa almacenamiento efímero.
 
 ## 🌐 Panel web
 

@@ -24,7 +24,7 @@ MultiBot/
 | **Universal Bot** | **Termux o runtime web autorizado** | RPG, juegos, IA, descargas, stickers, grupos y más; sin contenido NSFW/+18. QR/Pairing Code reales de Baileys. |
 | `_template` | Desarrollo | Plantilla pequeña, oculta del catálogo público. |
 
-> La ejecución web solo está disponible para bots con `webRuntime: true` y requiere un email incluido en `WEB_RUNTIME_ADMIN_EMAILS`. Por límites de Render Free se inicia **un proceso de bot a la vez**; el web service ofrece 512 MB de RAM y 0.1 CPU compartidos entre panel y bot, por lo que algunas tareas pesadas de IA/OCR pueden fallar. El servicio puede suspenderse/reiniciarse y las credenciales de Baileys se guardan en filesystem efímero; no hay garantía 24/7 ni persistencia de sesión.
+> La ejecución web solo está disponible para bots con `webRuntime: true`. La primera cuenta del panel queda como propietaria del runtime (o puedes definir `WEB_RUNTIME_ADMIN_EMAILS`). Por límites de Render Free se inicia **un proceso de bot a la vez**; el web service ofrece 512 MB de RAM y 0.1 CPU compartidos entre panel y bot, por lo que algunas tareas pesadas de IA/OCR pueden fallar. El servicio puede suspenderse/reiniciarse y las credenciales de Baileys se guardan en filesystem efímero; no hay garantía 24/7 ni persistencia de sesión.
 
 ## Universal Bot en Termux
 
@@ -43,17 +43,23 @@ Guías completas: [`docs/TERMUX_GUIDE.md`](docs/TERMUX_GUIDE.md) · [`bots/unive
 
 ## Panel web y runtime
 
-La web descubre bots y plugins y ofrece **Crear bot** para desplegar/iniciar Universal Bot como proceso dentro del servicio web existente y vincular WhatsApp con un QR o Pairing Code real. Esto no aprovisiona un servicio Render nuevo; los controles del runtime se limitan a administradores autorizados. Consulta [`docs/WEB.md`](docs/WEB.md): despliega el Blueprint con `WEB_RUNTIME_ADMIN_EMAILS` vacío, crea primero tu cuenta, agrega su email exacto a esa variable en Render y reinicia el servicio. Luego abre **Crear bot**.
+La web descubre bots y plugins y ofrece **Crear bot** para desplegar/iniciar Universal Bot como proceso dentro del servicio web existente y vincular WhatsApp con un QR o Pairing Code real. Esto no aprovisiona un servicio Render nuevo. El despliegue no necesita variables extra: **la primera cuenta creada en el panel queda como propietaria** y es la única que puede iniciar/detener el bot y ver los códigos. Si quieres cambiar eso, define `WEB_RUNTIME_OWNER_EMAIL` o una allowlist en `WEB_RUNTIME_ADMIN_EMAILS` (consulta [`docs/WEB.md`](docs/WEB.md)).
 
-El Pairing Code puede requerir ingresar el teléfono internacional en el panel. Ese número se envía al runtime protegido para solicitar el código y no se guarda. Las credenciales no van a PostgreSQL.
+### Desplegar y vincular en 3 pasos
+
+1. En Render: **New → Blueprint → Apply** (servicio web y PostgreSQL en plan Free).
+2. Abre la URL del servicio y pulsa **Crear cuenta**. La primera cuenta queda como propietaria del runtime.
+3. Entra en **Crear bot**, elige **Pairing Code** (escribe tu número internacional) o **QR**, y pulsa **Desplegar bot y vincular**.
+
+En **Crear bot** eliges Pairing Code o QR. Con Pairing Code el panel te pide tu **número de WhatsApp con código de país** (por ejemplo `59899123456`); ese número se envía al proceso del bot para solicitar el código y no se guarda en la base ni en la sesión. Con QR solo escaneas la imagen. Las credenciales de Baileys no van a PostgreSQL.
 
 ### Ejecutar localmente
 
 ```bash
 npm ci
 npm ci --prefix bots/universal-bot --omit=dev
-WEB_RUNTIME_ENABLED=true WEB_RUNTIME_ADMIN_EMAILS=tu-email@example.com npm start
-# http://localhost:3000
+npm start
+# http://localhost:3000 → crea la primera cuenta → Crear bot
 ```
 
 Sin `DATABASE_URL`, la persistencia local usa `data/multibot-local.json` (ignorado por Git). El servidor no carga `.env` automáticamente; exporta variables o usa una herramienta dotenv.

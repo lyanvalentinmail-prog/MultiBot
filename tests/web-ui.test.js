@@ -201,8 +201,8 @@ test('Create bot starts real pairing and QR events and keeps runtime controls al
     assert.equal(response.status, 201)
     return (await response.json()).token
   }
+  // No allowlist is configured: the first account becomes the runtime owner.
   const adminToken = await register('runtime-owner@example.test', 'runtime-owner')
-  context.app.runtimeManager.adminEmails.add('runtime-owner@example.test')
   const otherToken = await register('not-allowlisted@example.test', 'runtime-guest')
 
   const adminWindow = await context.mount('/bots', { token: adminToken })
@@ -258,7 +258,7 @@ test('Create bot starts real pairing and QR events and keeps runtime controls al
 
   const otherWindow = await context.mount('/register', { token: otherToken })
   const otherMain = otherWindow.document.querySelector('#main-content')
-  await waitFor(() => otherMain.textContent.includes('Solo las cuentas administradoras'), 'non-admin runtime denial')
+  await waitFor(() => otherMain.textContent.includes('Solo la cuenta propietaria'), 'non-admin runtime denial')
   assert.equal(otherWindow.document.querySelector('[data-action="runtime-start"]'), null)
   assert.equal(otherWindow.document.querySelector('[data-action="runtime-stop"]'), null)
 })

@@ -8,7 +8,7 @@
 ## ✨ Funciones
 
 - **Conexión**: Pairing Code y QR generados por Baileys.
-- **Runtimes**: Termux; runtime web Free para cuentas administradoras allowlisted.
+- **Runtimes**: Termux; runtime web Free para la cuenta propietaria del panel (o allowlist opcional).
 - **RPG**: economía, banco, daily, work, robar, slot, ruleta, pescar, etc.
 - **Gacha/juegos**: personajes, michi, miner, bomba, dado, adivinanza.
 - **Stickers, grupos, protección, IA, multimedia y descargas**.
