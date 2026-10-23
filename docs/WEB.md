@@ -32,7 +32,9 @@ El [`render.yaml`](../render.yaml) crea:
 - `multibot-panel`: servicio web Node con health check en `/api/health`.
 - `multibot-db`: base PostgreSQL. Render conecta automáticamente la cadena mediante `DATABASE_URL`.
 
-En Render: **New → Blueprint → selecciona el repositorio/rama MultiBot → Apply**. El Blueprint utiliza un servicio web Free y una base PostgreSQL `basic-256mb` (de pago; comprueba el precio actual de Render antes de aplicar). El servicio web Free puede suspenderse si queda inactivo; los datos permanecen en PostgreSQL. No se requiere disco persistente.
+En Render: **New → Blueprint → selecciona el repositorio/rama MultiBot → Apply**. El Blueprint configura tanto el servicio web como PostgreSQL en el plan **Free**, así que no debería crear recursos de pago ni pedirte elegir un plan pago. El servicio web Free puede suspenderse si queda inactivo. **Límite importante:** la base PostgreSQL Free de Render es temporal y vence a los 30 días; exporta tus datos antes de esa fecha. No actualices la base a un plan pago si no quieres cargos. No se requiere disco persistente.
+
+Este Blueprint prioriza costo cero, no almacenamiento permanente. Si necesitas conservar los perfiles más de 30 días sin pagar, conecta `DATABASE_URL` a un proveedor PostgreSQL externo con plan gratuito y sus propios límites; Render no ofrece almacenamiento Postgres gratuito permanente en este Blueprint.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/MultiBot)
 
