@@ -1,0 +1,18 @@
+{
+  "id": "universal-bot",
+  "name": "Universal Bot",
+  "description": "Bot todo-en-uno para WhatsApp con RPG, grupos, IA, descargas y herramientas; sin contenido NSFW/+18.",
+  "executionMode": "termux",
+  "webRuntime": false,
+  "supportsPairingCode": true,
+  "supportsQr": true,
+  "adultContent": false,
+  "defaultPrefix": ".",
+  "features": [
+    "Administración y protección de grupos",
+    "RPG, gacha y juegos",
+    "IA y herramientas multimedia",
+    "Descargas y stickers",
+    "Conexión Baileys por código de vinculación o QR"
+  ]
+}
