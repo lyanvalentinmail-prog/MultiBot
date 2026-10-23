@@ -155,6 +155,13 @@ class JsonDatabase {
   }
   async findUserByEmail(email) { return this.state.users.find((user) => user.email === email) || null }
   async findUserById(id) { return this.state.users.find((user) => user.id === id) || null }
+  async firstUser() {
+    const sorted = [...this.state.users].sort((a, b) => {
+      const byDate = String(a.createdAt || '').localeCompare(String(b.createdAt || ''))
+      return byDate || String(a.email || '').localeCompare(String(b.email || ''))
+    })
+    return sorted[0] || null
+  }
   async createSession(session) { this.state.sessions = this.state.sessions.filter((item) => item.tokenHash !== session.tokenHash); this.state.sessions.push(session); await this.persist() }
   async findSessionUser(hash) {
     const session = this.state.sessions.find((item) => item.tokenHash === hash && Date.parse(item.expiresAt) > Date.now())
@@ -241,6 +248,7 @@ class PostgresDatabase {
   }
   async findUserByEmail(email) { const { rows } = await this.pool.query('SELECT * FROM multibot_users WHERE email=$1', [email]); return this.mapUser(rows[0]) }
   async findUserById(id) { const { rows } = await this.pool.query('SELECT * FROM multibot_users WHERE id=$1', [id]); return this.mapUser(rows[0]) }
+  async firstUser() { const { rows } = await this.pool.query('SELECT * FROM multibot_users ORDER BY created_at ASC, email ASC LIMIT 1'); return this.mapUser(rows[0]) }
   async createSession(session) { await this.pool.query('INSERT INTO multibot_sessions(token_hash,user_id,expires_at) VALUES($1,$2,$3) ON CONFLICT(token_hash) DO UPDATE SET user_id=EXCLUDED.user_id, expires_at=EXCLUDED.expires_at', [session.tokenHash, session.userId, session.expiresAt]) }
   async findSessionUser(hash) { const { rows } = await this.pool.query('SELECT u.* FROM multibot_sessions s JOIN multibot_users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>NOW()', [hash]); return this.mapUser(rows[0]) }
   async deleteSession(hash) { await this.pool.query('DELETE FROM multibot_sessions WHERE token_hash=$1', [hash]) }
@@ -331,22 +339,31 @@ function rateLimiter({ limit = 12, windowMs = 10 * 60 * 1000 } = {}) {
   }
 }
 
+// Extra frame-ancestors sources (space separated). Used only to embed the SPA in
+// sandbox previews; production deployments keep framing fully blocked.
+const PREVIEW_FRAME_ANCESTORS = String(process.env.PREVIEW_FRAME_ANCESTORS || '').trim()
+
 function staticHeaders() {
-  return {
+  const frameAncestors = PREVIEW_FRAME_ANCESTORS ? `'self' ${PREVIEW_FRAME_ANCESTORS}` : "'none'"
+  const headers = {
     'x-content-type-options': 'nosniff',
     'referrer-policy': 'strict-origin-when-cross-origin',
-    'x-frame-options': 'DENY',
     'permissions-policy': 'camera=(), microphone=(), geolocation=()',
-    'content-security-policy': "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'"
+    'content-security-policy': `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; connect-src 'self'; base-uri 'self'; frame-ancestors ${frameAncestors}`,
   }
+  if (!PREVIEW_FRAME_ANCESTORS) headers['x-frame-options'] = 'DENY'
+  return headers
 }
 
 export async function createApplication({
   database = createDatabase(),
   rootDir = ROOT,
   webDir = WEB_DIR,
-  webRuntimeEnabled = process.env.WEB_RUNTIME_ENABLED,
+  // Enabled by default so a fresh Render deploy works without extra env vars.
+  // Set WEB_RUNTIME_ENABLED=false to disable process control entirely.
+  webRuntimeEnabled = process.env.WEB_RUNTIME_ENABLED ?? 'true',
   webRuntimeAdminEmails = process.env.WEB_RUNTIME_ADMIN_EMAILS || '',
+  webRuntimeOwnerEmail = process.env.WEB_RUNTIME_OWNER_EMAIL || '',
   runtimeManager = null,
 } = {}) {
   await database.init()
@@ -354,13 +371,27 @@ export async function createApplication({
   let apiRequests = 0
   const authAllowed = rateLimiter({ limit: 12 })
   const runtimeAllowed = rateLimiter({ limit: 6, windowMs: 5 * 60 * 1000 })
-  const runtimeIsEnabled = webRuntimeEnabled === true || ['1', 'true', 'yes', 'on'].includes(String(webRuntimeEnabled || '').toLowerCase())
+  const runtimeIsEnabled = !['0', 'false', 'no', 'off'].includes(String(webRuntimeEnabled ?? 'true').toLowerCase())
+  const pinnedOwnerEmail = String(webRuntimeOwnerEmail || '').trim().toLowerCase()
   const botRuntime = runtimeManager || new WebRuntimeManager({
     rootDir,
     findBot: (id) => loadBotCatalog(rootDir).find((item) => item.id === id),
     enabled: runtimeIsEnabled,
     adminEmails: webRuntimeAdminEmails,
+    ownerEmail: pinnedOwnerEmail,
   })
+
+  // Without WEB_RUNTIME_ADMIN_EMAILS the first account of the panel becomes the
+  // runtime owner. Resolved lazily so a deploy is usable right after signup and
+  // stays consistent across restarts (creation date is persisted in the DB).
+  async function resolveRuntimeOwner() {
+    if (!botRuntime.enabled || botRuntime.usesAllowlist || botRuntime.ownerEmail) return botRuntime.ownerEmail
+    if (pinnedOwnerEmail) return botRuntime.setOwnerEmail(pinnedOwnerEmail)
+    let first = null
+    try { first = typeof database.firstUser === 'function' ? await database.firstUser() : null } catch { first = null }
+    return first ? botRuntime.setOwnerEmail(first.email) : ''
+  }
+  await resolveRuntimeOwner()
 
   async function authenticate(req) {
     const token = authToken(req)
@@ -380,6 +411,7 @@ export async function createApplication({
   async function requireRuntimeAdmin(req, res) {
     const user = await requireUser(req, res)
     if (!user) return null
+    await resolveRuntimeOwner()
     const error = botRuntime.unavailableError(user)
     if (error) {
       jsonResponse(res, error.status, { ok: false, error: error.message, code: error.code })
@@ -405,6 +437,8 @@ export async function createApplication({
         ok: true,
         enabled: true,
         canManage: true,
+        accessMode: botRuntime.usesAllowlist ? 'allowlist' : 'owner',
+        ownerEmail: botRuntime.usesAllowlist ? undefined : botRuntime.ownerEmail,
         maxProcesses: 1,
         credentialStorage: 'filesystem-ephemeral',
         warning: 'Render Free ofrece 512 MB de RAM y 0.1 CPU; puede suspender el servicio y perder la sesión local de Baileys al reiniciar o desplegar.',
@@ -492,9 +526,9 @@ export async function createApplication({
     if (method === 'GET' && apiPath === '/api/endpoints') {
       return jsonResponse(res, 200, { ok: true, endpoints: [
         { method: 'GET', path: '/api/health', auth: false, description: 'Estado del servicio y conexión a base de datos.' },
-        { method: 'GET', path: '/api/runtime', auth: 'admin', description: 'Estado de procesos web y QR/Pairing Code; solo administradores autorizados.' },
-        { method: 'POST', path: '/api/bots/:id/runtime/start', auth: 'admin', description: 'Inicia un bot con QR o Pairing Code real; solo administradores autorizados.' },
-        { method: 'POST', path: '/api/bots/:id/runtime/stop', auth: 'admin', description: 'Detiene el proceso del bot; solo administradores autorizados.' },
+        { method: 'GET', path: '/api/runtime', auth: 'admin', description: 'Estado de procesos web y QR/Pairing Code; solo la cuenta propietaria o las cuentas autorizadas.' },
+        { method: 'POST', path: '/api/bots/:id/runtime/start', auth: 'admin', description: 'Inicia un bot con QR o Pairing Code real; solo la cuenta propietaria o las cuentas autorizadas.' },
+        { method: 'POST', path: '/api/bots/:id/runtime/stop', auth: 'admin', description: 'Detiene el proceso del bot; solo la cuenta propietaria o las cuentas autorizadas.' },
         { method: 'GET', path: '/api/state', auth: 'optional', description: 'Catálogo y configuraciones de la cuenta autenticada.' },
         { method: 'GET', path: '/api/system', auth: false, description: 'Telemetría del servidor y base de datos.' },
         { method: 'GET', path: '/api/bots', auth: false, description: 'Lista los bots existentes en bots/.' },
@@ -530,6 +564,8 @@ export async function createApplication({
         if (password.length < 10) return jsonResponse(res, 400, { ok: false, error: 'Usa una contraseña de al menos 10 caracteres.' })
         user = await database.createUser({ id: randomUUID(), email, username, passwordHash: hashPassword(password), createdAt: new Date().toISOString() })
         if (!user) return jsonResponse(res, 409, { ok: false, error: 'Ya existe una cuenta con ese email. Inicia sesión.' })
+        // The first account of a fresh deploy owns the web runtime.
+        await resolveRuntimeOwner()
       } else {
         user = await database.findUserByEmail(email)
         if (!user || !verifyPassword(password, user.passwordHash)) return jsonResponse(res, 401, { ok: false, error: 'Email o contraseña incorrectos.' })

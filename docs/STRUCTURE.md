@@ -41,7 +41,7 @@ MultiBot/
 
 1. **Aislamiento por bot:** cada `bots/<id>` mantiene sus plugins, configuración, storage y sesiones.
 2. **Runtime explícito:** el catálogo solo permite ejecución web si el manifiesto declara `executionMode: "web"` y `webRuntime: true`. Universal Bot también conserva Termux.
-3. **Permiso de administrador:** QR, Pairing Code, estado y acciones de ejecución requieren una cuenta cuyo email esté en `WEB_RUNTIME_ADMIN_EMAILS`.
+3. **Permiso de runtime:** QR, Pairing Code, estado y acciones de ejecución requieren la cuenta propietaria del panel (la primera cuenta creada) o un email de `WEB_RUNTIME_ADMIN_EMAILS`.
 4. **Recursos Free:** el manager permite un proceso de bot a la vez. Render Free puede suspender el servicio; no promete uptime continuo ni persistencia de credenciales.
 5. **Credenciales fuera de PostgreSQL:** cuentas/perfiles se guardan en la base del panel; credenciales Baileys se escriben en el filesystem efímero del servicio.
 6. **Catálogo extensible:** la API descubre subcarpetas de `bots/`, `package.json`, plugins y un `bot.json` opcional.

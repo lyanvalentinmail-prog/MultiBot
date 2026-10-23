@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'url'
 import { platform } from 'process'
 import * as ws from 'ws'
 const { CONNECTING } = ws
-import { readdirSync, statSync, unlinkSync, existsSync, readFileSync, watch, mkdirSync } from 'fs'
+import { readdirSync, statSync, unlinkSync, existsSync, readFileSync, watch, mkdirSync, rmSync } from 'fs'
 import yargs from 'yargs'
 import chalk from 'chalk'
 import syntaxerror from 'syntax-error'
@@ -253,6 +253,62 @@ async function waitForWebSocketOpen(sock, timeoutMs = 20000) {
   })
 }
 
+function normalizePairingPhone(raw) {
+  let phoneNumber = String(raw || '').replace(/\D/g, '').replace(/^0+/, '')
+
+  // México: WhatsApp usa 521. Si ya trae 521, no volver a insertar el 1.
+  if (phoneNumber.startsWith('521') && phoneNumber.length >= 12 && phoneNumber.length <= 13) {
+    // ok
+  } else if (phoneNumber.startsWith('52') && !phoneNumber.startsWith('521') && phoneNumber.length === 12) {
+    phoneNumber = `521${phoneNumber.slice(2)}`
+  }
+  return phoneNumber
+}
+
+let lastPairingRequestAt = 0
+let pairingAttempts = 0
+
+/**
+ * Solicita un Pairing Code desde el runtime web. Se vuelve a llamar cuando
+ * Baileys recrea el socket (por ejemplo tras restartRequired), porque el código
+ * anterior deja de ser válido y el panel debe mostrar uno nuevo.
+ */
+async function requestWebPairingCode(sock, { force = false } = {}) {
+  if (!webRuntime || runtimeLoginMethod !== 'code') return false
+  if (!sock || sock.authState?.creds?.registered) return false
+  if (sock.__multibotPairingRequested) return false
+  if (pairingAttempts >= 8) return false
+  if (!force && Date.now() - lastPairingRequestAt < 15000) return false
+
+  const phoneNumber = normalizePairingPhone(process.env.MULTIBOT_LOGIN_PHONE || '')
+  if (phoneNumber.length < 8 || phoneNumber.length > 15) {
+    emitRuntimeEvent('pairing-error', 'El número ingresado para Pairing Code no es válido.')
+    return false
+  }
+  if (typeof sock.requestPairingCode !== 'function') {
+    emitRuntimeEvent('pairing-error', 'Esta versión de Baileys no soporta Pairing Code.')
+    return false
+  }
+
+  sock.__multibotPairingRequested = true
+  lastPairingRequestAt = Date.now()
+  pairingAttempts += 1
+  try {
+    if (sock.ws?.readyState !== ws.OPEN) await waitForWebSocketOpen(sock)
+    let code = await sock.requestPairingCode(phoneNumber)
+    code = code?.match(/.{1,4}/g)?.join('-') || code
+    if (!code) throw new Error('WhatsApp no devolvió un Pairing Code.')
+    emitRuntimeEvent('pairing-code', code)
+    return true
+  } catch (error) {
+    sock.__multibotPairingRequested = false
+    const message = String(error?.message || error || 'No se pudo solicitar el Pairing Code.')
+      .split('\n')[0].slice(0, 180)
+    emitRuntimeEvent('pairing-error', message)
+    return false
+  }
+}
+
 async function handleLogin() {
   if (conn.authState.creds.registered) {
     console.log(chalk.green('Sesión ya está registrada.'))
@@ -267,17 +323,15 @@ async function handleLogin() {
   loginMethod = String(loginMethod).toLowerCase().trim()
 
   if (loginMethod === 'code' || loginMethod === 'pairing-code') {
-    let phoneNumber = webRuntime
-      ? String(process.env.MULTIBOT_LOGIN_PHONE || '')
-      : await question(chalk.blue('Ingresa el número de WhatsApp (incluye el código de país, sin necesidad de +):\n'))
-    phoneNumber = phoneNumber.replace(/\D/g, '').replace(/^0+/, '')
-
-    // México: WhatsApp usa 521. Si ya trae 521, no volver a insertar el 1.
-    if (phoneNumber.startsWith('521') && phoneNumber.length >= 12 && phoneNumber.length <= 13) {
-      // ok
-    } else if (phoneNumber.startsWith('52') && !phoneNumber.startsWith('521') && phoneNumber.length === 12) {
-      phoneNumber = `521${phoneNumber.slice(2)}`
+    if (webRuntime) {
+      // El número llega desde el panel web (MULTIBOT_LOGIN_PHONE).
+      await requestWebPairingCode(conn, { force: true })
+      return
     }
+
+    const phoneNumber = normalizePairingPhone(
+      await question(chalk.blue('Ingresa el número de WhatsApp (incluye el código de país, sin necesidad de +):\n'))
+    )
 
     if (typeof conn.requestPairingCode !== 'function') {
       console.log(chalk.red('Tu versión de Baileys no soporta emparejamiento por código.'))
@@ -287,8 +341,7 @@ async function handleLogin() {
       if (conn.ws?.readyState !== ws.OPEN) await waitForWebSocketOpen(conn)
       let code = await conn.requestPairingCode(phoneNumber)
       code = code?.match(/.{1,4}/g)?.join('-') || code
-      if (webRuntime) emitRuntimeEvent('pairing-code', code)
-      else console.log(chalk.cyan('Tu código de emparejamiento es:', code))
+      console.log(chalk.cyan('Tu código de emparejamiento es:', code))
     } catch (e) {
       console.log(chalk.red('Error al solicitar código de emparejamiento:'), e.message || e)
     }
@@ -317,18 +370,58 @@ if (!opts['test']) {
 
 startTmpCleanupInterval({ verbose: true })
 
+/**
+ * En el runtime web no reconectamos en bucle cerrado: cada reintento se agenda
+ * con espera incremental (1,5 s → 30 s). Así no se satura WhatsApp ni se piden
+ * Pairing Codes en cadena cuando la red está caída.
+ */
+let webReloadTimer = null
+let webReconnectDelayMs = 1500
+function cancelScheduledWebReload() {
+  if (webReloadTimer) clearTimeout(webReloadTimer)
+  webReloadTimer = null
+}
+function scheduleWebReload(delayMs = webReconnectDelayMs) {
+  if (!webRuntime || webReloadTimer) return
+  const delay = Math.max(500, delayMs)
+  webReconnectDelayMs = Math.min(30000, webReconnectDelayMs * 2)
+  webReloadTimer = setTimeout(() => {
+    webReloadTimer = null
+    global.reloadHandler(true).catch(console.error)
+  }, delay)
+  webReloadTimer.unref?.()
+}
+
+/**
+ * Cuando WhatsApp cierra la sesión (logout o sesión inválida), el panel debe
+ * volver a mostrar un QR/Pairing Code. Borramos las credenciales efímeras y
+ * terminamos el proceso: al desplegar de nuevo, Baileys parte de cero.
+ */
+function resetWebSession(message) {
+  if (!webRuntime) return false
+  try { rmSync('./sessions', { recursive: true, force: true }) } catch {}
+  emitRuntimeEvent('pairing-error', message)
+  setTimeout(() => process.exit(0), 250).unref?.()
+  return true
+}
+
 async function connectionUpdate(update) {
   const sock = this?.ev ? this : conn
   const { connection, lastDisconnect, isNewLogin } = update
   global.stopped = connection
-  if (connection === 'open') emitRuntimeEvent('connected')
-  else if (connection === 'close') emitRuntimeEvent('disconnected')
+  if (connection === 'open') {
+    webReconnectDelayMs = 1500
+    cancelScheduledWebReload()
+    pairingAttempts = 0
+    emitRuntimeEvent('connected')
+  } else if (connection === 'close') emitRuntimeEvent('disconnected')
   if (isNewLogin) sock.isInit = true
   const code =
     lastDisconnect?.error?.output?.statusCode ||
     lastDisconnect?.error?.output?.payload?.statusCode
   if (code && code !== DisconnectReason.loggedOut && sock?.ws.socket == null) {
-    await global.reloadHandler(true).catch(console.error)
+    if (webRuntime) scheduleWebReload()
+    else await global.reloadHandler(true).catch(console.error)
     global.timestamp.connect = new Date()
   }
   if (global.db.data == null) await loadDatabase()
@@ -363,12 +456,14 @@ async function connectionUpdate(update) {
     switch (reason) {
       case DisconnectReason.badSession:
         sock.logger.error(`Sesión incorrecta, elimina la carpeta ${global.authFile} y escanea nuevamente.`)
+        resetWebSession('La sesión guardada no es válida. Pulsa Desplegar bot y vincular para generar un código nuevo.')
         break
       case DisconnectReason.connectionClosed:
       case DisconnectReason.connectionLost:
       case DisconnectReason.timedOut:
         sock.logger.warn(`Conexión perdida o cerrada, reconectando...`)
-        await global.reloadHandler(true).catch(console.error)
+        if (webRuntime) scheduleWebReload()
+        else await global.reloadHandler(true).catch(console.error)
         break
       case DisconnectReason.connectionReplaced:
         sock.logger.error(
@@ -377,14 +472,17 @@ async function connectionUpdate(update) {
         break
       case DisconnectReason.loggedOut:
         sock.logger.error(`Sesión cerrada, elimina la carpeta ${global.authFile} y escanea nuevamente.`)
+        resetWebSession('La sesión de WhatsApp se cerró. Pulsa Desplegar bot y vincular para generar un código nuevo.')
         break
       case DisconnectReason.restartRequired:
         sock.logger.info(`Reinicio necesario, reinicia el servidor si hay problemas.`)
-        await global.reloadHandler(true).catch(console.error)
+        if (webRuntime) scheduleWebReload(500)
+        else await global.reloadHandler(true).catch(console.error)
         break
       default:
         sock.logger.warn(`Desconexión desconocida: ${reason || ''} - Estado: ${connection || ''}`)
-        await global.reloadHandler(true).catch(console.error)
+        if (webRuntime) scheduleWebReload()
+        else await global.reloadHandler(true).catch(console.error)
         break
     }
   }
@@ -418,6 +516,8 @@ global.reloadHandler = async function (restartConn) {
     global.conn = makeWASocket(connectionOptions)
     conn = global.conn
     attachRuntimeQrListener(conn)
+    // El código anterior caduca con el socket: pide uno nuevo si aún no hay sesión.
+    setTimeout(() => { void requestWebPairingCode(global.conn, { force: true }) }, 800).unref?.()
     
    
     if (preservedStartTime) {

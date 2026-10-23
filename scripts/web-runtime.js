@@ -21,25 +21,60 @@ export function parseRuntimeAdmins(value = '') {
 }
 
 export class WebRuntimeManager {
-  constructor({ rootDir, findBot, enabled = false, adminEmails = '', spawnProcess = spawn, maxProcesses = 1 } = {}) {
+  constructor({ rootDir, findBot, enabled = false, adminEmails = '', ownerEmail = '', spawnProcess = spawn, maxProcesses = 1 } = {}) {
     this.rootDir = path.resolve(rootDir || process.cwd())
     this.findBot = findBot
     this.enabled = enabled === true
     this.adminEmails = parseRuntimeAdmins(adminEmails)
+    this.ownerEmail = ''
     this.spawnProcess = spawnProcess
+    this.setOwnerEmail(ownerEmail)
     this.maxProcesses = Math.max(1, Math.min(1, Number(maxProcesses) || 1)) // Render Free: one bot process at a time.
     this.records = new Map()
   }
 
+  /**
+   * Owner mode: when no explicit allowlist is configured, the first account of
+   * the panel owns the runtime. A fresh deploy therefore works without extra
+   * environment variables, while process control stays limited to one account.
+   * WEB_RUNTIME_ADMIN_EMAILS always takes precedence when configured.
+   */
+  setOwnerEmail(email) {
+    const normalized = String(email || '').trim().toLowerCase()
+    if (normalized) this.ownerEmail = normalized
+    return this.ownerEmail
+  }
+
+  get usesAllowlist() {
+    return this.adminEmails.size > 0
+  }
+
+  isOwner(user) {
+    const email = String(user?.email || '').trim().toLowerCase()
+    return Boolean(email && this.ownerEmail && email === this.ownerEmail)
+  }
+
   isAdmin(user) {
     const email = String(user?.email || '').trim().toLowerCase()
-    return Boolean(this.enabled && this.adminEmails.size && email && this.adminEmails.has(email))
+    if (!this.enabled || !email) return false
+    if (this.usesAllowlist) return this.adminEmails.has(email)
+    return this.isOwner(user)
   }
 
   unavailableError(user = null) {
     if (!this.enabled) return errorWithStatus('La ejecución web está desactivada. Configura WEB_RUNTIME_ENABLED=true en el servicio.', 503, 'RUNTIME_DISABLED')
-    if (!this.adminEmails.size) return errorWithStatus('Configura WEB_RUNTIME_ADMIN_EMAILS en Render antes de habilitar controles de ejecución.', 503, 'RUNTIME_ADMIN_NOT_CONFIGURED')
-    if (!this.isAdmin(user)) return errorWithStatus('Solo las cuentas administradoras configuradas pueden iniciar o detener bots.', 403, 'RUNTIME_FORBIDDEN')
+    if (!this.usesAllowlist && !this.ownerEmail) {
+      return errorWithStatus('Crea la cuenta del panel: la primera cuenta queda como propietaria y podrá desplegar el bot.', 503, 'RUNTIME_OWNER_REQUIRED')
+    }
+    if (!this.isAdmin(user)) {
+      return errorWithStatus(
+        this.usesAllowlist
+          ? 'Solo las cuentas administradoras configuradas pueden iniciar o detener bots.'
+          : 'Solo la cuenta propietaria del panel (la primera cuenta creada) puede desplegar el bot y ver el QR o Pairing Code.',
+        403,
+        'RUNTIME_FORBIDDEN',
+      )
+    }
     return null
   }
 
@@ -59,9 +94,15 @@ export class WebRuntimeManager {
     if (!bot.webRuntime || bot.termuxOnly) throw errorWithStatus('Este bot no está habilitado para ejecución web.', 409, 'WEB_RUNTIME_NOT_ALLOWED')
     const normalizedMethod = method === 'pairing-code' ? 'pairing-code' : method === 'qr' ? 'qr' : ''
     if (!normalizedMethod) throw errorWithStatus('Selecciona QR o Pairing Code.', 400, 'INVALID_PAIRING_METHOD')
+    if (normalizedMethod === 'qr' && bot.supportsQr === false) {
+      throw errorWithStatus('Este bot no declara soporte para vincularse con QR.', 409, 'QR_NOT_SUPPORTED')
+    }
+    if (normalizedMethod === 'pairing-code' && bot.supportsPairingCode === false) {
+      throw errorWithStatus('Este bot no declara soporte para Pairing Code.', 409, 'PAIRING_CODE_NOT_SUPPORTED')
+    }
     const normalizedPhone = String(phoneNumber || '').replace(/\D/g, '')
     if (normalizedMethod === 'pairing-code' && (normalizedPhone.length < 8 || normalizedPhone.length > 15)) {
-      throw errorWithStatus('Para Pairing Code, ingresa un número internacional de 8 a 15 dígitos.', 400, 'INVALID_PHONE_NUMBER')
+      throw errorWithStatus('Para Pairing Code, ingresa tu número con código de país (8 a 15 dígitos, por ejemplo 59899123456).', 400, 'INVALID_PHONE_NUMBER')
     }
 
     const existing = this.records.get(bot.id)
@@ -229,6 +270,10 @@ export class WebRuntimeManager {
       record.qrDataUrl = ''
       record.qrPayload = ''
       record.status = 'awaiting-pairing'
+    } else if (event.type === 'pairing-error' && typeof event.value === 'string') {
+      record.lastError = event.value.slice(0, 300)
+      this.#appendLog(record, `Pairing Code: ${event.value}`)
+      if (record.status === 'starting') record.status = 'running'
     } else if (event.type === 'connected') {
       record.connected = true
       record.connectedAt = new Date().toISOString()

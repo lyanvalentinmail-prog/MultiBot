@@ -109,13 +109,14 @@ test('MultiBot web API: auth, profile CRUD, catalog, and profile/runtime separat
   assert.deepEqual(restoredProfiles.data.instances, [])
 })
 
-test('Render Blueprint uses only free plans and installs the runtime behind an email allowlist', async () => {
+test('Render Blueprint uses only free plans and enables a zero-config runtime', async () => {
   const blueprint = await readFile(new URL('../render.yaml', import.meta.url), 'utf8')
   const plans = [...blueprint.matchAll(/^\s+plan:\s*(\S+)/gm)].map((match) => match[1])
   assert.deepEqual(plans, ['free', 'free'])
   assert.match(blueprint, /npm ci && npm ci --prefix bots\/universal-bot --omit=dev/)
   assert.match(blueprint, /key: WEB_RUNTIME_ENABLED\s+value: "true"/)
-  assert.match(blueprint, /key: WEB_RUNTIME_ADMIN_EMAILS\s+sync: false/)
+  // No allowlist prompt is required on deploy: the first account owns the runtime.
+  assert.doesNotMatch(blueprint, /key: WEB_RUNTIME_ADMIN_EMAILS/)
 })
 
 test('web runtime is admin-allowlisted, formats Baileys events, caps processes, and stops children', async (t) => {
@@ -248,4 +249,81 @@ test('adult-marked bots are excluded from the public catalog', async (t) => {
   const data = await response.json()
   assert.equal(response.status, 200)
   assert.deepEqual(data.bots.map((bot) => bot.id), ['family-bot'])
+})
+
+test('zero-config deploy: the first account owns the runtime and can pair with its phone number', async (t) => {
+  const rootDir = await mkdtemp(path.join(os.tmpdir(), 'multibot-owner-test-'))
+  const dataDir = path.join(rootDir, 'data')
+  const botDir = path.join(rootDir, 'bots', 'owner-bot')
+  await mkdir(botDir, { recursive: true })
+  await writeFile(path.join(botDir, 'package.json'), JSON.stringify({ name: 'owner-bot', version: '1.0.0', type: 'module', main: 'main.js' }))
+  await writeFile(path.join(botDir, 'bot.json'), JSON.stringify({
+    id: 'owner-bot', name: 'Owner Bot', executionMode: 'web', webRuntime: true,
+    webEntrypoint: 'main.js', supportsQr: true, supportsPairingCode: true, adultContent: false,
+  }))
+  await writeFile(path.join(botDir, 'main.js'), [
+    "process.stdout.write('MULTIBOT_RUNTIME_EVENT:' + JSON.stringify({ type: 'pairing-code', value: 'OWNR-1234' }) + String.fromCharCode(10));",
+    'setInterval(() => {}, 1000);',
+  ].join('\n'))
+
+  // No WEB_RUNTIME_ENABLED / WEB_RUNTIME_ADMIN_EMAILS: a plain deploy must work.
+  let app = await createApplication({ database: createDatabase({ dataDir }), rootDir })
+  let address = await app.listen(0, '127.0.0.1')
+  let base = `http://127.0.0.1:${address.port}`
+  const call = async (route, { method = 'GET', token, body } = {}) => {
+    const headers = {}
+    if (token) headers.Authorization = `Bearer ${token}`
+    if (body !== undefined) headers['Content-Type'] = 'application/json'
+    const response = await fetch(`${base}${route}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
+    return { response, data: await response.json() }
+  }
+  t.after(async () => {
+    await app.close()
+    await rm(rootDir, { recursive: true, force: true })
+  })
+
+  const register = async (email, username) => {
+    const result = await call('/api/auth/register', {
+      method: 'POST', body: { email, username, password: 'secure owner password 123' },
+    })
+    assert.equal(result.response.status, 201)
+    return result.data.token
+  }
+  const ownerToken = await register('owner@example.test', 'owner-user')
+  const guestToken = await register('guest@example.test', 'guest-user')
+
+  const ownerStatus = await call('/api/runtime', { token: ownerToken })
+  assert.equal(ownerStatus.response.status, 200)
+  assert.equal(ownerStatus.data.accessMode, 'owner')
+  assert.equal(ownerStatus.data.ownerEmail, 'owner@example.test')
+  assert.equal(ownerStatus.data.canManage, true)
+
+  const guestStatus = await call('/api/runtime', { token: guestToken })
+  assert.equal(guestStatus.response.status, 403)
+  assert.equal(guestStatus.data.code, 'RUNTIME_FORBIDDEN')
+
+  const start = await call('/api/bots/owner-bot/runtime/start', {
+    method: 'POST', token: ownerToken, body: { method: 'pairing-code', phoneNumber: '+598 99 123 456' },
+  })
+  assert.equal(start.response.status, 202)
+  const deadline = Date.now() + 4000
+  let runtime = null
+  while (Date.now() < deadline) {
+    const status = await call('/api/runtime', { token: ownerToken })
+    runtime = status.data.runtimes.find((item) => item.botId === 'owner-bot')
+    if (runtime?.pairingCode) break
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+  assert.equal(runtime?.pairingCode, 'OWNR-1234')
+  assert.equal(JSON.stringify(runtime).includes('59899123456'), false)
+  await call('/api/bots/owner-bot/runtime/stop', { method: 'POST', token: ownerToken })
+
+  // Restart: the persisted first account stays the owner without any env var.
+  await app.close()
+  app = await createApplication({ database: createDatabase({ dataDir }), rootDir })
+  address = await app.listen(0, '127.0.0.1')
+  base = `http://127.0.0.1:${address.port}`
+  const restored = await call('/api/runtime', { token: ownerToken })
+  assert.equal(restored.response.status, 200)
+  assert.equal(restored.data.ownerEmail, 'owner@example.test')
 })
