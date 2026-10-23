@@ -1,5 +1,5 @@
 /* MultiBot · frontend vanilla adaptado al diseño de TomiOka.
- * El portal cataloga bots, guarda preferencias y ofrece runtime web autorizado
+ * El portal cataloga bots y ofrece vinculación real con un runtime web autorizado
  * para los manifiestos que lo habilitan. Las sesiones permanecen en el host efímero.
  */
 const API = '/api';
@@ -34,13 +34,12 @@ const TOKEN_KEY = 'multibot_session';
 const FAVORITES_KEY = 'multibot_favorites';
 const ENDPOINT_FAVORITES_KEY = 'multibot_endpoint_favorites';
 const THEME_KEY = 'multibot_theme';
-const PREFIXES = ['#', '-', '.', '/', '!'];
 const PATHS = { landing: '/', home: '/home', register: '/register', bots: '/bots', metrics: '/metrics', store: '/store', endpoints: '/endpoints', favorites: '/favorites', tickets: '/tickets', profile: '/profile', commands: '/cmds' };
 const ROUTES = Object.fromEntries(Object.entries(PATHS).map(([key, value]) => [value, key]));
 Object.assign(ROUTES, { '/api': 'endpoints', '/api-docs': 'endpoints', '/commands': 'commands', '/guide': 'store', '/support': 'tickets', '/account': 'profile', '/mis-bots': 'bots' });
 const navItems = [
   { view: 'home', label: 'Inicio', icon: 'home' },
-  { view: 'register', label: 'Crear perfil', icon: 'plus' },
+  { view: 'register', label: 'Crear bot', icon: 'plus' },
   { view: 'bots', label: 'Bots', icon: 'bot' },
   { view: 'metrics', label: 'Métricas', icon: 'chart' },
   { view: 'store', label: 'Termux', icon: 'smartphone' },
@@ -48,7 +47,7 @@ const navItems = [
 ];
 const desktopItems = [
   { view: 'home', label: 'Inicio', icon: 'home' },
-  { view: 'register', label: 'Crear perfil', icon: 'plus' },
+  { view: 'register', label: 'Crear bot', icon: 'plus' },
   { view: 'bots', label: 'Bots', icon: 'bot' },
   { view: 'metrics', label: 'Métricas', icon: 'chart' },
   { view: 'store', label: 'Termux', icon: 'smartphone' },
@@ -66,7 +65,6 @@ const state = {
   token: safeRead(TOKEN_KEY, ''),
   user: null,
   catalog: [],
-  instances: [],
   plugins: [],
   endpoints: [],
   system: null,
@@ -75,7 +73,7 @@ const state = {
   runtimeError: '',
   runtimeErrorCode: '',
   runtimeBusy: false,
-  runtimeMethod: 'qr',
+  runtimeMethod: 'pairing-code',
   favorites: safeRead(FAVORITES_KEY, []),
   endpointFavorites: safeRead(ENDPOINT_FAVORITES_KEY, []),
   activeBotId: new URLSearchParams(location.search).get('bot') || 'universal-bot',
@@ -88,10 +86,7 @@ const state = {
   modal: '',
   modalError: '',
   authMode: 'login',
-  editTarget: null,
-  deployTarget: null,
-  confirmTarget: null,
-  flow: { step: 1, botId: 'universal-bot', name: '', prefix: '.', pairingMethod: 'pairing-code', error: '', loading: false, saved: null },
+  createBotId: new URLSearchParams(location.search).get('bot') || 'universal-bot',
   loading: true,
 };
 
@@ -149,7 +144,7 @@ function renderDrawer() {
   const item = (view, label, description, iconName) => `<button class="drawer-item ${active === view ? 'is-active' : ''}" type="button" data-page="${view}"><span class="drawer-item-icon">${icon(iconName)}</span><span class="drawer-item-copy"><strong>${label}</strong><small>${description}</small></span>${icon('chevron')}</button>`;
   const userLabel = state.user?.username || state.user?.email || 'Portal público';
   $('#menu-drawer').innerHTML = `<div class="drawer-profile"><span class="avatar">${escapeHtml(initials(userLabel))}</span><span class="drawer-profile-copy"><strong>${escapeHtml(userLabel)}</strong><small>${state.user ? 'CUENTA MULTIBOT' : 'VISITA EL CATÁLOGO'}</small></span><button class="icon-button drawer-close" type="button" data-action="close-drawer" aria-label="Cerrar menú">${icon('close')}</button></div>
-    <div class="drawer-section"><p class="drawer-section-label">Navegación <span>01 — 06</span></p>${item('home', 'Inicio', 'Resumen del panel', 'home')}${item('register', 'Crear perfil', 'Guardar preferencias', 'plus')}${item('bots', 'Bots', 'Catálogo y configuraciones', 'bot')}${item('endpoints', 'API', 'Rutas del portal', 'code')}${item('favorites', 'Favoritos', 'Bots guardados', 'star')}${item('metrics', 'Métricas', 'Telemetría web y base', 'chart')}</div>
+    <div class="drawer-section"><p class="drawer-section-label">Navegación <span>01 — 06</span></p>${item('home', 'Inicio', 'Resumen del panel', 'home')}${item('register', 'Crear bot', 'Pairing Code o QR', 'plus')}${item('bots', 'Bots', 'Catálogo y runtime', 'bot')}${item('endpoints', 'API', 'Rutas del portal', 'code')}${item('favorites', 'Favoritos', 'Bots guardados', 'star')}${item('metrics', 'Métricas', 'Telemetría web y base', 'chart')}</div>
     <div class="drawer-section"><p class="drawer-section-label">Recursos</p>${item('store', 'Guía Termux', 'Termux o runtime web autorizado', 'smartphone')}${item('commands', 'Plugins', 'Archivos del catálogo', 'spark')}${item('tickets', 'Soporte', 'Documentación y ayuda', 'headset')}</div>
     <div class="drawer-section"><p class="drawer-section-label">Cuenta</p>${item('profile', 'Mi perfil', 'Datos y privacidad', 'users')}</div>
     <div class="drawer-bottom">${state.user ? `<button class="btn btn-outline btn-full" type="button" data-action="logout">${icon('external')} Cerrar sesión</button>` : `<button class="btn btn-primary btn-full" type="button" data-action="open-auth" data-mode="register">${icon('users')} Crear cuenta</button>`}<p>Universal Bot admite Termux y runtime web Free sujeto a permisos y límites.</p></div>`;
@@ -208,11 +203,11 @@ function renderPage({ force = false } = {}) {
   renderDrawer();
   const main = $('#main-content');
   if (main) {
-    const pages = { landing: renderLanding, home: renderHome, register: renderWizard, bots: renderBots, metrics: renderMetrics, store: renderGuide, endpoints: renderEndpoints, favorites: renderFavorites, tickets: renderSupport, profile: renderProfile, commands: renderPlugins };
+    const pages = { landing: renderLanding, home: renderHome, register: renderCreateBot, bots: renderBots, metrics: renderMetrics, store: renderGuide, endpoints: renderEndpoints, favorites: renderFavorites, tickets: renderSupport, profile: renderProfile, commands: renderPlugins };
     const html = (pages[state.view] || renderLanding)();
     if (force || main.innerHTML !== html) main.innerHTML = html;
     main.dataset.ready = 'true';
-    main.classList.toggle('is-wizard', state.view === 'register');
+    main.classList.toggle('is-create-bot', state.view === 'register');
   }
   if (state.modal) renderModal();
   const themeMeta = $('meta[name="theme-color"]');
@@ -232,48 +227,47 @@ function pluginCategoryName(category) {
 function categoryForEndpoint(endpoint) {
   const path = endpoint.path || '';
   if (path.includes('/auth/')) return 'Autenticación';
-  if (path.includes('/instances')) return 'Perfiles';
+  if (path.includes('/instances')) return 'Instancias heredadas';
   if (path.includes('/bots') || path.includes('/plugins')) return 'Catálogo';
   return 'Estado y sistema';
 }
 
 function renderLanding() {
   const botCount = state.catalog.length;
-  const profileCount = state.instances.length;
   const pluginCount = state.catalog.reduce((total, bot) => total + number(bot.pluginCount), 0);
   const dbProvider = state.system?.database?.provider === 'postgresql' ? 'PostgreSQL' : 'JSON local';
   const uptime = state.system?.server?.uptimeMs != null ? formatUptime(state.system.server.uptimeMs) : '—';
   const lead = state.catalog[0];
   const questions = [
-    { q: '¿El panel ejecuta los bots de WhatsApp?', a: 'Universal Bot tiene runtime web experimental para cuentas autorizadas y también puede iniciarse en Termux. En Render Free se limita a un proceso y puede detenerse al suspenderse el servicio.' },
-    { q: '¿Cómo vinculo WhatsApp?', a: 'En el detalle de Universal Bot, una cuenta administradora puede solicitar el QR o Pairing Code real de Baileys. También puedes iniciar el bot en Termux.' },
-    { q: '¿Qué guarda un perfil?', a: 'Nombre, bot elegido, prefijo y método preferido. Las credenciales del runtime web se guardan aparte en el filesystem efímero del host; no se guardan en PostgreSQL.' },
+    { q: '¿Cómo creo un bot desde la web?', a: 'Abre Crear bot, elige Pairing Code o QR e inicia el runtime. El código real aparece en el mismo panel cuando Baileys lo genera; solo las cuentas administradoras autorizadas pueden hacerlo.' },
+    { q: '¿Necesito ingresar mi número?', a: 'Sí para Pairing Code: escribe el número internacional que recibirá el código. Para QR no hace falta escribirlo; lo escaneas desde Dispositivos vinculados en WhatsApp.' },
+    { q: '¿El Pairing Code o QR es real?', a: 'Sí. Lo genera la conexión de Baileys con WhatsApp; el panel no inventa códigos. No compartas tu QR ni tu Pairing Code.' },
     { q: '¿Dónde se guardan mis datos?', a: 'En PostgreSQL de Render si DATABASE_URL está configurada. En desarrollo local se usa JSON dentro de data/. Ten en cuenta que PostgreSQL Free de Render expira a los 30 días.' },
-    { q: '¿El estado “configurado” significa que el bot está conectado?', a: 'No. Solo confirma que guardaste preferencias. El estado real del runtime web solo aparece para administradores autorizados; la disponibilidad de Render Free no es continua.' },
+    { q: '¿Quién puede crear el bot en la web?', a: 'Solo las cuentas cuyo email está en WEB_RUNTIME_ADMIN_EMAILS. Render Free puede suspender el servicio; el runtime no garantiza disponibilidad continua.' },
   ];
   return `<div class="page-content landing-page" id="top">
     <section class="landing-hero" aria-labelledby="landing-title"><div class="landing-hero-copy">
-      <span class="hero-version"><span class="pulse-dot"></span> MultiBot · catálogo y configuración</span>
+      <span class="hero-version"><span class="pulse-dot"></span> MultiBot · catálogo y vinculación</span>
       <h1 class="landing-title" id="landing-title"><span class="title-line">Un hogar para</span><span class="title-line">tus <span class="gradient-text">bots.</span></span></h1>
-      <p class="landing-lede">Explora los bots de WhatsApp del repositorio, consulta sus plugins y guarda perfiles de configuración. <strong>Cada bot conserva su entorno de ejecución.</strong></p>
-      <div class="landing-actions"><a class="btn btn-primary btn-large" href="/bots" data-page="bots">Explorar catálogo ${icon('arrow-right')}</a><a class="btn btn-outline btn-large" href="/store" data-page="store">Guía Termux ${icon('smartphone')}</a></div>
+      <p class="landing-lede">Explora el catálogo, crea un bot compatible e inicia la vinculación desde la web. Pairing Code y QR llegan desde Baileys.</p>
+      <div class="landing-actions"><a class="btn btn-primary btn-large" href="/register" data-page="register">Crear bot ${icon('arrow-right')}</a><a class="btn btn-outline btn-large" href="/bots" data-page="bots">Explorar catálogo ${icon('bot')}</a></div>
       <div class="hero-footnote"><span>${icon('folder')} Bots aislados por carpeta</span><span>${icon('database')} ${escapeHtml(dbProvider)}</span><span>${icon('shield')} Sin conexión inventada</span></div>
     </div><div class="hero-showcase" aria-label="Resumen del catálogo"><div class="orbit"><span class="orbit-dot"></span></div>
       <div class="float-chip float-chip-one">${icon('bot')} ${formatNumber(botCount)} bots</div><div class="float-chip float-chip-two">${icon('code')} ${formatNumber(pluginCount)} plugins</div>
       <div class="showcase-window"><div class="showcase-top"><span class="showcase-title">${icon('spark')} MULTIBOT · CATALOG</span><span class="window-dots"><i></i><i></i><i></i></span></div><div class="showcase-body">
         <div class="showcase-bot"><span class="bot-orb">${icon('bot')}</span><span><strong>${escapeHtml(lead?.name || 'Catálogo MultiBot')}</strong><small>${escapeHtml(lead?.webRuntime ? 'Runtime web Free / Termux' : lead?.termuxOnly ? 'Runtime Termux' : lead?.executionMode || 'Bots del repositorio')}</small></span><span class="status-badge status-offline status-tag">${lead?.webRuntime ? 'Web + Termux' : lead?.termuxOnly ? 'Termux' : 'Catálogo'}</span></div>
-        <div class="showcase-stats"><div class="showcase-stat"><b>${formatNumber(botCount)}</b><span>Bots publicados</span></div><div class="showcase-stat"><b>${formatNumber(profileCount)}</b><span>Perfiles propios</span></div><div class="showcase-stat"><b>${escapeHtml(uptime)}</b><span>Uptime web</span></div></div>
+        <div class="showcase-stats"><div class="showcase-stat"><b>${formatNumber(botCount)}</b><span>Bots publicados</span></div><div class="showcase-stat"><b>${formatNumber(state.catalog.filter((bot) => bot.webRuntime).length)}</b><span>Bots con runtime web</span></div><div class="showcase-stat"><b>${escapeHtml(uptime)}</b><span>Uptime web</span></div></div>
         <div class="showcase-connection">${icon('shield')}<span><b>Runtime web protegido</b> · QR/Pairing Code reales para administradores</span></div>
       </div></div></div></section>
     <div class="landing-proof"><div class="proof-card"><span class="icon-wrap">${icon('bot')}</span><span><strong>${formatNumber(botCount)}</strong><span>Bots del repo</span></span></div><div class="proof-card"><span class="icon-wrap">${icon('code')}</span><span><strong>${formatNumber(pluginCount)}</strong><span>Plugins listados</span></span></div><div class="proof-card"><span class="icon-wrap">${icon('database')}</span><span><strong>${escapeHtml(dbProvider)}</strong><span>Persistencia del panel</span></span></div><div class="proof-card"><span class="icon-wrap">${icon('globe')}</span><span><strong>${state.health?.ok ? 'Disponible' : 'Conectando'}</strong><span>Servicio web</span></span></div></div>
-    <section class="section-block" id="how"><div class="section-heading center"><span class="section-kicker">${icon('spark')} Cómo funciona</span><h2 class="section-title">Organiza bots en <span class="gradient-text">tres pasos</span></h2><p class="section-copy">El panel descubre el catálogo; el runtime y la vinculación se hacen en el entorno de cada bot.</p></div><div class="steps-grid">
-      <article class="card card-hover step-card"><span class="step-number">01</span><h3>Explora el catálogo</h3><p>Consulta bots, capacidades y archivos de plugins desde la carpeta <code>bots/</code>.</p></article><article class="card card-hover step-card"><span class="step-number">02</span><h3>Guarda un perfil</h3><p>Asocia un nombre, prefijo y método de vinculación preferido a tu cuenta del panel.</p></article><article class="card card-hover step-card"><span class="step-number">03</span><h3>Ejecuta en su entorno</h3><p>Usa el runtime web protegido de Universal Bot o elige Termux; QR y Pairing Code llegan desde Baileys.</p></article>
+    <section class="section-block" id="how"><div class="section-heading center"><span class="section-kicker">${icon('spark')} Cómo funciona</span><h2 class="section-title">Organiza bots en <span class="gradient-text">tres pasos</span></h2><p class="section-copy">Elige un bot compatible, solicita Pairing Code con tu número internacional o selecciona QR, y recibe la credencial real desde Baileys.</p></div><div class="steps-grid">
+      <article class="card card-hover step-card"><span class="step-number">01</span><h3>Explora el catálogo</h3><p>Consulta bots, capacidades y archivos de plugins desde la carpeta <code>bots/</code>.</p></article><article class="card card-hover step-card"><span class="step-number">02</span><h3>Elige cómo vincular</h3><p>Ingresa tu número internacional para Pairing Code o selecciona QR para escanearlo.</p></article><article class="card card-hover step-card"><span class="step-number">03</span><h3>Crea y conecta el bot</h3><p>Inicia el runtime y recibe el QR o Pairing Code real en la web; también puedes usar Termux.</p></article>
     </div></section>
     <section class="section-block" id="benefits"><div class="section-heading center"><span class="section-kicker">${icon('shield')} MultiBot</span><h2 class="section-title">Control claro, <span class="gradient-text">sin mezclar runtimes</span></h2><p class="section-copy">La interfaz usa el diseño TomiOka, mientras los datos y límites corresponden a MultiBot.</p></div><div class="benefits-grid">
-      <article class="card card-hover benefit-card"><span class="benefit-icon">${icon('folder')}</span><h3>Carpetas aisladas</h3><p>Cada bot y sus plugins permanecen separados dentro de <code>bots/</code>.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('code')}</span><h3>Catálogo real</h3><p>La API descubre bots y plugins del repositorio, sin simular sesiones activas.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('smartphone')}</span><h3>Web + Termux</h3><p>Universal Bot puede arrancar desde el panel con permisos de administrador o desde Termux.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('database')}</span><h3>Perfiles persistidos</h3><p>Cuentas y preferencias se guardan en PostgreSQL cuando DATABASE_URL está configurada.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('qr')}</span><h3>QR y Pairing Code</h3><p>El runtime web muestra el QR o Pairing Code real que genera Baileys; no crea códigos de prueba.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('lock')}</span><h3>Sesiones privadas</h3><p>Las credenciales del runtime no van a PostgreSQL; permanecen en el filesystem efímero del host.</p></article>
+      <article class="card card-hover benefit-card"><span class="benefit-icon">${icon('folder')}</span><h3>Carpetas aisladas</h3><p>Cada bot y sus plugins permanecen separados dentro de <code>bots/</code>.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('code')}</span><h3>Catálogo real</h3><p>La API descubre bots y plugins del repositorio, sin simular sesiones activas.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('smartphone')}</span><h3>Web + Termux</h3><p>Universal Bot puede arrancar desde el panel con permisos de administrador o desde Termux.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('database')}</span><h3>Vinculación directa</h3><p>El botón Crear bot inicia el proceso real; no guarda una preferencia como sustituto de la conexión.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('qr')}</span><h3>QR y Pairing Code</h3><p>El runtime web muestra el QR o Pairing Code real que genera Baileys; no crea códigos de prueba.</p></article><article class="card card-hover benefit-card"><span class="benefit-icon">${icon('lock')}</span><h3>Sesiones privadas</h3><p>Las credenciales del runtime no van a PostgreSQL; permanecen en el filesystem efímero del host.</p></article>
     </div></section>
     <section class="section-block" id="faq"><div class="section-heading center"><span class="section-kicker">${icon('headset')} Preguntas frecuentes</span><h2 class="section-title">Respuestas <span class="gradient-text">claras</span></h2><p class="section-copy">Lo que el panel hace y lo que se ejecuta en tu dispositivo.</p></div><div class="faq-list">${questions.map((item, index) => `<details class="faq-item" ${index === 0 ? 'open' : ''}><summary><span><span class="purple mono">${String(index + 1).padStart(2, '0')}</span>　${escapeHtml(item.q)}</span></summary><div class="faq-answer">${escapeHtml(item.a)}</div></details>`).join('')}</div></section>
-    <section class="section-block landing-cta"><span class="section-kicker">${icon('bolt')} Empieza ahora</span><h2>Explora MultiBot</h2><p>Explora el catálogo y ejecuta Universal Bot desde la web con permisos o desde Termux.</p><div class="landing-actions"><a class="btn btn-primary btn-large" href="/bots" data-page="bots">Abrir catálogo ${icon('arrow-right')}</a><a class="btn btn-outline btn-large" href="/register" data-page="register">Guardar perfil ${icon('plus')}</a></div></section>
+    <section class="section-block landing-cta"><span class="section-kicker">${icon('bolt')} Empieza ahora</span><h2>Explora MultiBot</h2><p>Explora el catálogo y ejecuta Universal Bot desde la web con permisos o desde Termux.</p><div class="landing-actions"><a class="btn btn-primary btn-large" href="/bots" data-page="bots">Abrir catálogo ${icon('arrow-right')}</a><a class="btn btn-outline btn-large" href="/register" data-page="register">Crear bot ${icon('plus')}</a></div></section>
     <footer class="site-footer"><a class="site-footer-brand" href="/" data-page="landing">${brandMarkup()}</a><span>© ${new Date().getFullYear()} MultiBot Team · <a href="/LICENSE-TOMIOKA.txt" target="_blank" rel="noreferrer">Diseño adaptado de TomiOka · MIT</a></span><div class="footer-links"><a href="#how">Cómo funciona</a><a href="#faq">Preguntas frecuentes</a></div></footer>
   </div>`;
 }
@@ -284,56 +278,53 @@ function renderMetricCard({ label, value, note, icon: iconName, indicator = fals
 
 function renderHome() {
   const username = state.user?.username || state.user?.email?.split('@')[0] || 'invitado';
-  const profileCount = state.instances.length;
   const botCount = state.catalog.length;
   const pluginCount = state.catalog.reduce((sum, bot) => sum + number(bot.pluginCount), 0);
+  const webRuntimeCount = state.catalog.filter((bot) => bot.webRuntime).length;
   const db = state.system?.database;
   const metrics = [
     { label: 'Bots en catálogo', value: formatNumber(botCount), note: 'Leídos desde bots/', icon: 'bot', indicator: true },
-    { label: 'Mis perfiles', value: state.user ? formatNumber(profileCount) : 'Inicia sesión', note: state.user ? 'Solo configuraciones guardadas' : 'Perfiles privados por cuenta', icon: 'folder' },
+    { label: 'Bots web compatibles', value: formatNumber(webRuntimeCount), note: 'Runtime autorizado', icon: 'bolt' },
     { label: 'Plugins', value: formatNumber(pluginCount), note: 'Archivos detectados', icon: 'code' },
     { label: 'Base de datos', value: db?.provider === 'postgresql' ? 'PostgreSQL' : 'JSON local', note: db?.status === 'connected' ? 'Conexión verificada' : 'Persistencia local', icon: 'database' },
     { label: 'Uptime web', value: formatUptime(state.system?.server?.uptimeMs), note: 'Proceso del panel, no de los bots', icon: 'clock' },
-    { label: 'Bots con runtime web', value: formatNumber(state.catalog.filter((bot) => bot.webRuntime).length), note: 'Control con cuenta autorizada', icon: 'bolt' },
+    { label: 'Vinculación', value: 'Baileys', note: 'QR o Pairing Code real', icon: 'qr' },
   ];
-  return `<div class="page-content"><section class="welcome-hero"><div class="welcome-emblem" aria-hidden="true">${icon('spark')}</div><div class="welcome-copy"><span class="welcome-overline">WELCOME · MULTIBOT</span><h1>Hola, <span class="gradient-text">${escapeHtml(username)}</span></h1><p>Bienvenido de nuevo. Explora el catálogo y, si tu cuenta está autorizada, inicia Universal Bot desde el runtime web; también puedes usar Termux.</p><div class="welcome-actions"><a class="btn btn-primary" href="/bots" data-page="bots">${icon('bot')} Explorar bots</a><a class="btn btn-outline" href="/register" data-page="register">${icon('plus')} Guardar perfil</a></div></div></section>
-    <section class="info-banner"><span class="info-symbol">${icon('shield')}</span><div><span class="info-kicker">INFORMACIÓN · RUNTIME PROTEGIDO</span><h2>Universal Bot en web o Termux</h2><p>El runtime web requiere una cuenta administradora autorizada. QR y Pairing Code son reales; las credenciales quedan en el filesystem efímero de Render Free.</p><div class="info-points"><span>${icon('bolt')} Un proceso a la vez</span><span>${icon('lock')} Controles solo admin</span><span>${icon('qr')} QR/Pairing Code de Baileys</span></div></div><a class="btn btn-primary btn-small" href="/bots/universal-bot" data-page="bots">Abrir runtime ${icon('arrow-right')}</a></section>
-    <section class="section-block" style="margin-top:34px"><div class="section-heading"><div><span class="section-kicker">${icon('chart')} Resumen</span><h2 class="section-title">MultiBot, de un vistazo</h2><p class="section-copy">Métricas del portal, el catálogo y la persistencia.</p></div><button class="btn btn-outline btn-small" type="button" data-action="refresh-data">${icon('refresh')} Actualizar</button></div><div class="metrics-grid">${metrics.map(renderMetricCard).join('')}</div></section>
-    <section class="section-block"><div class="section-heading"><div><span class="section-kicker">${icon('bolt')} Accesos rápidos</span><h2 class="section-title">¿Qué quieres hacer?</h2></div></div><div class="shortcut-grid"><a class="card card-hover shortcut-card" href="/bots" data-page="bots"><span class="shortcut-icon">${icon('bot')}</span><span><strong>Ver catálogo</strong><small>Explora bots y plugins disponibles</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/cmds" data-page="commands"><span class="shortcut-icon">${icon('code')}</span><span><strong>Buscar plugins</strong><small>Archivos del Universal Bot</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/store" data-page="store"><span class="shortcut-icon">${icon('smartphone')}</span><span><strong>Guía Termux</strong><small>Pairing Code y QR en el dispositivo</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/endpoints" data-page="endpoints"><span class="shortcut-icon">${icon('code')}</span><span><strong>Documentación API</strong><small>Rutas reales del panel</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a></div></section>
-    <section class="section-block"><div class="section-heading"><div><span class="section-kicker">${icon('folder')} Perfiles</span><h2 class="section-title">Tus configuraciones guardadas</h2></div><a class="btn btn-outline btn-small" href="/bots" data-page="bots">Administrar ${icon('arrow-right')}</a></div>${state.user ? (state.instances.length ? `<div class="bot-list">${state.instances.slice(0, 3).map(renderProfileCard).join('')}</div>` : `<div class="empty-state"><span class="empty-state-icon">${icon('folder')}</span><h2>Aún no guardaste perfiles</h2><p>Un perfil registra preferencias; no inicia ni conecta el bot en el servidor web.</p><a class="btn btn-primary" href="/register" data-page="register">Crear perfil ${icon('plus')}</a></div>`) : `<div class="card fn-login-card"><span class="empty-state-icon">${icon('users')}</span><h2>Inicia sesión para guardar perfiles</h2><p>El catálogo es público; las configuraciones se guardan de forma privada por cuenta.</p><button class="btn btn-primary" type="button" data-action="open-auth" data-mode="register">Crear cuenta</button></div>`}</section>
+  return `<div class="page-content"><section class="welcome-hero"><div class="welcome-emblem" aria-hidden="true">${icon('spark')}</div><div class="welcome-copy"><span class="welcome-overline">WELCOME · MULTIBOT</span><h1>Hola, <span class="gradient-text">${escapeHtml(username)}</span></h1><p>Elige un bot compatible y crea una conexión real de WhatsApp. Para Pairing Code ingresa tu número internacional; para QR, escanéalo desde la app.</p><div class="welcome-actions"><a class="btn btn-primary" href="/register" data-page="register">${icon('plus')} Crear bot</a><a class="btn btn-outline" href="/bots" data-page="bots">${icon('bot')} Explorar bots</a></div></div></section>
+    <section class="info-banner"><span class="info-symbol">${icon('shield')}</span><div><span class="info-kicker">VINCULACIÓN REAL · RUNTIME PROTEGIDO</span><h2>Tu bot, conectado desde la web</h2><p>El runtime usa QR o Pairing Code reales de Baileys. Los controles y códigos solo están disponibles para cuentas administradoras autorizadas.</p><div class="info-points"><span>${icon('bolt')} Un proceso a la vez</span><span>${icon('lock')} Controles solo admin</span><span>${icon('qr')} QR/Pairing Code reales</span></div></div><a class="btn btn-primary btn-small" href="/register" data-page="register">Crear bot ${icon('arrow-right')}</a></section>
+    <section class="section-block" style="margin-top:34px"><div class="section-heading"><div><span class="section-kicker">${icon('chart')} Resumen</span><h2 class="section-title">MultiBot, de un vistazo</h2><p class="section-copy">Métricas del portal, catálogo y runtime.</p></div><button class="btn btn-outline btn-small" type="button" data-action="refresh-data">${icon('refresh')} Actualizar</button></div><div class="metrics-grid">${metrics.map(renderMetricCard).join('')}</div></section>
+    <section class="section-block"><div class="section-heading"><div><span class="section-kicker">${icon('bolt')} Accesos rápidos</span><h2 class="section-title">¿Qué quieres hacer?</h2></div></div><div class="shortcut-grid"><a class="card card-hover shortcut-card" href="/register" data-page="register"><span class="shortcut-icon">${icon('bot')}</span><span><strong>Crear bot</strong><small>Elige Pairing Code o QR y vincula WhatsApp</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/bots" data-page="bots"><span class="shortcut-icon">${icon('folder')}</span><span><strong>Ver catálogo</strong><small>Explora bots compatibles y plugins</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/store" data-page="store"><span class="shortcut-icon">${icon('smartphone')}</span><span><strong>Guía Termux</strong><small>Alternativa para vincular en Android</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/endpoints" data-page="endpoints"><span class="shortcut-icon">${icon('code')}</span><span><strong>Documentación API</strong><small>Rutas reales del panel</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a></div></section>
     ${pageFooter()}</div>`;
 }
 
 function renderCatalogBotCard(bot) {
   const runtimeLabel = bot.webRuntime ? 'Web + Termux' : bot.termuxOnly ? 'Solo Termux' : escapeHtml(bot.executionMode || 'Manual');
   const pairingLabel = bot.webRuntime ? 'Vinculación web disponible' : bot.termuxOnly ? 'Vinculación en Termux' : 'Pairing en su entorno';
-  return `<article class="card bot-card"><span class="bot-card-icon">${icon('bot')}</span><div class="bot-card-main"><div class="bot-card-title"><h3>${escapeHtml(bot.name)}</h3><span class="status-badge status-offline">${runtimeLabel}</span></div><p>${escapeHtml(bot.description || 'Bot del repositorio MultiBot.')}</p><div class="bot-card-meta"><span>${icon('code')} ${formatNumber(bot.pluginCount)} plugins</span><span>${icon('qr')}${bot.supportsQr ? 'QR real' : 'QR no declarado'}</span><span>${icon('hash')}${bot.supportsPairingCode ? pairingLabel : 'Pairing no declarado'}</span><span>${icon('shield')}${bot.webRuntime ? 'Solo cuenta admin' : 'No ejecutable desde la web'}</span></div></div><div class="bot-card-actions"><button class="favorite-button ${state.favorites.includes(bot.id) ? 'is-favorite' : ''}" type="button" data-action="favorite-bot" data-id="${escapeHtml(bot.id)}" aria-label="${state.favorites.includes(bot.id) ? 'Quitar de favoritos' : 'Añadir a favoritos'}" title="Favorito">${icon('star')}</button><button class="btn btn-outline btn-small" type="button" data-action="show-bot" data-id="${escapeHtml(bot.id)}">Detalles ${icon('arrow-right')}</button><button class="btn btn-primary btn-small" type="button" data-action="create-from-bot" data-id="${escapeHtml(bot.id)}">Guardar perfil ${icon('plus')}</button></div></article>`;
+  const createAction = bot.webRuntime
+    ? `<button class="btn btn-primary btn-small" type="button" data-action="create-from-bot" data-id="${escapeHtml(bot.id)}">Crear bot ${icon('arrow-right')}</button>`
+    : '';
+  return `<article class="card bot-card"><span class="bot-card-icon">${icon('bot')}</span><div class="bot-card-main"><div class="bot-card-title"><h3>${escapeHtml(bot.name)}</h3><span class="status-badge status-offline">${runtimeLabel}</span></div><p>${escapeHtml(bot.description || 'Bot del repositorio MultiBot.')}</p><div class="bot-card-meta"><span>${icon('code')} ${formatNumber(bot.pluginCount)} plugins</span><span>${icon('qr')}${bot.supportsQr ? 'QR real' : 'QR no declarado'}</span><span>${icon('hash')}${bot.supportsPairingCode ? pairingLabel : 'Pairing no declarado'}</span><span>${icon('shield')}${bot.webRuntime ? 'Solo cuenta admin' : 'No ejecutable desde la web'}</span></div></div><div class="bot-card-actions"><button class="favorite-button ${state.favorites.includes(bot.id) ? 'is-favorite' : ''}" type="button" data-action="favorite-bot" data-id="${escapeHtml(bot.id)}" aria-label="${state.favorites.includes(bot.id) ? 'Quitar de favoritos' : 'Añadir a favoritos'}" title="Favorito">${icon('star')}</button><button class="btn btn-outline btn-small" type="button" data-action="show-bot" data-id="${escapeHtml(bot.id)}">Detalles ${icon('arrow-right')}</button>${createAction}</div></article>`;
 }
 
-function renderProfileCard(instance) {
-  const bot = state.catalog.find((entry) => entry.id === instance.botId);
-  const method = instance.pairingMethod === 'qr' ? 'Preferencia QR' : 'Preferencia Pairing Code';
-  return `<article class="card bot-card"><span class="bot-card-icon">${icon('folder')}</span><div class="bot-card-main"><div class="bot-card-title"><h3>${escapeHtml(instance.name)}</h3><span class="status-badge status-offline">Configuración guardada</span></div><p>${escapeHtml(bot?.name || instance.botId)} · Prefijo <code>${escapeHtml(instance.prefix)}</code></p><div class="bot-card-meta"><span>${icon('smartphone')}${method}</span><span>${icon('clock')}Guardado ${escapeHtml(formatDate(instance.createdAt))}</span><span>${icon('shield')}No indica conexión activa</span></div></div><div class="bot-card-actions"><button class="btn btn-outline btn-small" type="button" data-action="show-deploy" data-id="${escapeHtml(instance.id)}">Ver guía</button><button class="btn btn-outline btn-small" type="button" data-action="edit-profile" data-id="${escapeHtml(instance.id)}">Editar</button><button class="btn btn-danger btn-small" type="button" data-action="delete-profile" data-id="${escapeHtml(instance.id)}">Eliminar</button></div></article>`;
-}
 
 function renderBots() {
   const match = location.pathname.match(/^\/bots\/([^/]+)$/);
   if (match) return renderBotDetails(state.catalog.find((bot) => bot.id === decodeURIComponent(match[1])));
   const catalog = state.catalog;
   const plugins = catalog.reduce((sum, bot) => sum + number(bot.pluginCount), 0);
-  const details = `<div class="bots-summary"><article class="card summary-tile"><span>Bots en catálogo</span><strong>${formatNumber(catalog.length)}</strong></article><article class="card summary-tile"><span>Plugins</span><strong>${formatNumber(plugins)}</strong></article><article class="card summary-tile"><span>Perfiles guardados</span><strong>${formatNumber(state.user ? state.instances.length : 0)}</strong></article><article class="card summary-tile"><span>Runtimes web</span><strong>${formatNumber(catalog.filter((bot) => bot.webRuntime).length)}</strong></article></div>`;
-  return `<div class="page-content"><div class="page-heading"><div><span class="section-kicker">${icon('bot')} Repositorio</span><h1>Bots</h1><p>Catálogo detectado en <code>bots/</code>. Las etiquetas indican compatibilidad; solo el estado autenticado informa procesos activos.</p></div><div class="page-heading-actions"><a class="btn btn-primary" href="/register" data-page="register">${icon('plus')} Crear perfil</a></div></div>${details}
-    <div class="callout">${icon('shield')}<span><strong>Runtime web experimental:</strong> Universal Bot puede ejecutarse en Render Free para cuentas autorizadas. Se permite un proceso a la vez; Render puede suspenderlo y el almacenamiento de credenciales es efímero.</span></div>
-    <section class="section-block" style="margin-top:24px"><div class="section-heading"><div><span class="section-kicker">${icon('folder')} Catálogo público</span><h2 class="section-title">Bots disponibles</h2></div></div>${catalog.length ? `<div class="bot-list">${catalog.map(renderCatalogBotCard).join('')}</div>` : `<div class="empty-state"><span class="empty-state-icon">${icon('bot')}</span><h2>No hay bots publicados</h2><p>Agrega una carpeta válida dentro de <code>bots/</code>.</p></div>`}</section>
-    <section class="section-block"><div class="section-heading"><div><span class="section-kicker">${icon('folder')} Cuenta</span><h2 class="section-title">Mis perfiles</h2></div><a class="btn btn-outline btn-small" href="/register" data-page="register">Nuevo perfil ${icon('plus')}</a></div>${state.user ? (state.instances.length ? `<div class="bot-list">${state.instances.map(renderProfileCard).join('')}</div>` : `<div class="empty-state"><span class="empty-state-icon">${icon('folder')}</span><h2>No guardaste perfiles todavía</h2><p>Guarda preferencias para continuar con el flujo de instalación correspondiente.</p></div>`) : `<div class="card fn-login-card"><h2>Perfiles privados</h2><p>Inicia sesión para crear y administrar tus perfiles.</p><button class="btn btn-primary" type="button" data-action="open-auth" data-mode="login">Iniciar sesión</button></div>`}</section>${pageFooter()}</div>`;
+  const webRuntimeCount = catalog.filter((bot) => bot.webRuntime).length;
+  const details = `<div class="bots-summary"><article class="card summary-tile"><span>Bots en catálogo</span><strong>${formatNumber(catalog.length)}</strong></article><article class="card summary-tile"><span>Plugins</span><strong>${formatNumber(plugins)}</strong></article><article class="card summary-tile"><span>Runtime web</span><strong>${formatNumber(webRuntimeCount)}</strong></article><article class="card summary-tile"><span>Procesos simultáneos</span><strong>1</strong></article></div>`;
+  return `<div class="page-content"><div class="page-heading"><div><span class="section-kicker">${icon('bot')} Repositorio</span><h1>Bots</h1><p>Selecciona un bot compatible, ingresa tu número para Pairing Code o elige QR para iniciar la vinculación.</p></div><div class="page-heading-actions"><a class="btn btn-primary" href="/register" data-page="register">${icon('plus')} Crear bot</a></div></div>${details}
+    <div class="callout">${icon('shield')}<span><strong>Runtime web protegido:</strong> solo cuentas administradoras autorizadas pueden crear, iniciar o detener bots y ver códigos. Se permite un proceso a la vez; Render Free puede suspenderlo y el almacenamiento de credenciales es efímero.</span></div>
+    <section class="section-block" style="margin-top:24px"><div class="section-heading"><div><span class="section-kicker">${icon('folder')} Catálogo público</span><h2 class="section-title">Bots disponibles</h2></div></div>${catalog.length ? `<div class="bot-list">${catalog.map(renderCatalogBotCard).join('')}</div>` : `<div class="empty-state"><span class="empty-state-icon">${icon('bot')}</span><h2>No hay bots publicados</h2><p>Agrega una carpeta válida dentro de <code>bots/</code>.</p></div>`}</section>${pageFooter()}</div>`;
 }
 
-function renderRuntimePanel(bot) {
+function renderRuntimePanel(bot, { createMode = false } = {}) {
   if (!bot.webRuntime) {
     return `<section class="card runtime-card"><div class="runtime-card-heading"><span class="runtime-icon">${icon('smartphone')}</span><div><h2>Runtime web</h2><p>Este bot no declara un punto de entrada web autorizado.</p></div></div><p class="runtime-note">Puedes seguir usando el entorno indicado por el catálogo; no se iniciará ningún proceso desde este panel.</p></section>`;
   }
   if (!state.user) {
-    return `<section class="card runtime-card"><div class="runtime-card-heading"><span class="runtime-icon">${icon('bolt')}</span><div><h2>Ejecutar en la web</h2><p>Universal Bot puede iniciarse desde el servicio web Free.</p></div></div><p class="runtime-note">Inicia sesión con la cuenta administradora configurada para acceder a QR, Pairing Code y controles del proceso.</p><button class="btn btn-primary" type="button" data-action="open-auth" data-mode="login">Iniciar sesión ${icon('arrow-right')}</button></section>`;
+    return `<section class="card runtime-card"><div class="runtime-card-heading"><span class="runtime-icon">${icon('bolt')}</span><div><h2>${createMode ? 'Crear bot y vincular WhatsApp' : 'Ejecutar en la web'}</h2><p>${escapeHtml(bot.name)} puede iniciarse desde el servicio web Free.</p></div></div><p class="runtime-note">Inicia sesión con la cuenta administradora configurada para acceder a QR, Pairing Code y controles del proceso.</p><button class="btn btn-primary" type="button" data-action="open-auth" data-mode="login">Iniciar sesión ${icon('arrow-right')}</button></section>`;
   }
 
   const runtimes = state.runtimeState?.runtimes || [];
@@ -348,14 +339,14 @@ function renderRuntimePanel(bot) {
     ? 'El runtime está esperando que se configure WEB_RUNTIME_ADMIN_EMAILS en Render.'
     : state.runtimeError || '';
   const logs = (runtime?.logs || []).slice(-8);
-  const controls = canManage ? `<div class="runtime-controls"><label class="field"><span class="field-label">Método de vinculación</span><select class="select-input" id="runtime-method"><option value="qr" ${state.runtimeMethod === 'qr' ? 'selected' : ''}>Código QR real</option><option value="pairing-code" ${state.runtimeMethod === 'pairing-code' ? 'selected' : ''}>Pairing Code real</option></select></label><label class="field runtime-phone-field" id="runtime-phone-field" ${state.runtimeMethod !== 'pairing-code' ? 'hidden' : ''}><span class="field-label">Teléfono internacional</span><input class="text-input" id="runtime-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="598XXXXXXXX" maxlength="20" /><span class="field-hint">Incluye el prefijo del país; no se guarda en el perfil.</span></label><div class="runtime-actions"><button class="btn btn-primary" type="button" data-action="runtime-start" data-id="${escapeHtml(bot.id)}" ${state.runtimeBusy || isActive || otherActive ? 'disabled' : ''}>${icon('bolt')} ${state.runtimeBusy ? 'Procesando…' : 'Iniciar bot'}</button><button class="btn btn-danger" type="button" data-action="runtime-stop" data-id="${escapeHtml(bot.id)}" ${state.runtimeBusy || !isActive ? 'disabled' : ''}>${icon('close')} Detener</button><button class="btn btn-outline" type="button" data-action="runtime-refresh">${icon('refresh')} Actualizar</button></div>${otherActive ? `<p class="field-hint">Límite Free: ${escapeHtml(otherActive.name)} ya ocupa el único proceso permitido.</p>` : ''}</div>` : '';
+  const controls = canManage ? `<div class="runtime-controls"><label class="field"><span class="field-label">Método de vinculación</span><select class="select-input" id="runtime-method"><option value="qr" ${state.runtimeMethod === 'qr' ? 'selected' : ''}>Código QR real</option><option value="pairing-code" ${state.runtimeMethod === 'pairing-code' ? 'selected' : ''}>Pairing Code real</option></select></label><label class="field runtime-phone-field" id="runtime-phone-field" ${state.runtimeMethod !== 'pairing-code' ? 'hidden' : ''}><span class="field-label">Teléfono internacional</span><input class="text-input" id="runtime-phone" type="tel" inputmode="tel" autocomplete="off" placeholder="598XXXXXXXX" maxlength="20" /><span class="field-hint">Incluye el prefijo del país. Se usa solo para solicitar Pairing Code y no se guarda.</span></label><div class="runtime-actions"><button class="btn btn-primary" type="button" data-action="runtime-start" data-id="${escapeHtml(bot.id)}" ${state.runtimeBusy || isActive || otherActive ? 'disabled' : ''}>${icon('bolt')} ${state.runtimeBusy ? 'Procesando…' : createMode ? 'Crear bot y vincular' : 'Iniciar bot'}</button><button class="btn btn-danger" type="button" data-action="runtime-stop" data-id="${escapeHtml(bot.id)}" ${state.runtimeBusy || !isActive ? 'disabled' : ''}>${icon('close')} Detener</button><button class="btn btn-outline" type="button" data-action="runtime-refresh">${icon('refresh')} Actualizar</button></div>${otherActive ? `<p class="field-hint">Límite Free: ${escapeHtml(otherActive.name)} ya ocupa el único proceso permitido.</p>` : ''}</div>` : '';
   const credential = runtime?.qrDataUrl
     ? `<div class="runtime-credential"><img src="${escapeHtml(runtime.qrDataUrl)}" alt="Código QR de vinculación de WhatsApp" width="280" height="280" /><p>Escanéalo en WhatsApp → Dispositivos vinculados → Vincular dispositivo.</p></div>`
     : runtime?.pairingCode
       ? `<div class="runtime-credential runtime-code"><span>Pairing Code de WhatsApp</span><code>${escapeHtml(runtime.pairingCode)}</code><button class="btn btn-outline btn-small" type="button" data-action="copy-runtime-code" data-copy="${escapeHtml(runtime.pairingCode)}">${icon('copy')} Copiar código</button><p>Ingresa el código en WhatsApp → Dispositivos vinculados → Vincular con número.</p></div>`
       : '';
 
-  return `<section class="card runtime-card"><div class="runtime-card-heading"><span class="runtime-icon">${icon('bolt')}</span><div><span class="section-kicker">${icon('shield')} Runtime autorizado</span><h2>Ejecutar ${escapeHtml(bot.name)} en la web</h2><p>QR y Pairing Code provienen de Baileys; no son códigos de demostración.</p></div><span class="runtime-status runtime-status-${escapeHtml(runtime?.status || 'stopped')}" role="status" aria-live="polite">${escapeHtml(statusLabel)}</span></div>${runtimeError ? `<div class="runtime-error" role="alert">${icon('info')}<span>${escapeHtml(runtimeError)}</span></div>` : ''}${controls}${credential}${runtime?.lastError ? `<p class="runtime-error" role="alert">${icon('info')}<span>${escapeHtml(runtime.lastError)}</span></p>` : ''}${logs.length ? `<details class="runtime-logs"><summary>Registro reciente (${logs.length})</summary><pre>${logs.map((line) => `${escapeHtml(new Date(line.at).toLocaleTimeString('es-UY'))}  ${escapeHtml(line.message)}`).join('\n')}</pre></details>` : ''}<div class="runtime-warning">${icon('database')}<span>Las credenciales se guardan en el filesystem efímero de Render, no en PostgreSQL. Render Free ofrece 512 MB de RAM y 0.1 CPU: IA/OCR y otras tareas pesadas pueden no caber; el servicio puede suspenderse y, al reiniciar/desplegar, el proceso o la sesión pueden detenerse o perderse. No hay garantía 24/7. Límite configurado: un bot a la vez.</span></div>${!state.runtimeState && !runtimeError ? '<p class="runtime-note">Consultando permisos del runtime…</p>' : ''}</section>`;
+  return `<section class="card runtime-card"><div class="runtime-card-heading"><span class="runtime-icon">${icon('bolt')}</span><div><span class="section-kicker">${icon('shield')} Runtime autorizado</span><h2>${createMode ? 'Crear y vincular' : `Ejecutar ${escapeHtml(bot.name)} en la web`}</h2><p>QR y Pairing Code provienen de Baileys; no son códigos de demostración.</p></div><span class="runtime-status runtime-status-${escapeHtml(runtime?.status || 'stopped')}" role="status" aria-live="polite">${escapeHtml(statusLabel)}</span></div>${runtimeError ? `<div class="runtime-error" role="alert">${icon('info')}<span>${escapeHtml(runtimeError)}</span></div>` : ''}${controls}${credential}${runtime?.lastError ? `<p class="runtime-error" role="alert">${icon('info')}<span>${escapeHtml(runtime.lastError)}</span></p>` : ''}${logs.length ? `<details class="runtime-logs"><summary>Registro reciente (${logs.length})</summary><pre>${logs.map((line) => `${escapeHtml(new Date(line.at).toLocaleTimeString('es-UY'))}  ${escapeHtml(line.message)}`).join('\n')}</pre></details>` : ''}<div class="runtime-warning">${icon('database')}<span>Las credenciales se guardan en el filesystem efímero de Render, no en PostgreSQL. Render Free ofrece 512 MB de RAM y 0.1 CPU: IA/OCR y otras tareas pesadas pueden no caber; el servicio puede suspenderse y, al reiniciar/desplegar, el proceso o la sesión pueden detenerse o perderse. No hay garantía 24/7. Límite configurado: un bot a la vez.</span></div>${!state.runtimeState && !runtimeError ? '<p class="runtime-note">Consultando permisos del runtime…</p>' : ''}</section>`;
 }
 
 function renderBotDetails(bot) {
@@ -363,49 +354,32 @@ function renderBotDetails(bot) {
   const features = (bot.features || []).map((feature) => `<li>${icon('check')}<span>${escapeHtml(feature)}</span></li>`).join('') || '<li>Consulta el catálogo de archivos de plugins.</li>';
   const pairingLabel = bot.supportsPairingCode ? (bot.webRuntime ? 'Web o Termux' : 'Desde su entorno') : 'No declarado';
   const qrLabel = bot.supportsQr ? (bot.webRuntime ? 'Web o Termux' : 'Desde su entorno') : 'No declarado';
-  return `<div class="page-content"><div class="page-heading"><div><span class="section-kicker">${icon('bot')} Detalles del catálogo</span><h1>${escapeHtml(bot.name)}</h1><p>${escapeHtml(bot.description)}</p></div><div class="page-heading-actions"><a class="btn btn-outline btn-small" href="/bots" data-page="bots">${icon('arrow-left')} Volver</a><button class="btn btn-primary btn-small" type="button" data-action="create-from-bot" data-id="${escapeHtml(bot.id)}">Guardar perfil ${icon('plus')}</button></div></div>
+  return `<div class="page-content"><div class="page-heading"><div><span class="section-kicker">${icon('bot')} Detalles del catálogo</span><h1>${escapeHtml(bot.name)}</h1><p>${escapeHtml(bot.description)}</p></div><div class="page-heading-actions"><a class="btn btn-outline btn-small" href="/bots" data-page="bots">${icon('arrow-left')} Volver</a>${bot.webRuntime ? `<button class="btn btn-primary btn-small" type="button" data-action="create-from-bot" data-id="${escapeHtml(bot.id)}">Crear bot ${icon('plus')}</button>` : ''}</div></div>
     <div class="profile-grid"><section class="card profile-card"><h2>Ficha del bot</h2><div class="profile-details"><div class="profile-detail"><span>Runtime</span><strong>${bot.webRuntime ? 'Web Free o Termux' : bot.termuxOnly ? 'Termux' : escapeHtml(bot.executionMode)}</strong></div><div class="profile-detail"><span>Versión</span><strong>${escapeHtml(bot.version)}</strong></div><div class="profile-detail"><span>Plugins listados</span><strong>${formatNumber(bot.pluginCount)}</strong></div><div class="profile-detail"><span>Pairing Code</span><strong>${pairingLabel}</strong></div><div class="profile-detail"><span>QR</span><strong>${qrLabel}</strong></div></div></section><section class="card profile-card"><h2>Funciones declaradas</h2><ul class="instruction-list">${features}</ul></section></div>
     ${renderRuntimePanel(bot)}
     <section class="section-block"><div class="section-heading" style="margin-top:20px"><div><span class="section-kicker">${icon('code')} Componentes</span><h2 class="section-title">Plugins de ${escapeHtml(bot.name)}</h2></div><a class="btn btn-outline btn-small" href="/cmds?bot=${encodeURIComponent(bot.id)}" data-page="commands">Ver catálogo ${icon('arrow-right')}</a></div>${pageFooter()}</section></div>`;
 }
 
-function renderWizard() {
-  const flow = state.flow;
-  const bot = state.catalog.find((entry) => entry.id === flow.botId) || state.catalog[0];
-  if (bot && !flow.botId) flow.botId = bot.id;
-  if (flow.step === 4 && flow.saved) {
-    return `<div class="page-content"><div class="wizard-wrap"><section class="wizard-card wizard-step-6"><span class="wizard-step-label">PERFIL GUARDADO</span><div class="success-panel"><span class="success-icon">${icon('check')}</span><h2>Configuración guardada</h2><p><strong>${escapeHtml(flow.saved.name)}</strong> quedó asociada a tu cuenta. No se inició ningún bot ni se creó una sesión de WhatsApp.</p><div class="callout" style="margin-top:18px">${icon('smartphone')}<span>Para iniciar desde la web, abre Universal Bot y usa los controles autorizados; también puedes elegir Pairing Code o QR en Termux. Este perfil solo conserva tu preferencia.</span></div><div class="wizard-actions"><button class="btn btn-outline" type="button" data-action="reset-flow">Crear otro perfil</button><a class="btn btn-primary" href="/bots" data-page="bots">Ver mis perfiles ${icon('arrow-right')}</a></div></div></section>${pageFooter()}</div></div>`;
+function renderCreateBot() {
+  const webBots = state.catalog.filter((bot) => bot.webRuntime);
+  const bot = webBots.find((entry) => entry.id === state.createBotId) || webBots[0];
+  if (!bot) {
+    return `<div class="page-content"><div class="page-heading"><div><span class="section-kicker">${icon('bot')} Nuevo bot</span><h1>Crear bot</h1><p>Ningún bot del catálogo tiene activado el runtime web.</p></div></div><div class="empty-state"><span class="empty-state-icon">${icon('bot')}</span><h2>Runtime web no disponible</h2><p>Abre los detalles del bot para consultar su entorno compatible.</p><a class="btn btn-primary" href="/bots" data-page="bots">Ver bots ${icon('arrow-right')}</a></div>${pageFooter()}</div>`;
   }
-  let title = '', description = '', content = '';
-  if (flow.step === 1) {
-    title = 'Bot y preferencias';
-    description = 'Elige un bot del catálogo, define una etiqueta y guarda su prefijo.';
-    content = `<div class="wizard-form"><label class="field"><span class="field-label">Bot del catálogo</span><select class="select-input" name="flow-bot" id="flow-bot">${state.catalog.map((entry) => `<option value="${escapeHtml(entry.id)}" ${entry.id === bot?.id ? 'selected' : ''}>${escapeHtml(entry.name)}${entry.termuxOnly ? ' · Termux' : ''}</option>`).join('')}</select></label><label class="field"><span class="field-label">Nombre del perfil</span><input class="text-input" name="flow-name" id="flow-name" data-flow="name" value="${escapeHtml(flow.name)}" placeholder="Ej.: Mi Universal Bot" maxlength="48" autocomplete="off" /><span class="field-hint">Es una etiqueta de configuración, no un nombre de instancia en ejecución.</span></label><div class="field"><span class="field-label">Prefijo de comandos</span><div class="edit-prefixes">${PREFIXES.map((prefix) => `<button class="pairing-option ${flow.prefix === prefix ? 'is-selected' : ''}" type="button" data-action="select-prefix" data-prefix="${escapeHtml(prefix)}"><strong>${escapeHtml(prefix)}</strong></button>`).join('')}</div><span class="field-hint">Esta preferencia se guarda en el perfil; no edita el archivo del bot.</span></div></div>`;
-  } else if (flow.step === 2) {
-    title = 'Método preferido';
-    description = 'Guarda qué método usarás al iniciar el bot en su entorno compatible.';
-    content = `<div class="wizard-form"><div class="field"><span class="field-label">Preferencia de vinculación</span><div class="pairing-methods"><button class="pairing-option ${flow.pairingMethod === 'qr' ? 'is-selected' : ''}" type="button" data-action="select-method" data-method="qr"><span class="pairing-option-icon">${icon('qr')}</span><span><strong>Código QR</strong><small>Disponible en el runtime web autorizado o en Termux.</small></span></button><button class="pairing-option ${flow.pairingMethod !== 'qr' ? 'is-selected' : ''}" type="button" data-action="select-method" data-method="pairing-code"><span class="pairing-option-icon">${icon('hash')}</span><span><strong>Pairing Code</strong><small>Se solicita desde los controles web o el flujo de Termux.</small></span></button></div></div><div class="callout">${icon('shield')}<span><strong>Este paso solo guarda una preferencia.</strong> Para solicitar el código real, inicia el bot desde su detalle con una cuenta administradora o úsalo en Termux.</span></div></div>`;
-  } else {
-    title = 'Revisa el perfil';
-    description = 'Confirma las preferencias antes de guardarlas en tu cuenta.';
-    const methodName = flow.pairingMethod === 'qr' ? 'QR' : 'Pairing Code';
-    const method = bot?.webRuntime ? `${methodName} desde web o Termux` : `${methodName} desde Termux`;
-    content = `<div class="wizard-form"><div class="profile-details"><div class="profile-detail"><span>Bot</span><strong>${escapeHtml(bot?.name || '—')}</strong></div><div class="profile-detail"><span>Nombre del perfil</span><strong>${escapeHtml(flow.name || '—')}</strong></div><div class="profile-detail"><span>Prefijo</span><strong class="mono">${escapeHtml(flow.prefix)}</strong></div><div class="profile-detail"><span>Método preferido</span><strong>${method}</strong></div><div class="profile-detail"><span>Runtime declarado</span><strong>${bot?.webRuntime ? 'Web Free / Termux' : bot?.termuxOnly ? 'Solo Termux' : escapeHtml(bot?.executionMode || '—')}</strong></div></div><div class="callout">${icon('info')}<span>El perfil es solo una referencia. No crea, inicia, conecta ni reporta como activo a un bot.</span></div></div>`;
-  }
-  const step = Math.min(3, Math.max(1, flow.step));
-  const progress = `<div class="stepper" aria-label="Paso ${step} de 3"><span class="stepper-track"><span class="stepper-fill" style="width:${((step - 1) / 2) * 100}%"></span></span>${[1, 2, 3].map((n) => `<span class="stepper-item ${n === step ? 'is-active' : ''} ${n < step ? 'is-complete' : ''}" aria-current="${n === step ? 'step' : 'false'}">${n < step ? icon('check') : n}</span>`).join('')}</div>`;
-  const actions = step === 1
-    ? `<div class="wizard-actions is-single"><button class="btn btn-primary" type="button" data-action="wizard-next">Continuar ${icon('arrow-right')}</button></div>`
-    : step === 2
-      ? `<div class="wizard-actions"><button class="btn btn-outline" type="button" data-action="wizard-back">${icon('arrow-left')} Atrás</button><button class="btn btn-primary" type="button" data-action="wizard-next">Revisar ${icon('arrow-right')}</button></div>`
-      : `<div class="wizard-actions"><button class="btn btn-outline" type="button" data-action="wizard-back">${icon('arrow-left')} Atrás</button><button class="btn btn-primary" type="button" data-action="save-profile" ${flow.loading ? 'disabled' : ''}>${flow.loading ? 'Guardando…' : 'Guardar perfil'} ${icon('check')}</button></div>`;
-  return `<div class="page-content"><div class="wizard-wrap">${progress}<section class="wizard-card wizard-step-${step}" aria-labelledby="wizard-title"><span class="wizard-step-label">PASO ${step} DE 3</span><h1 class="wizard-title" id="wizard-title">${title}</h1><p class="wizard-description">${description}</p>${content}${flow.error ? `<p class="link-error" role="alert">${escapeHtml(flow.error)}</p>` : ''}${actions}</section><p class="wizard-footer-note">Los perfiles guardan preferencias; no vinculan WhatsApp desde la web.</p>${pageFooter()}</div></div>`;
+  state.createBotId = bot.id;
+  const selector = webBots.length > 1
+    ? `<label class="field create-bot-selector"><span class="field-label">Bot</span><select class="select-input" id="create-bot-select">${webBots.map((entry) => `<option value="${escapeHtml(entry.id)}" ${entry.id === bot.id ? 'selected' : ''}>${escapeHtml(entry.name)}</option>`).join('')}</select></label>`
+    : '';
+  return `<div class="page-content create-bot-page"><div class="page-heading"><div><span class="section-kicker">${icon('bolt')} Crear y vincular</span><h1>Crear bot</h1><p>Elige cómo vincular WhatsApp. Pairing Code requiere tu número internacional; con QR basta escanearlo desde WhatsApp.</p></div><div class="page-heading-actions"><a class="btn btn-outline btn-small" href="/bots" data-page="bots">${icon('arrow-left')} Ver catálogo</a></div></div>
+    ${selector ? `<section class="card create-bot-selector-card">${selector}</section>` : ''}
+    ${renderRuntimePanel(bot, { createMode: true })}
+    <div class="callout">${icon('info')}<span>Al crear el bot, el panel inicia el proceso y muestra aquí el Pairing Code o QR real que genere Baileys. El número solo se envía para solicitar Pairing Code; no se guarda en tu cuenta.</span></div>${pageFooter()}</div>`;
 }
 
 function renderGuide() {
   const install = `pkg update -y && pkg install git nodejs-lts ffmpeg imagemagick python -y\ngit clone https://github.com/lyanvalentinmail-prog/MultiBot.git\ncd MultiBot/bots/universal-bot\nnpm install\ncp config.example.js config.js\nnano config.js\nnpm start`;
   return `<div class="page-content"><section class="store-hero"><span class="section-kicker">${icon('smartphone')} Instalación</span><h1>Universal Bot en <span class="gradient-text">Termux</span></h1><p>El bot funciona en Termux y ofrece un runtime web autorizado. El panel permite ver QR/Pairing Code reales; Render Free puede suspender el proceso y su almacenamiento es efímero.</p></section>
-    <section class="section-block"><div class="premium-panel"><div class="premium-content"><div class="premium-heading"><span class="plan-icon">${icon('smartphone')}</span><span><h3>Instala el bot en Android</h3><small class="premium-label">Comandos para ejecutar dentro de Termux</small></span></div><p>Esta guía conserva el flujo Termux. Para vincular desde la web, abre el detalle de Universal Bot y usa los controles disponibles para la cuenta administradora.</p><div class="code-window"><div class="code-window-top"><span><i class="traffic-lights"><i></i><i></i><i></i></i> termux.sh</span><button class="btn btn-outline btn-small" type="button" data-action="copy" data-copy="${escapeHtml(install)}">${icon('copy')} Copiar</button></div><pre><code>${escapeHtml(install)}</code></pre></div><div class="token-links"><a class="token-link" href="https://github.com/lyanvalentinmail-prog/MultiBot/blob/main/docs/TERMUX_GUIDE.md" target="_blank" rel="noreferrer">${icon('external')} Guía completa</a><a class="token-link" href="https://github.com/lyanvalentinmail-prog/MultiBot/tree/main/bots/universal-bot" target="_blank" rel="noreferrer">${icon('code')} Código del bot</a></div></div><div class="premium-includes"><h4>Vinculación — Web / Termux</h4><div class="official-methods"><div class="official-method"><span>${icon('hash')} Pairing Code</span><span>Baileys real, en web o Termux</span></div><div class="official-method"><span>${icon('qr')} Código QR</span><span>Baileys real, en web o Termux</span></div></div><div class="premium-note" style="margin-top:14px"><p>QR, Pairing Code y credenciales son sensibles: solo la cuenta administradora debe verlos. En Render Free las credenciales pueden perderse al suspenderse o reiniciarse el servicio.</p></div></div></div></section>
+    <section class="section-block"><div class="premium-panel"><div class="premium-content"><div class="premium-heading"><span class="plan-icon">${icon('smartphone')}</span><span><h3>Instala el bot en Android</h3><small class="premium-label">Comandos para ejecutar dentro de Termux</small></span></div><p>Esta guía conserva el flujo Termux. Para vincular desde la web, abre Crear bot; los controles solo aparecen para la cuenta administradora autorizada.</p><div class="code-window"><div class="code-window-top"><span><i class="traffic-lights"><i></i><i></i><i></i></i> termux.sh</span><button class="btn btn-outline btn-small" type="button" data-action="copy" data-copy="${escapeHtml(install)}">${icon('copy')} Copiar</button></div><pre><code>${escapeHtml(install)}</code></pre></div><div class="token-links"><a class="token-link" href="https://github.com/lyanvalentinmail-prog/MultiBot/blob/main/docs/TERMUX_GUIDE.md" target="_blank" rel="noreferrer">${icon('external')} Guía completa</a><a class="token-link" href="https://github.com/lyanvalentinmail-prog/MultiBot/tree/main/bots/universal-bot" target="_blank" rel="noreferrer">${icon('code')} Código del bot</a></div></div><div class="premium-includes"><h4>Vinculación — Web / Termux</h4><div class="official-methods"><div class="official-method"><span>${icon('hash')} Pairing Code</span><span>Baileys real, en web o Termux</span></div><div class="official-method"><span>${icon('qr')} Código QR</span><span>Baileys real, en web o Termux</span></div></div><div class="premium-note" style="margin-top:14px"><p>QR, Pairing Code y credenciales son sensibles: solo la cuenta administradora debe verlos. En Render Free las credenciales pueden perderse al suspenderse o reiniciarse el servicio.</p></div></div></div></section>
     <section class="section-block"><div class="callout">${icon('database')}<span><strong>Persistencia y límite Free:</strong> el panel usa PostgreSQL cuando <code>DATABASE_URL</code> está configurada. La base PostgreSQL Free de Render expira a los 30 días; planifica una exportación o migración antes del vencimiento. No es almacenamiento permanente.</span></div></section>${pageFooter()}</div>`;
 }
 
@@ -422,7 +396,7 @@ function renderMetrics() {
     { label: 'Memoria del host', value: `${number(mem?.usagePercent)}%`, note: `${formatBytes(mem?.usedBytes)} / ${formatBytes(mem?.totalBytes)}`, icon: 'server', progress: number(mem?.usagePercent), green: true },
     { label: 'Persistencia', value: db?.provider === 'postgresql' ? 'PostgreSQL' : 'JSON local', note: db?.status === 'connected' ? 'Conexión verificada' : 'Fallback local', icon: 'database' },
     { label: 'Cuentas', value: formatNumber(db?.users || 0), note: 'Usuarios del panel', icon: 'users' },
-    { label: 'Perfiles', value: formatNumber(db?.configurations || 0), note: 'Preferencias guardadas', icon: 'folder' },
+    { label: 'Runtime web', value: formatNumber(state.catalog.filter((bot) => bot.webRuntime).length), note: 'Bots compatibles', icon: 'bolt' },
     { label: 'Bots', value: formatNumber(state.catalog.length), note: 'Detectados en bots/', icon: 'bot' },
     { label: 'Plugins', value: formatNumber(pluginCount), note: 'Archivos listados', icon: 'code' },
   ];
@@ -432,8 +406,6 @@ function renderMetrics() {
     <section class="section-block"><div class="section-heading"><div><span class="section-kicker">${icon('cpu')} Servicio web</span><h2 class="section-title">Entorno del panel</h2><p class="section-copy">Datos del proceso Node que sirve esta interfaz.</p></div></div><div class="card service-list"><div class="service-row"><span class="service-info"><span class="green">●</span>${escapeHtml(server?.hostname || 'Servidor')}</span><span class="mono">${escapeHtml(server?.platform || '—')}</span><span class="service-meta"><span>${escapeHtml(server?.arch || '')}</span><span>Node ${escapeHtml(server?.node || '—')}</span></span></div><div class="service-row"><span class="service-info"><span class="green">●</span>Persistencia</span><span class="mono">${escapeHtml(db?.path || db?.provider || '—')}</span><span class="service-meta"><span>${escapeHtml(db?.provider === 'postgresql' ? 'PostgreSQL' : 'JSON local')}</span><span>${db?.status === 'connected' ? 'Conectada' : 'Disponible'}</span></span></div><div class="service-row"><span class="service-info"><span class="green">●</span>Memoria del proceso</span><span class="mono">${formatBytes(mem?.processBytes || 0)}</span><span class="service-meta"><span>Uso del host: ${number(mem?.usagePercent)}%</span><span>Servicio de panel</span></span></div></div></section>
     <section class="section-block"><div class="callout">${icon('info')}<span>La web no mide mensajes ni grupos. El runtime autorizado informa solo si el proceso está activo y si Baileys reportó conexión; Render Free no garantiza disponibilidad continua.</span></div></section>${pageFooter()}</div>`;
 }
-
-function renderBotSummary(instance) { return renderProfileCard(instance); }
 
 function renderPlugins() {
   const bot = state.catalog.find((entry) => entry.id === state.activeBotId) || state.catalog[0];
@@ -467,7 +439,7 @@ function renderEndpoints() {
   }).join('');
   return `<div class="page-content"><div class="page-heading"><div><span class="section-kicker">${icon('code')} Referencia</span><h1>API del panel</h1><p>Rutas HTTP reales de MultiBot. Las rutas autenticadas requieren un token Bearer de la sesión del panel.</p></div><span class="badge">${formatNumber(count)} rutas</span></div>
     <div class="catalog-note card"><span>${icon('shield')}</span><p>La documentación pública no incluye secretos. Los endpoints de runtime y los QR/Pairing Code reales requieren una sesión de administrador autorizada.</p><a class="btn btn-outline btn-small" href="/favorites" data-page="favorites">${icon('star')} Favoritos</a></div>
-    <div class="catalog-toolbar"><label class="search-box">${icon('search')}<input id="endpoint-search" class="text-input" type="search" value="${escapeHtml(state.endpointQuery)}" placeholder="Buscar ruta… (ej.: bots, perfiles, login)" autocomplete="off" /></label><div class="filter-row"><button class="filter-chip ${state.endpointMethod === 'all' ? 'is-active' : ''}" type="button" data-action="endpoint-method" data-method="all">Todos</button>${['get', 'post', 'patch', 'delete'].map((method) => `<button class="filter-chip ${state.endpointMethod === method ? 'is-active' : ''}" type="button" data-action="endpoint-method" data-method="${method}">${method}</button>`).join('')}</div><div class="section-heading"><span class="muted small" aria-live="polite">${formatNumber(endpoints.length)} de ${formatNumber(count)} rutas</span></div><div class="catalog-categories">${categories || '<div class="endpoint-empty card">No hay rutas API disponibles.</div>'}</div></div>${pageFooter()}</div>`;
+    <div class="catalog-toolbar"><label class="search-box">${icon('search')}<input id="endpoint-search" class="text-input" type="search" value="${escapeHtml(state.endpointQuery)}" placeholder="Buscar ruta… (ej.: bots, runtime, login)" autocomplete="off" /></label><div class="filter-row"><button class="filter-chip ${state.endpointMethod === 'all' ? 'is-active' : ''}" type="button" data-action="endpoint-method" data-method="all">Todos</button>${['get', 'post', 'patch', 'delete'].map((method) => `<button class="filter-chip ${state.endpointMethod === method ? 'is-active' : ''}" type="button" data-action="endpoint-method" data-method="${method}">${method}</button>`).join('')}</div><div class="section-heading"><span class="muted small" aria-live="polite">${formatNumber(endpoints.length)} de ${formatNumber(count)} rutas</span></div><div class="catalog-categories">${categories || '<div class="endpoint-empty card">No hay rutas API disponibles.</div>'}</div></div>${pageFooter()}</div>`;
 }
 
 function renderFavorites() {
@@ -488,33 +460,27 @@ function renderProfile() {
   const user = state.user;
   const db = state.system?.database;
   const sys = state.system?.server;
-  return `<div class="page-content"><div class="page-heading"><div><span class="section-kicker">${icon('users')} Cuenta</span><h1>Mi perfil</h1><p>Cuenta del panel y preferencias guardadas. No representa una sesión de WhatsApp.</p></div>${user ? `<button class="btn btn-outline btn-small" type="button" data-action="logout">${icon('external')} Cerrar sesión</button>` : ''}</div>
-    <div class="profile-grid"><section class="card profile-card"><h2>Cuenta MultiBot</h2>${user ? `<div class="profile-details"><div class="profile-detail"><span>Usuario</span><strong>${escapeHtml(user.username || '—')}</strong></div><div class="profile-detail"><span>Email</span><strong>${escapeHtml(user.email || '—')}</strong></div><div class="profile-detail"><span>Cuenta creada</span><strong>${escapeHtml(formatDate(user.createdAt))}</strong></div><div class="profile-detail"><span>Perfiles guardados</span><strong>${formatNumber(state.instances.length)}</strong></div></div><p class="field-hint" style="margin-top:16px">La sesión web solo autoriza el acceso al panel. No concede acceso a WhatsApp.</p>` : `<div class="fn-login-card"><span class="empty-state-icon">${icon('users')}</span><h2>Sin sesión iniciada</h2><p>El registro permite guardar perfiles de configuración asociados a tu cuenta.</p><button class="btn btn-primary" type="button" data-action="open-auth" data-mode="register">Crear cuenta</button><button class="btn btn-outline" type="button" data-action="open-auth" data-mode="login">Iniciar sesión</button></div>`}</section>
+  return `<div class="page-content"><div class="page-heading"><div><span class="section-kicker">${icon('users')} Cuenta</span><h1>Mi perfil</h1><p>Cuenta del panel. No representa una sesión de WhatsApp.</p></div>${user ? `<button class="btn btn-outline btn-small" type="button" data-action="logout">${icon('external')} Cerrar sesión</button>` : ''}</div>
+    <div class="profile-grid"><section class="card profile-card"><h2>Cuenta MultiBot</h2>${user ? `<div class="profile-details"><div class="profile-detail"><span>Usuario</span><strong>${escapeHtml(user.username || '—')}</strong></div><div class="profile-detail"><span>Email</span><strong>${escapeHtml(user.email || '—')}</strong></div><div class="profile-detail"><span>Cuenta creada</span><strong>${escapeHtml(formatDate(user.createdAt))}</strong></div></div><p class="field-hint" style="margin-top:16px">La sesión web solo autoriza el acceso al panel. Para vincular WhatsApp usa Crear bot; la cuenta del panel y el número de WhatsApp son independientes.</p>` : `<div class="fn-login-card"><span class="empty-state-icon">${icon('users')}</span><h2>Sin sesión iniciada</h2><p>Crea una cuenta del panel o inicia sesión para acceder a los controles autorizados.</p><button class="btn btn-primary" type="button" data-action="open-auth" data-mode="register">Crear cuenta</button><button class="btn btn-outline" type="button" data-action="open-auth" data-mode="login">Iniciar sesión</button></div>`}</section>
     <section class="card profile-card"><h2>Plataforma</h2><div class="profile-details"><div class="profile-detail"><span>Producto</span><strong>MultiBot</strong></div><div class="profile-detail"><span>Servidor web</span><strong>${escapeHtml(sys?.hostname || '—')}</strong></div><div class="profile-detail"><span>Entorno</span><strong>${escapeHtml(sys ? `${sys.platform} / ${sys.arch}` : '—')}</strong></div><div class="profile-detail"><span>Base de datos</span><strong>${escapeHtml(db?.provider === 'postgresql' ? 'PostgreSQL' : 'JSON local')}</strong></div><div class="profile-detail"><span>Estado</span><strong class="green">${db?.status === 'connected' ? 'Disponible' : 'Local'}</strong></div></div></section>
-    <section class="card profile-card"><h2>Privacidad y ejecución</h2><p class="section-copy" style="font-size:13px">Se guardan email, hash de contraseña, token de sesión y perfiles (bot, nombre, prefijo y método preferido).</p><p class="section-copy" style="font-size:13px">El perfil no guarda número, QR, Pairing Code ni credenciales. Si inicias el runtime web, la autenticación de Baileys queda en el filesystem efímero de Render y puede perderse al reiniciar.</p></section></div>${pageFooter()}</div>`;
+    <section class="card profile-card"><h2>Privacidad y ejecución</h2><p class="section-copy" style="font-size:13px">Se guarda la cuenta del panel y el token de sesión. El número internacional solo se envía al endpoint protegido para solicitar Pairing Code; no se guarda.</p><p class="section-copy" style="font-size:13px">El QR y Pairing Code se muestran temporalmente desde Baileys. Las credenciales quedan en el filesystem efímero de Render y pueden perderse al reiniciar.</p></section></div>${pageFooter()}</div>`;
 }
 
 function renderAuthModal() {
   const isRegister = state.authMode === 'register';
-  return `<button class="icon-button modal-close" type="button" data-action="close-modal" aria-label="Cerrar">${icon('close')}</button><div class="modal-brand">${brandMarkup()}</div><span class="section-kicker">${icon('users')} Cuenta MultiBot</span><h2 id="modal-title" style="margin-top:11px">${isRegister ? 'Crea tu cuenta' : 'Inicia sesión'}</h2><p class="modal-description">Tu cuenta se usa para guardar perfiles y preferencias del panel. No se vincula con la cuenta de WhatsApp.</p><div class="modal-tabs"><button type="button" class="${!isRegister ? 'is-active' : ''}" data-action="auth-mode" data-mode="login">Iniciar sesión</button><button type="button" class="${isRegister ? 'is-active' : ''}" data-action="auth-mode" data-mode="register">Crear cuenta</button></div><form class="modal-form" data-form="auth"><label class="field"><span class="field-label">Email</span><input class="text-input" name="email" type="email" required autocomplete="email" placeholder="tu@email.com" /></label>${isRegister ? `<label class="field"><span class="field-label">Nombre de usuario</span><input class="text-input" name="username" type="text" required minlength="3" maxlength="32" autocomplete="username" placeholder="tu_usuario" /></label>` : ''}<label class="field"><span class="field-label">Contraseña</span><input class="text-input" name="password" type="password" required minlength="${isRegister ? 10 : 1}" maxlength="200" autocomplete="${isRegister ? 'new-password' : 'current-password'}" placeholder="${isRegister ? 'Mínimo 10 caracteres' : 'Tu contraseña'}" /></label><p class="modal-error" id="auth-error" aria-live="polite">${escapeHtml(state.modalError)}</p><button class="btn btn-primary btn-full" type="submit">${isRegister ? 'Crear cuenta' : 'Iniciar sesión'} ${icon('arrow-right')}</button></form><p class="modal-switch">${isRegister ? 'La cuenta habilita guardar perfiles de configuración.' : '¿No tienes cuenta? Elige «Crear cuenta».'}</p>`;
+  return `<button class="icon-button modal-close" type="button" data-action="close-modal" aria-label="Cerrar">${icon('close')}</button><div class="modal-brand">${brandMarkup()}</div><span class="section-kicker">${icon('users')} Cuenta MultiBot</span><h2 id="modal-title" style="margin-top:11px">${isRegister ? 'Crea tu cuenta' : 'Inicia sesión'}</h2><p class="modal-description">Tu cuenta sirve para acceder al panel y sus controles autorizados. No se vincula por sí sola con WhatsApp.</p><div class="modal-tabs"><button type="button" class="${!isRegister ? 'is-active' : ''}" data-action="auth-mode" data-mode="login">Iniciar sesión</button><button type="button" class="${isRegister ? 'is-active' : ''}" data-action="auth-mode" data-mode="register">Crear cuenta</button></div><form class="modal-form" data-form="auth"><label class="field"><span class="field-label">Email</span><input class="text-input" name="email" type="email" required autocomplete="email" placeholder="tu@email.com" /></label>${isRegister ? `<label class="field"><span class="field-label">Nombre de usuario</span><input class="text-input" name="username" type="text" required minlength="3" maxlength="32" autocomplete="username" placeholder="tu_usuario" /></label>` : ''}<label class="field"><span class="field-label">Contraseña</span><input class="text-input" name="password" type="password" required minlength="${isRegister ? 10 : 1}" maxlength="200" autocomplete="${isRegister ? 'new-password' : 'current-password'}" placeholder="${isRegister ? 'Mínimo 10 caracteres' : 'Tu contraseña'}" /></label><p class="modal-error" id="auth-error" aria-live="polite">${escapeHtml(state.modalError)}</p><button class="btn btn-primary btn-full" type="submit">${isRegister ? 'Crear cuenta' : 'Iniciar sesión'} ${icon('arrow-right')}</button></form><p class="modal-switch">${isRegister ? 'Después de iniciar sesión, usa Crear bot para vincular WhatsApp.' : '¿No tienes cuenta? Elige «Crear cuenta».'}</p>`;
 }
 
 function renderModal() {
   const host = $('#modal-content');
   if (!host || !state.modal) return;
   if (state.modal === 'auth') host.innerHTML = renderAuthModal();
-  else if (state.modal === 'deploy') host.innerHTML = renderDeployModal();
-  else if (state.modal === 'edit') host.innerHTML = renderEditModal();
-  else if (state.modal === 'confirm') host.innerHTML = renderConfirmModal();
 }
 
 function openModal(mode, payload = null) {
   state.modal = mode;
   state.modalError = '';
   if (mode === 'auth') state.authMode = payload === 'register' ? 'register' : 'login';
-  if (mode === 'deploy') state.deployTarget = payload;
-  if (mode === 'edit') state.editTarget = payload;
-  if (mode === 'confirm') state.confirmTarget = payload;
   renderModal();
   $('#modal-layer').hidden = false;
   document.body.classList.add('modal-open');
@@ -526,36 +492,7 @@ function closeModal() {
   if (layer?.contains(document.activeElement)) document.activeElement.blur?.();
   if (layer) layer.hidden = true;
   state.modal = '';
-  state.editTarget = null;
-  state.deployTarget = null;
-  state.confirmTarget = null;
   document.body.classList.remove('modal-open');
-}
-function openConfirm(title, message, action, id) { openModal('confirm', { title, message, action, id }); }
-
-function renderConfirmModal() {
-  const confirm = state.confirmTarget || {};
-  return `<button class="icon-button modal-close" type="button" data-action="close-modal" aria-label="Cerrar">${icon('close')}</button><div class="confirm-card"><span class="confirm-icon">${icon('shield')}</span><h2 id="modal-title">${escapeHtml(confirm.title || 'Confirmar')}</h2><p>${escapeHtml(confirm.message || '')}</p><div class="confirm-actions"><button class="btn btn-outline" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-danger" type="button" data-action="confirm-dialog">Confirmar</button></div></div>`;
-}
-
-function setupCommands(botId) {
-  const bot = state.catalog.find((entry) => entry.id === botId);
-  if (!bot?.termuxOnly && !bot?.webRuntime) return `# Consulta la documentación de ${bot?.name || botId} para sus instrucciones de instalación.`;
-  return `cd MultiBot/bots/${botId}\nnpm install\ncp config.example.js config.js\nnano config.js\nnpm start`;
-}
-function renderDeployModal() {
-  const instance = state.deployTarget;
-  if (!instance) return '';
-  const bot = state.catalog.find((entry) => entry.id === instance.botId);
-  const method = instance.pairingMethod === 'qr' ? 'QR' : 'Pairing Code';
-  const commands = setupCommands(instance.botId);
-  return `<button class="icon-button modal-close" type="button" data-action="close-modal" aria-label="Cerrar">${icon('close')}</button><span class="section-kicker">${icon('smartphone')} Perfil de configuración</span><h2 id="modal-title" style="margin-top:11px">${escapeHtml(instance.name)}</h2><p class="modal-description">${escapeHtml(bot?.name || instance.botId)} · prefijo <code>${escapeHtml(instance.prefix)}</code> · método preferido: ${method}.</p><div class="callout">${icon('info')}<span>Este perfil solo guarda preferencias. Para iniciar desde web, abre el detalle del bot y usa los controles autorizados; las credenciales se guardan en el filesystem efímero del host. También puedes iniciar en Termux.</span></div><div class="code-window" style="margin-top:14px"><div class="code-window-top"><span><i class="traffic-lights"><i></i><i></i><i></i></i> termux.sh</span><button class="btn btn-outline btn-small" type="button" data-action="copy" data-copy="${escapeHtml(commands)}">${icon('copy')} Copiar</button></div><pre><code>${escapeHtml(commands)}</code></pre></div><p class="field-hint" style="margin-top:12px">${bot?.webRuntime ? 'Puedes usar los controles web del detalle del bot (solo admin) o seguir las instrucciones de Termux.' : bot?.termuxOnly ? 'Pairing Code y QR se eligen dentro del flujo de inicio en Termux.' : 'Sigue las instrucciones declaradas por el bot.'}</p>`;
-}
-
-function renderEditModal() {
-  const instance = state.editTarget;
-  if (!instance) return '';
-  return `<button class="icon-button modal-close" type="button" data-action="close-modal" aria-label="Cerrar">${icon('close')}</button><span class="section-kicker">${icon('folder')} Preferencias</span><h2 id="modal-title" style="margin-top:11px">Editar perfil</h2><p class="modal-description">Solo cambia los datos guardados; no modifica ni reinicia el bot.</p><form class="modal-form" data-form="edit" data-id="${escapeHtml(instance.id)}"><label class="field"><span class="field-label">Nombre</span><input class="text-input" name="name" maxlength="48" required value="${escapeHtml(instance.name)}" /></label><label class="field"><span class="field-label">Prefijo</span><select class="select-input" name="prefix">${PREFIXES.map((prefix) => `<option value="${escapeHtml(prefix)}" ${instance.prefix === prefix ? 'selected' : ''}>${escapeHtml(prefix)}</option>`).join('')}</select></label><label class="field"><span class="field-label">Método preferido de vinculación</span><select class="select-input" name="pairingMethod"><option value="pairing-code" ${instance.pairingMethod !== 'qr' ? 'selected' : ''}>Pairing Code</option><option value="qr" ${instance.pairingMethod === 'qr' ? 'selected' : ''}>QR</option></select></label><p class="modal-error" id="edit-error" aria-live="polite"></p><div class="wizard-actions"><button class="btn btn-outline" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="submit">Guardar cambios ${icon('check')}</button></div></form>`;
 }
 
 function showToast(message, type = 'info') {
@@ -641,9 +578,8 @@ async function refreshState({ quiet = false } = {}) {
   try {
     const data = await request('/state');
     state.catalog = Array.isArray(data.bots) ? data.bots : [];
-    state.instances = Array.isArray(data.instances) ? data.instances : [];
     state.user = data.user || null;
-    if (state.token && !state.user) { state.token = ''; safeWrite(TOKEN_KEY, ''); state.instances = []; }
+    if (state.token && !state.user) { state.token = ''; safeWrite(TOKEN_KEY, ''); }
     if (!state.user) { state.runtimeState = null; state.runtimeError = ''; state.runtimeErrorCode = ''; }
     if (!state.catalog.some((bot) => bot.id === state.activeBotId)) state.activeBotId = state.catalog[0]?.id || 'universal-bot';
     return data;
@@ -674,8 +610,9 @@ async function loadRuntimeStatus({ quiet = true } = {}) {
 async function startWebRuntime(botId) {
   if (!state.user) { openAuth('login'); return; }
   const method = $('#runtime-method')?.value === 'pairing-code' ? 'pairing-code' : 'qr';
-  const phoneNumber = $('#runtime-phone')?.value || '';
-  if (method === 'pairing-code' && phoneNumber.replace(/\D/g, '').length < 8) {
+  const phoneNumber = method === 'pairing-code' ? ($('#runtime-phone')?.value || '') : '';
+  const phoneDigits = phoneNumber.replace(/\D/g, '');
+  if (method === 'pairing-code' && (phoneDigits.length < 8 || phoneDigits.length > 15)) {
     showToast('Ingresa un teléfono internacional válido para obtener Pairing Code.', 'error');
     return;
   }
@@ -733,7 +670,7 @@ async function submitAuth(form) {
     await refreshState({ quiet: true });
     await loadRuntimeStatus({ quiet: true });
     renderPage({ force: true });
-    showToast(mode === 'register' ? 'Cuenta creada. Ya puedes guardar perfiles.' : 'Sesión iniciada.', 'success');
+    showToast(mode === 'register' ? 'Cuenta creada. Inicia sesión para continuar.' : 'Sesión iniciada.', 'success');
   } catch (error) {
     state.modalError = error.message;
     const message = $('#auth-error', form);
@@ -741,53 +678,14 @@ async function submitAuth(form) {
   } finally { if (button) button.disabled = false; }
 }
 
-async function createProfile() {
-  if (!state.user) { openAuth('login'); showToast('Inicia sesión para guardar el perfil.'); return; }
-  const flow = state.flow;
-  flow.error = '';
-  flow.loading = true;
-  renderPage();
-  try {
-    const response = await request('/instances', { method: 'POST', body: { name: flow.name.trim(), botId: flow.botId, prefix: flow.prefix, pairingMethod: flow.pairingMethod } });
-    flow.saved = response.instance;
-    flow.step = 4;
-    await refreshState({ quiet: true });
-    navigate('register', { replace: true });
-    showToast('Perfil guardado. El bot no fue iniciado.', 'success');
-  } catch (error) {
-    flow.error = error.message;
-  } finally {
-    flow.loading = false;
-    renderPage({ force: true });
-  }
-}
 
-async function submitEditProfile(form) {
-  const id = form.dataset.id;
-  const data = new FormData(form);
-  const errorBox = $('#edit-error', form);
-  if (errorBox) errorBox.textContent = '';
-  try {
-    const result = await request(`/instances/${encodeURIComponent(id)}`, { method: 'PATCH', body: { name: String(data.get('name') || '').trim(), prefix: String(data.get('prefix') || '.'), pairingMethod: String(data.get('pairingMethod') || 'pairing-code') } });
-    state.instances = state.instances.map((entry) => entry.id === id ? result.instance : entry);
-    closeModal(); renderPage({ force: true }); showToast('Preferencias actualizadas.', 'success');
-  } catch (error) { if (errorBox) errorBox.textContent = error.message; else showToast(error.message, 'error'); }
-}
 
 async function logout() {
   try { await request('/auth/logout', { method: 'POST', body: {} }); } catch {}
-  state.token = ''; state.user = null; state.instances = []; state.runtimeState = null; state.runtimeError = ''; state.runtimeErrorCode = ''; safeWrite(TOKEN_KEY, '');
+  state.token = ''; state.user = null; state.runtimeState = null; state.runtimeError = ''; state.runtimeErrorCode = ''; safeWrite(TOKEN_KEY, '');
   closeModal(); closeDrawer(); renderPage({ force: true }); showToast('Sesión cerrada.', 'success');
 }
 
-async function confirmAction() {
-  const item = state.confirmTarget;
-  if (!item) return closeModal();
-  if (item.action === 'delete-profile') {
-    try { await request(`/instances/${encodeURIComponent(item.id)}`, { method: 'DELETE' }); state.instances = state.instances.filter((instance) => instance.id !== item.id); closeModal(); renderPage({ force: true }); showToast('Perfil eliminado. No se modificó Termux.', 'success'); }
-    catch (error) { closeModal(); showToast(error.message, 'error'); }
-  }
-}
 
 function toggleFavoriteBot(id) {
   state.favorites = state.favorites.includes(id) ? state.favorites.filter((item) => item !== id) : [...state.favorites, id];
@@ -801,9 +699,10 @@ function toggleEndpointFavorite(path) {
   if (state.selectedEndpoint) renderEndpointModal();
   renderPage();
 }
-function resetFlow(botId = '') {
-  const bot = state.catalog.find((item) => item.id === botId) || state.catalog[0];
-  state.flow = { step: 1, botId: bot?.id || 'universal-bot', name: '', prefix: bot?.defaultPrefix || '.', pairingMethod: 'pairing-code', error: '', loading: false, saved: null };
+function selectBotForCreate(botId = '') {
+  const bot = state.catalog.find((item) => item.id === botId && item.webRuntime)
+    || state.catalog.find((item) => item.webRuntime);
+  state.createBotId = bot?.id || '';
 }
 
 function handleClick(event) {
@@ -833,17 +732,8 @@ function handleClick(event) {
   else if (action === 'runtime-stop') stopWebRuntime(target.dataset.id);
   else if (action === 'runtime-refresh') loadRuntimeStatus({ quiet: false }).then(() => renderPage());
   else if (action === 'copy-runtime-code') copyText(target.dataset.copy || '', 'Pairing Code copiado. Úsalo de inmediato y no lo compartas.');
-  else if (action === 'create-from-bot') { resetFlow(target.dataset.id); navigate('register'); }
+  else if (action === 'create-from-bot') { selectBotForCreate(target.dataset.id); navigate('register'); }
   else if (action === 'favorite-bot') toggleFavoriteBot(target.dataset.id);
-  else if (action === 'show-deploy') openModal('deploy', state.instances.find((item) => item.id === target.dataset.id));
-  else if (action === 'edit-profile') openModal('edit', state.instances.find((item) => item.id === target.dataset.id));
-  else if (action === 'delete-profile') { const item = state.instances.find((entry) => entry.id === target.dataset.id); if (item) openConfirm('Eliminar perfil', `¿Eliminar «${item.name}»? Esto no borra archivos ni sesiones de tu dispositivo.`, 'delete-profile', item.id); }
-  else if (action === 'wizard-next') { state.flow.error = ''; if (state.flow.step === 1 && state.flow.name.trim().length < 2) { state.flow.error = 'Escribe un nombre de al menos 2 caracteres.'; renderPage(); return; } state.flow.step = Math.min(3, state.flow.step + 1); renderPage({ force: true }); }
-  else if (action === 'wizard-back') { state.flow.error = ''; state.flow.step = Math.max(1, state.flow.step - 1); renderPage({ force: true }); }
-  else if (action === 'select-prefix') { state.flow.prefix = target.dataset.prefix; renderPage(); }
-  else if (action === 'select-method') { state.flow.pairingMethod = target.dataset.method === 'qr' ? 'qr' : 'pairing-code'; renderPage(); }
-  else if (action === 'save-profile') createProfile();
-  else if (action === 'reset-flow') { resetFlow(); renderPage({ force: true }); }
   else if (action === 'toggle-category') { const category = target.dataset.category; state.openCategories.has(category) ? state.openCategories.delete(category) : state.openCategories.add(category); renderPage(); }
   else if (action === 'endpoint-method') { state.endpointMethod = target.dataset.method; renderPage(); }
   else if (action === 'show-endpoint') { const endpoint = state.endpoints.find((item) => item.path === target.dataset.path); if (endpoint) openEndpoint(endpoint); }
@@ -853,7 +743,6 @@ function handleClick(event) {
   else if (action === 'endpoint-favorite') toggleEndpointFavorite(target.dataset.path);
   else if (action === 'copy') copyText(target.dataset.copy || '');
   else if (action === 'copy-plugin') copyText(target.dataset.copy || '', 'Nombre del plugin copiado.');
-  else if (action === 'confirm-dialog') confirmAction();
   else if (action === 'open-palette') openPalette();
   else if (action === 'close-palette') closePalette();
   else if (action === 'export-metrics') exportMetricsCsv();
@@ -862,8 +751,7 @@ function handleClick(event) {
 
 function handleInput(event) {
   const input = event.target;
-  if (input.id === 'flow-name') state.flow.name = input.value;
-  else if (input.id === 'endpoint-search') { state.endpointQuery = input.value; renderPage(); }
+  if (input.id === 'endpoint-search') { state.endpointQuery = input.value; renderPage(); }
   else if (input.id === 'plugin-search') { state.pluginQuery = input.value; renderPage(); }
   else if (input.id === 'command-search') { state.pluginQuery = input.value; renderPage(); }
   else if (input.id === 'palette-input') renderPaletteList(input.value);
@@ -871,7 +759,7 @@ function handleInput(event) {
 function handleChange(event) {
   const target = event.target;
   if (target.dataset.action === 'toggle-landing-menu') { target.checked ? openDrawer() : closeDrawer(); }
-  else if (target.id === 'flow-bot') { state.flow.botId = target.value; const bot = state.catalog.find((entry) => entry.id === target.value); if (bot) state.flow.prefix = bot.defaultPrefix || '.'; renderPage(); }
+  else if (target.id === 'create-bot-select') { selectBotForCreate(target.value); renderPage({ force: true }); }
   else if (target.id === 'plugin-bot') { state.activeBotId = target.value; state.pluginQuery = ''; loadPlugins(target.value); }
   else if (target.id === 'runtime-method') {
     state.runtimeMethod = target.value === 'pairing-code' ? 'pairing-code' : 'qr';
@@ -884,7 +772,6 @@ function handleSubmit(event) {
   if (!form) return;
   event.preventDefault();
   if (form.dataset.form === 'auth') submitAuth(form);
-  else if (form.dataset.form === 'edit') submitEditProfile(form);
 }
 function handleKeydown(event) {
   if (event.key === 'Escape') { closeDrawer(); closeModal(); closeEndpoint(); closePalette(); }
@@ -895,7 +782,7 @@ function handleKeydown(event) {
 function paletteItems() {
   const views = [
     ['home', 'Inicio', 'Resumen del panel', 'home'], ['bots', 'Catálogo de bots', 'Bots del repositorio', 'bot'],
-    ['register', 'Crear perfil', 'Guardar preferencias', 'plus'], ['metrics', 'Métricas', 'Panel y base de datos', 'chart'],
+    ['register', 'Crear bot', 'Vincula WhatsApp', 'plus'], ['metrics', 'Métricas', 'Panel y base de datos', 'chart'],
     ['commands', 'Plugins', 'Archivos del catálogo', 'code'], ['endpoints', 'Endpoints', 'API del portal', 'globe'],
     ['store', 'Guía Termux', 'Instalación, QR y Pairing Code', 'smartphone'], ['profile', 'Mi perfil', 'Cuenta', 'users']
   ].map(([view, label, hint, iconName]) => ({ label, hint, icon: iconName, run: () => navigate(view) }));
@@ -930,7 +817,7 @@ function paletteKeys(event) { if (event.key === 'ArrowDown' || event.key === 'Ar
 
 function exportMetricsCsv() {
   const server = state.system?.server; const db = state.system?.database;
-  const rows = [['Sección', 'Métrica', 'Valor'], ['Panel', 'Uptime', formatUptime(server?.uptimeMs)], ['Panel', 'CPU estimada', `${number(server?.cpu?.usageEstimate)}%`], ['Panel', 'Memoria', formatBytes(server?.memory?.processBytes)], ['Base', 'Proveedor', db?.provider || 'json'], ['Base', 'Cuentas', String(db?.users || 0)], ['Base', 'Perfiles', String(db?.configurations || 0)], ['Catálogo', 'Bots', String(state.catalog.length)], ['Catálogo', 'Plugins', String(state.catalog.reduce((sum, bot) => sum + number(bot.pluginCount), 0))]];
+  const rows = [['Sección', 'Métrica', 'Valor'], ['Panel', 'Uptime', formatUptime(server?.uptimeMs)], ['Panel', 'CPU estimada', `${number(server?.cpu?.usageEstimate)}%`], ['Panel', 'Memoria', formatBytes(server?.memory?.processBytes)], ['Base', 'Proveedor', db?.provider || 'json'], ['Base', 'Cuentas', String(db?.users || 0)], ['Catálogo', 'Bots', String(state.catalog.length)], ['Catálogo', 'Plugins', String(state.catalog.reduce((sum, bot) => sum + number(bot.pluginCount), 0))]];
   const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\n');
   const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a'); link.href = url; link.download = `multibot-metricas-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
@@ -969,7 +856,7 @@ async function boot() {
     const active = (state.runtimeState.runtimes || []).some((runtime) => ['starting', 'running', 'awaiting-pairing', 'stopping'].includes(runtime.status));
     if (!active) return;
     await loadRuntimeStatus({ quiet: true });
-    if (state.view === 'bots' && location.pathname.startsWith('/bots/')) renderPage();
+    if ((state.view === 'bots' && location.pathname.startsWith('/bots/')) || state.view === 'register') renderPage();
   }, 3000);
 }
 
