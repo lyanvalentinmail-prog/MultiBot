@@ -213,6 +213,8 @@ test('Create bot starts real pairing and QR events and keeps runtime controls al
   assert.equal(adminMain.querySelector('#flow-name'), null)
   assert.equal(adminMain.querySelector('#runtime-method').value, 'pairing-code', 'Pairing Code is the initial method')
   assert.equal(adminMain.querySelector('#runtime-phone-field').hidden, false, 'Pairing Code asks for the number')
+  assert.match(adminMain.querySelector('[data-action="runtime-start"]').textContent, /Desplegar bot y vincular/)
+  assert.match(adminMain.textContent, /servicio web existente; no crea otro servicio de Render/)
   const botSelector = adminMain.querySelector('#create-bot-select')
   assert.ok(botSelector, 'a selector is shown when more than one web runtime is available')
   assert.equal(botSelector.value, 'universal-bot')
