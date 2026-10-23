@@ -1,44 +1,58 @@
 import fetch from 'node-fetch'
 import { addExif } from '../lib/sticker.js'
 import { toWebp, isAnimatedWebP } from './stickers-sticker.js'
+import { construirUrlDelirius, construirUrlTenor, normalizarResultados } from '../lib/sticker-search.js'
 
-const handler = async (m, { conn, text, args }) => {
+async function buscarEn(url) {
+  const respuesta = await fetch(url)
+  if (!respuesta.ok) return []
+  const json = await respuesta.json().catch(() => null)
+  return normalizarResultados(json)
+}
+
+const handler = async (m, { conn, text, args, usedPrefix }) => {
+  const consulta = (text || (args || []).join(' ') || '').trim()
+  if (!consulta) {
+    return conn.reply(m.chat, `Uso: ${usedPrefix || '.'}bsticker <término>\n> Ejemplo: ${usedPrefix || '.'}bsticker gato`, m, rcanal)
+  }
+
   try {
-    const consulta = (text || args.join(' ') || '').trim()
-    if (!consulta) return conn.reply(m.chat, `Uso: search-sticker <término>`, m, rcanal)
+    await conn.sendMessage(m.chat, { react: { text: '⏳', key: m.key } }).catch(() => {})
 
-    const urlBusqueda = `https://api.delirius.online/search/tenor?q=${encodeURIComponent(consulta)}`
-    const respuesta = await fetch(urlBusqueda).then(r => r.json())
-    if (!respuesta?.status || !Array.isArray(respuesta.data) || respuesta.data.length === 0)
-      return conn.reply(m.chat, '[❗] No se encontraron stickers para: ' + consulta, m, rcanal)
-
-    const candidatos = Array.from(respuesta.data)
-    const barajar = (arreglo) => {
-      for (let i = arreglo.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[arreglo[i], arreglo[j]] = [arreglo[j], arreglo[i]]
-      }
-      return arreglo
+    // Fuente 1: Delirius · Fuente 2 (respaldo): Tenor público.
+    let urls = []
+    try {
+      urls = await buscarEn(construirUrlDelirius(consulta))
+    } catch (errorDelirius) {
+      console.error('[bsticker] Delirius falló:', errorDelirius?.message || errorDelirius)
     }
-    const totalAEnviar = Math.min(2, candidatos.length)
-    const resultados = barajar(candidatos).slice(0, totalAEnviar)
-    const nombreUsuario = '@' + (conn.getName(m.sender) || 'Usuario')
+    if (!urls.length) {
+      try {
+        urls = await buscarEn(construirUrlTenor(consulta))
+      } catch (errorTenor) {
+        console.error('[bsticker] Tenor falló:', errorTenor?.message || errorTenor)
+      }
+    }
+    if (!urls.length) {
+      return conn.reply(m.chat, `[❗] No encontré stickers para: *${consulta}*\n> Prueba con otra palabra.`, m, rcanal)
+    }
+
+    let nombre = m.pushName || 'Usuario'
+    try {
+      nombre = (await conn.getName(m.sender)) || nombre
+    } catch {}
+    const autor = `@${nombre}\n${global.namebot || 'MultiBot'}`
     let enviados = 0
 
-    for (const item of resultados) {
+    for (const urlMedia of urls.slice(0, 3)) {
       try {
-        const urlMedia = item.mp4 || item.gif
-        if (!urlMedia) continue
-
         const r = await fetch(urlMedia)
         if (!r.ok) continue
-        const arregloBufer = await r.arrayBuffer()
-        const bufer = Buffer.from(arregloBufer)
+        const bufer = Buffer.from(await r.arrayBuffer())
+        if (!bufer.length) continue
 
         const webp = await toWebp(bufer)
-        const nombrePack = `${consulta}`
-        const autor = `${nombreUsuario}` + '\n' + (global.namebot || 'PAIN BOT')
-        const stickerFinal = await addExif(webp, nombrePack, autor)
+        const stickerFinal = await addExif(webp, consulta.slice(0, 40), autor)
         const animado = isAnimatedWebP(stickerFinal)
 
         await conn.sendMessage(
@@ -51,20 +65,21 @@ const handler = async (m, { conn, text, args }) => {
           { quoted: m }
         )
         enviados++
-      } catch (err) {
-        console.error('Error procesando resultado de sticker:', err.message)
-        continue
+      } catch (errorItem) {
+        console.error('[bsticker] no se pudo convertir un resultado:', errorItem?.message || errorItem)
       }
     }
 
-    if (enviados === 0) return conn.reply(m.chat, '[❌] No se pudieron generar stickers.', m, rcanal)
+    if (!enviados) {
+      return conn.reply(m.chat, '[❌] Encontré resultados pero no se pudieron convertir a sticker.', m, rcanal)
+    }
   } catch (error) {
-    console.error('Error en search-sticker:', error)
+    console.error('Error en bsticker:', error)
     return conn.reply(m.chat, '[❌] Error al buscar stickers.', m, rcanal)
   }
 }
 
-handler.help = ['search-sticker <término>']
+handler.help = ['bsticker <término>']
 handler.tags = ['stickers']
 handler.command = ['search-sticker', 'bsticker', 'sticker-search']
 
