@@ -4,7 +4,6 @@ import os from 'os'
 import { getMenuRentalLine } from './alquiler.js'
 import { formatBotUptime } from './bot-uptime.js'
 import { findGroupParticipant, candidatosJidRemitente, jidsSeSolapan } from './group-participant.js'
-import { isMainBotConn, cleanBotNum } from '../plugins/modo-sub.js'
 import { getStaffOwnerIds } from './staff.js'
 import { construirBotonSoporte, obtenerLinkSoporte } from './soporte.js'
 
@@ -450,9 +449,11 @@ export async function resolverContextoMenu(m, conn, usedPrefix) {
   let nombreBot = global.namebot || 'PAIN BOT'
   // Terminal → Personalizar bot → "Banner" (global.botBanner: '' = defecto, ruta o URL).
   let mainImg = global.botBanner || './storage/img/banner-default.jpg'
+  // Import dinámico: modo-sub.js necesita 'ws' (instalado en el bot).
+  const { isMainBotConn, cleanBotNum } = await import('../plugins/modo-sub.js')
   const botActual = cleanBotNum(conn.user?.jid || conn.user?.id)
   const esPrincipal = isMainBotConn(conn)
-  const tipo = esPrincipal ? 'Principal Bot' : 'Sub Bot'
+  const tipo = esPrincipal ? 'Principal bot Bot' : 'Sub bot Bot'
 
   if (!esPrincipal && botActual) {
     const rutaConfigGlobal = join('./Serbot', botActual, 'config.json')
@@ -528,11 +529,14 @@ export async function resolverContextoMenu(m, conn, usedPrefix) {
     linkSoporte = obtenerLinkSoporte(conn)
   } catch {}
 
+  const lineasOwners = construirLineasOwners(conn, nombreBot)
+
   return {
     usedPrefix,
     nombreBot,
     mainImg,
     tipo,
+    lineasOwners,
     userRole: rolUsuario,
     botFormatUptime,
     totalf,
@@ -634,6 +638,22 @@ function construirContextInfoInteractivo(sender) {
   }
 }
 
+export function construirLineasOwners(conn, nombreBot) {
+  const owners = (Array.isArray(global.owner) ? global.owner : [])
+    .filter((e) => Array.isArray(e))
+    .map(([numero, nombre]) => ({
+      raw: String(numero || ''),
+      phone: String(numero || '').replace(/\D/g, ''),
+      name: String(nombre || '').trim(),
+    }))
+    .filter((o) => o.phone && !/X{4,}|TU_LID_AQUI/i.test(o.raw))
+  const lineas = owners.map((o) => `> 𓂃 ࣪ ִֶָ☾.  ⊹ wa.me/${o.phone} ⊹ *${o.name || o.phone}*`)
+  if (lineas.length) return lineas.join('\n')
+  const botNum = String(conn?.user?.id || conn?.user?.jid || '').split('@')[0].replace(/\D/g, '')
+  if (botNum) return `> 𓂃 ࣪ ִֶָ☾.  ⊹ wa.me/${botNum} ⊹ *${nombreBot}*`
+  return `> 𓂃 ࣪ ִֶָ☾.  ⊹ *${nombreBot}*`
+}
+
 export function construirEncabezadoMenu(m, ctx) {
   return `
 𓂃 ࣪ ִֶָ☾. 𝙱𝙸𝙴𝙽𝚅𝙴𝙽𝙸𝙳𝙾/𝙰  @${m.sender.split('@')[0]}
@@ -648,14 +668,9 @@ ${ctx.rentalLine}
 > 𓂃 ࣪ ִֶָ☾.  𝙼𝙴𝙼𝙾𝚁𝙸𝙰: ${ctx.processRamMB}/${ctx.totalRamMB} MB
 
  𓂃 ࣪ ִֶָ☾. 𝙿𝚁𝙾𝙿𝙸𝙴𝚃𝙰𝚁𝙸𝙾𝚂𓂃 ࣪ ִֶָ☾.
-> 𓂃 ࣪ ִֶָ☾.  ⊹ wa.me/@Sunkovv ⊹ *Sunkovv*
+${ctx.lineasOwners}
 
- 𓂃 ࣪ ִֶָ☾. 𝙷𝙾𝚂𝚃𝙸𝙽𝙶 𝙾𝙵𝙸𝙲𝙸𝙰𝙻 𓂃 ࣪ ִֶָ☾.
-> 𓂃 ࣪ ִֶָ☾.  ⟅ https://nexcodea.com ⟆
-
- 𓂃 ࣪ ִֶָ☾. 𝙲𝙰𝙽𝙰𝙻𝙴𝚂 𝙾𝙵𝙸𝙲𝙸𝙰𝙻𝙴𝚂 𓂃 ࣪ ִֶָ☾.
-> 𓂃 ࣪ ִֶָ☾.  ⟅ https://whatsapp.com/channel/0029Vb7Y87RLikgEutyMId1h ⟆
-
+ 
 𓂃 ࣪ ִֶָ☾. *𝙴𝙻𝙸𝙶𝙴 𝚄𝙽𝙰 𝙲𝙰𝚃𝙴𝙶𝙾𝚁Í𝙰* 𓂃 ࣪ ִֶָ☾.`.trim()
 }
 
@@ -773,6 +788,7 @@ export {
   construirCategoriasMenu as buildMenuCategories,
   construirRespuestaCategoria as buildCategoryResponse,
   construirEncabezadoMenu as buildMenuHeader,
+  construirLineasOwners as buildOwnerLines,
   construirSeccionesLista as buildListSections,
   construirSeccionesInteractivas as buildInteractiveSections,
   construirContenidoMenuInteractivo as buildInteractiveMenuContent,
