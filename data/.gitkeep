@@ -1,1 +1,1 @@
-# datos del panel (instances + cuentas) — gitignored en prod, persiste en Render disk
+# datos JSON locales del panel; Render Free no monta disco persistente

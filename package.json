@@ -12,12 +12,20 @@
     "test": "npm run check && node --test tests/*.test.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=20.9.0"
   },
-  "keywords": ["whatsapp", "baileys", "termux", "multibot", "render", "panel"],
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "termux",
+    "multibot",
+    "render",
+    "panel"
+  ],
   "license": "GPL-3.0-or-later",
   "dependencies": {
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4"
   },
   "repository": {
     "type": "git",

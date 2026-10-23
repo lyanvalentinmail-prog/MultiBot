@@ -60,5 +60,6 @@ data/*.tmp
 # Ignore private bot configuration; use config.example.js as a template
 bots/universal-bot/config.js
 
-# Root app lockfile is intentionally tracked; nested bot lockfiles remain ignored
+# Root app and Universal Bot lockfiles are tracked for reproducible Render installs.
 !/package-lock.json
+!/bots/universal-bot/package-lock.json

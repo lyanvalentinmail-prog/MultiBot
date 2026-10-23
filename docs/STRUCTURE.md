@@ -2,83 +2,70 @@
 
 ```text
 MultiBot/
-├── package.json / package-lock.json   # Panel/API Node y dependencia PostgreSQL
-├── render.yaml                        # Blueprint: web service + PostgreSQL
-├── .env.example                       # Variables opcionales para desarrollo local
+├── package.json / package-lock.json   # Panel/API, PostgreSQL y generador de QR
+├── render.yaml                        # Blueprint Free: portal + PostgreSQL
+├── .env.example                       # Variables opcionales locales/runtime
 ├── bots/
-│   ├── _template/                     # Base para crear bots
-│   └── universal-bot/                 # 200 plugins; Baileys; solo Termux
-│       ├── bot.json                   # Metadatos que consume el catálogo web
-│       ├── config.example.js          # Plantilla; config.js es privado/ignorado
-│       ├── index.js / main.js          # Inicio y conexión desde Termux
+│   ├── _template/                     # Base para crear bots (oculta del catálogo)
+│   └── universal-bot/                 # Baileys, Termux + runtime web autorizado
+│       ├── bot.json                   # Metadatos y entrypoint web opt-in
+│       ├── config-loader.js           # config.js privado o defaults/env
+│       ├── config.example.js          # Plantilla sin secretos
+│       ├── package.json / lockfile     # Dependencias reproducibles del bot
+│       ├── index.js / main.js          # Inicio Termux y proceso Baileys
 │       ├── handler.js                 # Router de mensajes/plugins
-│       ├── lib/                       # Guard Termux, modos y utilidades
+│       ├── lib/                       # Guard, modos y utilidades
 │       ├── plugins/                   # Plugins JavaScript
-│       ├── storage/                   # Datos propios del bot
-│       ├── sessions/                  # Credenciales Baileys (ignorado)
-│       ├── tmp/                       # Archivos temporales (ignorado)
+│       ├── storage/                   # Datos propios del bot (efímeros en Render)
+│       ├── sessions/                  # Credenciales Baileys, ignoradas por Git
+│       ├── tmp/                       # Archivos temporales, ignorados por Git
 │       └── docs/                      # Guías específicas del bot
-├── web/                               # SPA/PWA MultiBot inspirada en TomiOka
+├── web/                               # SPA/PWA adaptada de TomiOka
 │   ├── index.html                     # Shell y símbolos SVG
 │   ├── app.js                         # Navegación, vistas y cliente API
-│   ├── styles.css                     # Diseño responsive
+│   ├── styles.css                     # Diseño responsive y panel de runtime
 │   ├── fonts/                         # Outfit, JetBrains Mono y licencia OFL
-│   ├── manifest.webmanifest           # Metadatos de PWA
+│   ├── manifest.webmanifest           # Metadatos PWA
 │   └── sw.js                          # Cache shell, excluye API dinámica
 ├── scripts/
-│   ├── serve-web.js                   # Servidor HTTP, catálogo y API de perfiles
+│   ├── serve-web.js                   # Servidor, catálogo, API y permisos
+│   ├── web-runtime.js                 # Procesos hijos, QR/código y parada
 │   ├── create-bot.sh                  # Crea bot desde _template
 │   └── install-termux.sh              # Ayuda de instalación Termux
-├── data/                              # JSON local (ignorado; no se despliega)
-├── tests/web-api.test.js              # Smoke/integration de auth y perfiles
+├── data/                              # JSON local de cuentas/perfiles (ignorado)
+├── tests/                             # Pruebas de API, catálogo, runtime y UI
 └── docs/                              # Guías globales
 ```
 
 ## Principios
 
-1. **Aislamiento por bot:** cada `bots/<id>` mantiene plugins, configuración, storage y sesiones independientes.
-2. **Universal Bot es Termux-only:** Pairing Code y QR se usan desde el inicio del proceso en Termux. No trasladar sus sesiones al panel ni a Render.
-3. **El panel no ejecuta bots:** la web lee metadatos/plugins y persiste perfiles de configuración. PostgreSQL guarda cuentas y perfiles, no credenciales Baileys.
-4. **Catálogo extensible:** la API descubre subcarpetas de `bots/`, lee su `package.json`, plugins y un `bot.json` opcional.
-5. **Datos privados ignorados:** `config.js`, `sessions/`, temporales y el fallback local no se agregan a Git.
-
-## Añadir un bot al catálogo
-
-Cada nueva carpeta debe tener un `package.json`; `bot.json` es opcional pero recomendado. Declara explícitamente el modo y capacidades, por ejemplo:
-
-```json
-{
-  "id": "mi-bot",
-  "name": "Mi Bot",
-  "description": "Descripción pública",
-  "executionMode": "termux",
-  "webRuntime": false,
-  "supportsPairingCode": true,
-  "supportsQr": true,
-  "adultContent": false,
-  "defaultPrefix": ".",
-  "features": ["Moderación", "Stickers"]
-}
-```
-
-No declares `webRuntime: true` a menos que ese bot realmente tenga un runtime web separado y compatible. Ver [`ADD_NEW_BOT.md`](ADD_NEW_BOT.md).
+1. **Aislamiento por bot:** cada `bots/<id>` mantiene sus plugins, configuración, storage y sesiones.
+2. **Runtime explícito:** el catálogo solo permite ejecución web si el manifiesto declara `executionMode: "web"` y `webRuntime: true`. Universal Bot también conserva Termux.
+3. **Permiso de administrador:** QR, Pairing Code, estado y acciones de ejecución requieren una cuenta cuyo email esté en `WEB_RUNTIME_ADMIN_EMAILS`.
+4. **Recursos Free:** el manager permite un proceso de bot a la vez. Render Free puede suspender el servicio; no promete uptime continuo ni persistencia de credenciales.
+5. **Credenciales fuera de PostgreSQL:** cuentas/perfiles se guardan en la base del panel; credenciales Baileys se escriben en el filesystem efímero del servicio.
+6. **Catálogo extensible:** la API descubre subcarpetas de `bots/`, `package.json`, plugins y un `bot.json` opcional.
+7. **Datos privados ignorados:** `config.js`, `sessions/`, temporales y el fallback local no se suben a Git.
+8. **Contenido apto:** bots declarados como `adultContent: true` no aparecen en catálogo ni pueden iniciar desde API.
 
 ## ¿Dónde va cada cosa?
 
 | Necesito... | Carpeta/archivo |
 |---|---|
 | Añadir plugin al Universal Bot | `bots/universal-bot/plugins/` |
-| Configurar propietario del Universal Bot | crear `bots/universal-bot/config.js` desde `config.example.js` |
-| Consultar logs del bot | consola Termux y `bots/universal-bot/tmp/` |
+| Configurar propietario del bot | `config.js` privado o variables `BOT_UNIVERSAL_BOT_*` |
+| Consultar logs del bot | Panel autenticado o consola Termux |
 | Crear un bot nuevo | `bots/<id>/` desde `_template` |
 | Ajustar interfaz SPA | `web/app.js`, `web/index.html`, `web/styles.css` |
-| Modificar API/servidor | `scripts/serve-web.js` |
-| Cambiar despliegue o PostgreSQL | `render.yaml` y `docs/WEB.md` |
-| Ejecutar smoke tests | `npm test` |
+| Modificar API/permisos | `scripts/serve-web.js` |
+| Gestionar procesos web | `scripts/web-runtime.js` |
+| Cambiar Render o PostgreSQL | `render.yaml` y `docs/WEB.md` |
+| Ejecutar pruebas | `npm test` |
 
 ## Gitignore
 
-- `bots/*/sessions/` y `config.js` → credenciales y configuración privada.
-- `bots/*/storage/databases/database.json` → datos mutables de cada bot.
-- `bots/*/tmp/`, `node_modules/` → archivos temporales/dependencias.
+- `bots/*/sessions/` y `config.js` → credenciales/configuración privada.
+- `bots/*/storage/databases/database.json` → datos mutables del bot.
+- `bots/*/tmp/`, `node_modules/` → temporales y dependencias.
 - `data/*.json` → fallback local de cuentas y perfiles del panel.
+- Los lockfiles raíz y de Universal Bot se versionan para instalaciones reproducibles.

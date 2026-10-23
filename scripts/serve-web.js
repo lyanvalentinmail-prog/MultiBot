@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * MultiBot web portal: static SPA + authenticated configuration API.
- * Universal Bot remains Termux-only; this server never launches a WhatsApp bot.
+ * MultiBot web portal: static SPA, configuration API, and explicitly authorized bot runtimes.
  */
 import { createServer } from 'node:http'
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual, createHash } from 'node:crypto'
@@ -9,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { WebRuntimeManager } from './web-runtime.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WEB_DIR = path.join(ROOT, 'web')
@@ -71,7 +71,10 @@ function loadBotCatalog(rootDir = ROOT) {
         const pluginDir = path.join(botDir, 'plugins')
         if (existsSync(pluginDir)) pluginFiles = readdirSync(pluginDir).filter((file) => file.endsWith('.js') && !file.startsWith('.'))
       } catch {}
-      const termuxOnly = manifest.executionMode === 'termux' || existsSync(path.join(botDir, 'lib', 'termux-guard.js'))
+      // A web runtime must be an explicit opt-in from the manifest. This intentionally
+      // overrides a repository Termux guard only for bots that ship a web entrypoint.
+      const webRuntime = manifest.webRuntime === true && manifest.executionMode === 'web'
+      const termuxOnly = !webRuntime && (manifest.executionMode === 'termux' || existsSync(path.join(botDir, 'lib', 'termux-guard.js')))
       const name = manifest.name || (id === 'universal-bot' ? 'Universal Bot' : pkg.displayName || pkg.name || id)
       const featureList = Array.isArray(manifest.features) ? manifest.features : []
       return {
@@ -79,9 +82,9 @@ function loadBotCatalog(rootDir = ROOT) {
         name,
         description: manifest.description || pkg.description || '',
         version: pkg.version || manifest.version || '1.0.0',
-        executionMode: termuxOnly ? 'termux' : (manifest.executionMode || 'manual'),
+        executionMode: webRuntime ? 'web' : termuxOnly ? 'termux' : (manifest.executionMode || 'manual'),
         termuxOnly,
-        webRuntime: manifest.webRuntime === true && !termuxOnly,
+        webRuntime,
         supportsPairingCode: manifest.supportsPairingCode !== false,
         supportsQr: manifest.supportsQr !== false,
         adultContent: manifest.adultContent === true,
@@ -338,11 +341,26 @@ function staticHeaders() {
   }
 }
 
-export async function createApplication({ database = createDatabase(), rootDir = ROOT, webDir = WEB_DIR } = {}) {
+export async function createApplication({
+  database = createDatabase(),
+  rootDir = ROOT,
+  webDir = WEB_DIR,
+  webRuntimeEnabled = process.env.WEB_RUNTIME_ENABLED,
+  webRuntimeAdminEmails = process.env.WEB_RUNTIME_ADMIN_EMAILS || '',
+  runtimeManager = null,
+} = {}) {
   await database.init()
   const startedAt = Date.now()
   let apiRequests = 0
   const authAllowed = rateLimiter({ limit: 12 })
+  const runtimeAllowed = rateLimiter({ limit: 6, windowMs: 5 * 60 * 1000 })
+  const runtimeIsEnabled = webRuntimeEnabled === true || ['1', 'true', 'yes', 'on'].includes(String(webRuntimeEnabled || '').toLowerCase())
+  const botRuntime = runtimeManager || new WebRuntimeManager({
+    rootDir,
+    findBot: (id) => loadBotCatalog(rootDir).find((item) => item.id === id),
+    enabled: runtimeIsEnabled,
+    adminEmails: webRuntimeAdminEmails,
+  })
 
   async function authenticate(req) {
     const token = authToken(req)
@@ -359,6 +377,17 @@ export async function createApplication({ database = createDatabase(), rootDir =
     return user
   }
 
+  async function requireRuntimeAdmin(req, res) {
+    const user = await requireUser(req, res)
+    if (!user) return null
+    const error = botRuntime.unavailableError(user)
+    if (error) {
+      jsonResponse(res, error.status, { ok: false, error: error.message, code: error.code })
+      return null
+    }
+    return user
+  }
+
   async function handleApi(req, res, url) {
     apiRequests += 1
     const method = req.method || 'GET'
@@ -367,6 +396,40 @@ export async function createApplication({ database = createDatabase(), rootDir =
     if (method === 'GET' && apiPath === '/api/health') {
       await database.ping()
       return jsonResponse(res, 200, { ok: true, service: 'multibot-panel', database: database.provider, uptimeMs: Date.now() - startedAt, timestamp: new Date().toISOString() })
+    }
+
+    if (method === 'GET' && apiPath === '/api/runtime') {
+      const user = await requireRuntimeAdmin(req, res)
+      if (!user) return
+      return jsonResponse(res, 200, {
+        ok: true,
+        enabled: true,
+        canManage: true,
+        maxProcesses: 1,
+        credentialStorage: 'filesystem-ephemeral',
+        warning: 'Render Free ofrece 512 MB de RAM y 0.1 CPU; puede suspender el servicio y perder la sesión local de Baileys al reiniciar o desplegar.',
+        runtimes: botRuntime.list(),
+      })
+    }
+
+    const runtimeMatch = apiPath.match(/^\/api\/bots\/([a-z0-9][a-z0-9_-]*)\/runtime\/(start|stop)$/i)
+    if (runtimeMatch && method === 'POST') {
+      if (!runtimeAllowed(req)) return jsonResponse(res, 429, { ok: false, error: 'Demasiados intentos de runtime. Espera cinco minutos antes de volver a intentar.', code: 'RUNTIME_RATE_LIMITED' })
+      const user = await requireRuntimeAdmin(req, res)
+      if (!user) return
+      const [, botId, action] = runtimeMatch
+      try {
+        if (action === 'start') {
+          const body = await readJson(req)
+          const runtime = await botRuntime.start(botId, { method: body.method, phoneNumber: body.phoneNumber })
+          return jsonResponse(res, 202, { ok: true, runtime })
+        }
+        const runtime = await botRuntime.stop(botId)
+        return jsonResponse(res, 200, { ok: true, runtime })
+      } catch (error) {
+        const status = Number(error.status) || 500
+        return jsonResponse(res, status, { ok: false, error: status >= 500 ? 'No se pudo iniciar o detener el runtime.' : error.message, code: error.code || 'RUNTIME_ERROR' })
+      }
     }
 
     if (method === 'GET' && apiPath === '/api/state') {
@@ -429,6 +492,9 @@ export async function createApplication({ database = createDatabase(), rootDir =
     if (method === 'GET' && apiPath === '/api/endpoints') {
       return jsonResponse(res, 200, { ok: true, endpoints: [
         { method: 'GET', path: '/api/health', auth: false, description: 'Estado del servicio y conexión a base de datos.' },
+        { method: 'GET', path: '/api/runtime', auth: 'admin', description: 'Estado de procesos web y QR/Pairing Code; solo administradores autorizados.' },
+        { method: 'POST', path: '/api/bots/:id/runtime/start', auth: 'admin', description: 'Inicia un bot con QR o Pairing Code real; solo administradores autorizados.' },
+        { method: 'POST', path: '/api/bots/:id/runtime/stop', auth: 'admin', description: 'Detiene el proceso del bot; solo administradores autorizados.' },
         { method: 'GET', path: '/api/state', auth: 'optional', description: 'Catálogo y configuraciones de la cuenta autenticada.' },
         { method: 'GET', path: '/api/system', auth: false, description: 'Telemetría del servidor y base de datos.' },
         { method: 'GET', path: '/api/bots', auth: false, description: 'Lista los bots existentes en bots/.' },
@@ -448,6 +514,13 @@ export async function createApplication({ database = createDatabase(), rootDir =
       const email = String(body.email || '').trim().toLowerCase()
       const password = String(body.password || '')
       if (!validateEmail(email)) return jsonResponse(res, 400, { ok: false, error: 'Escribe una dirección de email válida.' })
+      if (apiPath === '/api/auth/register' && botRuntime.adminEmails?.has?.(email) && !await database.findUserByEmail(email)) {
+        return jsonResponse(res, 403, {
+          ok: false,
+          error: 'Por seguridad, crea primero la cuenta administradora y luego agrega su email a WEB_RUNTIME_ADMIN_EMAILS en Render.',
+          code: 'RUNTIME_ADMIN_ACCOUNT_PRECREATE_REQUIRED',
+        })
+      }
       if (password.length > 200) return jsonResponse(res, 400, { ok: false, error: 'La contraseña es demasiado larga.' })
 
       let user
@@ -511,7 +584,7 @@ export async function createApplication({ database = createDatabase(), rootDir =
       if (!user) return
       const [, id, operation] = instanceMatch
       if (operation && method === 'POST') {
-        return jsonResponse(res, 409, { ok: false, code: 'TERMUX_ONLY', error: 'Este bot no se ejecuta en el panel web. Inícialo desde Termux y elige Pairing Code o QR en la terminal.' })
+        return jsonResponse(res, 409, { ok: false, code: 'PROFILE_NOT_RUNTIME', error: 'Este perfil solo guarda preferencias. Para iniciar, abre el detalle del bot y usa sus controles de runtime web si están habilitados.' })
       }
       if (!operation && method === 'GET') {
         const instance = await database.findInstance(user.id, id)
@@ -591,6 +664,7 @@ export async function createApplication({ database = createDatabase(), rootDir =
   return {
     server,
     database,
+    runtimeManager: botRuntime,
     async listen(port = Number(process.env.PORT) || 3000, host = process.env.HOST || '0.0.0.0') {
       await new Promise((resolve, reject) => {
         server.once('error', reject)
@@ -599,6 +673,7 @@ export async function createApplication({ database = createDatabase(), rootDir =
       return server.address()
     },
     async close() {
+      await botRuntime.close()
       await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
       await database.close?.()
     }

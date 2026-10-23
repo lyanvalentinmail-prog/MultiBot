@@ -1,29 +1,22 @@
 # 🤖 Universal Bot
 
-**Bot todo-en-uno para WhatsApp** — 200 plugins, RPG, stickers, IA, descargas, antis, grupos y más.
-**Solo Termux** · **Baileys** · **Pairing Code & QR** · **Sin contenido +18** ✅
+**Bot todo-en-uno para WhatsApp** — RPG, stickers, IA, descargas, antis, grupos y más.
+**Termux + runtime web autorizado** · **Baileys** · **Pairing Code & QR reales** · **Sin contenido +18** ✅
 
 > Parte de [MultiBot](../../README.md) · Basado en Pain-Bot, limpiado de NSFW.
 
 ## ✨ Funciones
 
-- **Conexión**: Pairing Code (8 dígitos) y QR
-- **Termux Only**: guard `lib/termux-guard.js`
+- **Conexión**: Pairing Code y QR generados por Baileys.
+- **Runtimes**: Termux; runtime web Free para cuentas administradoras allowlisted.
 - **RPG**: economía, banco, daily, work, robar, slot, ruleta, pescar, etc.
-- **Gacha**: harem/characters (roll, claim, shop, trade)
-- **Juegos**: michi (3 en raya), miner, bomba, dado, adivinanza
-- **Stickers**: sticker, brat, text, sgay, sw, toimg, delmeta, etc.
-- **Grupos**: ban/kick/promote/warn/mute, antilink, welcome, clas, etc.
-- **Anti-s**: link, spam, img, audio, video, sticker, bot, delete, estados, palabra, caracter, prefijo, mention, contact, document
-- **IA**: Gemini, ChatGPT, Copilot, Kora, Anime, OCR
-- **Descargas**: play, play2, fb, ig, tiktok, spotify, soundcloud, pinterest, gitclone, etc.
-- **Media**: tts, stt, slow/speed, audio-to-audio, hd, resize, pdf, ssimg, etc.
-- **Utilidades**: google, yt, lyrics, ip, sherlock, canalid, perfil, etc.
-- **Sub-bots**: `qr`/`code` para crear sub-bots, `bots`, `reconnect`
+- **Gacha/juegos**: personajes, michi, miner, bomba, dado, adivinanza.
+- **Stickers, grupos, protección, IA, multimedia y descargas**.
+- **Sub-bots**: `qr`/`code` para crear sub-bots, `bots`, `reconnect`.
 
-> **Sin NSFW**: se eliminaron hentai, xnxx, xvideos, onlyfans, waifu +18, modohot, cmd18 y todo contenido para adultos.
+> **Sin NSFW:** hentai, xnxx, xvideos, onlyfans, waifu +18, modohot, cmd18 y el contenido para adultos fueron eliminados.
 
-## 📱 Termux (único modo soportado)
+## 📱 Termux
 
 ```bash
 pkg update && pkg upgrade -y
@@ -32,96 +25,75 @@ git clone https://github.com/lyanvalentinmail-prog/MultiBot.git
 cd MultiBot/bots/universal-bot
 npm install
 cp config.example.js config.js
-nano config.js   # pon tu número
+nano config.js   # configura owner y LID
 npm start       # elige code o qr
 ```
 
-Guía completa: [`docs/TERMUX.md`](./docs/TERMUX.md) y [`../../docs/TERMUX_GUIDE.md`](../../docs/TERMUX_GUIDE.md)
+Guía completa: [`docs/TERMUX.md`](./docs/TERMUX.md) y [`../../docs/TERMUX_GUIDE.md`](../../docs/TERMUX_GUIDE.md).
 
-## ⚙️ Config
+## 🌐 Runtime web autorizado
 
-Edita `config.js`:
+El panel puede iniciar `main.js` desde Render Free. Abre el detalle de Universal Bot con una cuenta incluida en `WEB_RUNTIME_ADMIN_EMAILS` y solicita el QR o Pairing Code real. En Pairing Code, ingresa el número internacional que recibirá el código. Consulta [`../../docs/WEB.md`](../../docs/WEB.md) para despliegue, permisos y variables opcionales.
+
+- Una instancia de bot como máximo a la vez.
+- Render Free comparte 512 MB de RAM y 0.1 CPU entre el panel y el bot; IA/OCR y tareas pesadas pueden agotar recursos.
+- Render Free puede suspenderse y detener/reiniciar el bot; no hay uptime 24/7.
+- Las credenciales Baileys viven en `sessions/` dentro del filesystem efímero de Render; pueden perderse. No se guardan en PostgreSQL.
+- La API key/owner opcionales se pasan mediante variables `BOT_UNIVERSAL_BOT_*`; no publiques secretos.
+
+## ⚙️ Configuración Termux
+
+Edita `config.js` (privado/ignorado por Git):
 
 ```js
-global.owner = [
-  ['521XXXXXXXXXX', 'TuNombre', true]
-]
-global.ownerLid = [
-  ['tu_lid', 'TuNombre', true] // saca con .id en privado
-]
+global.owner = [['598XXXXXXXX', 'TuNombre', true]]
+global.ownerLid = [['tu_lid', 'TuNombre', true]] // saca con .id en privado
 global.namebot = 'UNIVERSAL BOT'
 global.moneda = 'USD'
 ```
 
+`config-loader.js` usa `config.js` cuando existe; en un deploy limpio cae a los defaults seguros de `config.example.js`. Para web puedes configurar `BOT_UNIVERSAL_BOT_OWNER_PHONE`, `BOT_UNIVERSAL_BOT_OWNER_NAME` y `BOT_UNIVERSAL_BOT_OWNER_LID` en el entorno del servicio.
+
 ## 🔐 Login
 
-Al iniciar:
+En Termux se elige `qr` o `code` en la terminal. Desde web, el panel no usa el prompt: seleccionas QR o Pairing Code en la interfaz y el proceso transmite a la cuenta administradora el código real que genere Baileys.
 
-```
-¿Cómo deseas iniciar sesión?
-Escribe "qr" para escanear el código QR o "code" para usar un código de 8 dígitos:
-```
+- **QR** → escanea con WhatsApp → Dispositivos vinculados.
+- **Pairing Code** → ingresa el código de Baileys en WhatsApp → Dispositivos vinculados → Vincular con número.
 
-- `qr` → genera QR en terminal → escanea con WhatsApp
-- `code` → ingresa tu número → recibe `XXXX-XXXX` → vincula en WhatsApp > Dispositivos vinculados > Vincular con número
+La sesión se guarda en `sessions/creds.json`. En Termux persiste en el almacenamiento del dispositivo; en Render Free es efímera y puede borrarse al reiniciar/suspender/desplegar.
 
-Sesión se guarda en `sessions/creds.json` (no borrar si quieres mantener login).
+## 🔒 Guard
 
-## 🔒 Solo Termux
-
-Este bot tiene `lib/termux-guard.js` que bloquea ejecución fuera de Termux:
-
-```
-✖ ESTE BOT SOLO PUEDE EJECUTARSE EN TERMUX
-```
-
-Bypass dev (no recomendado prod):
-
-```bash
-ALLOW_NON_TERMUX=1 npm start
-node main.js --allow-non-termux
-```
+`lib/termux-guard.js` permite el modo Termux o un runtime web explícito con las dos variables internas que añade el process manager. No uses esas variables como bypass manual en otro servicio. El bypass `ALLOW_NON_TERMUX=1` sigue siendo solo para desarrollo.
 
 ## 📂 Estructura
 
-```
+```text
 universal-bot/
-├── config.js / config.example.js
+├── config.js / config.example.js / config-loader.js
+├── bot.json            # webRuntime y webEntrypoint declarados
 ├── index.js / main.js / handler.js
-├── lib/            # Termux guard, Modos, Antis, menu, etc.
-├── plugins/        # 200 comandos
-├── storage/
-│   ├── databases/  # DB + characters
-│   └── img/
-├── sessions/       # creds (gitignored)
-├── tmp/            # temp (gitignored)
-├── scripts/
+├── lib/                # Guard, modos, antis y utilidades
+├── plugins/            # Comandos
+├── storage/            # DB + imágenes (efímero en Render)
+├── sessions/           # creds (gitignored)
+├── tmp/                # temporales (gitignored)
 └── docs/
 ```
-
-## 📋 Menú
-
-En WhatsApp: `.menu` → categorías → lista interactiva.
-
-Categorías: Owners, Admins, SubBot, Games RPG, Perfil, Top, Búsquedas, OSINT, IA, Descargas, Reacciones, Adicionales, Stickers, Diversión.
-
-> Categoría NSFW eliminada.
 
 ## 🛠️ Scripts
 
 | Comando | Descripción |
-|---------|-------------|
-| `npm start` | Inicia con sharp check + cluster |
-| `npm run start:raw` | Sin sharp check |
-| `npm run dev` | Con ALLOW_NON_TERMUX |
+|---|---|
+| `npm start` | Inicio Termux con sharp check y cluster |
+| `npm run start:raw` | Inicio sin sharp check |
+| `npm run dev` | Inicio de desarrollo sin Termux guard |
 | `npm run fix:sharp` | Repara sharp |
 
-## 🤝 Créditos
+## 🤝 Créditos y licencia
 
-- Base: [nexusday/pain-bot](https://github.com/nexusday/pain-bot) (GPL-3.0)
-- Baileys: @whiskeysockets/baileys & @itsliaaa/baileys
-- Limpieza + Termux guard: MultiBot Team
-
-## 📄 Licencia
-
-GPL-3.0-or-later
+- Base: [nexusday/pain-bot](https://github.com/nexusday/pain-bot) (GPL-3.0).
+- Baileys: `@whiskeysockets/baileys` y `@itsliaaa/baileys`.
+- Limpieza y guard: MultiBot Team.
+- GPL-3.0-or-later.

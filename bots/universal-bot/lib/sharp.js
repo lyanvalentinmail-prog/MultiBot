@@ -55,7 +55,7 @@ export function obtenerSharp() {
         'sharp no está disponible en esta plataforma (android-arm64 / Termux).\n\n' +
           'Solución definitiva (una vez):\n' +
           '  cd ~/pain-bot\n' +
-          '  npm install --cpu=wasm32 sharp@0.34.1 @img/sharp-wasm32@0.34.1 --no-bin-links\n' +
+          '  npm install --cpu=wasm32 sharp@0.35.5 @img/sharp-wasm32@0.35.5 --no-bin-links\n' +
           '  npm start\n\n' +
           'O deja que el arranque lo instale: se ejecuta scripts/ensure-sharp.js'
       ),

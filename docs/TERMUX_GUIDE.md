@@ -144,8 +144,8 @@ npm start  # re-loguea
 - Revisa `config.js` owner
 - Mira logs de Termux
 
-**Guard: Solo Termux**
-Si ves `✖ ESTE BOT SOLO PUEDE EJECUTARSE EN TERMUX` en PC, usa `ALLOW_NON_TERMUX=1 npm start` para dev, pero producción es Termux solo.
+**Guard de ejecución**
+El inicio normal funciona en Termux. La web puede arrancar el proceso solo cuando MultiBot lo autoriza con sus variables internas; no las configures manualmente en otro servicio. `ALLOW_NON_TERMUX=1` sigue siendo un bypass únicamente para desarrollo.
 
 ## Storage
 

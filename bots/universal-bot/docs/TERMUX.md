@@ -1,6 +1,6 @@
-# 📱 Universal Bot — Termux
+# 📱 Universal Bot — Guía Termux
 
-Solo Termux. Solo Baileys. Solo limpio.
+Esta guía explica el inicio en Termux. Universal Bot también dispone de un runtime web de MultiBot protegido por allowlist; revisa [`../../../docs/WEB.md`](../../../docs/WEB.md) para Render Free.
 
 ## Instalación rápida
 
@@ -19,13 +19,7 @@ Elige `code` (pairing) o `qr`.
 
 ## Guard
 
-`lib/termux-guard.js` bloquea ejecución fuera de Termux. Si ves:
-
-```
-✖ ESTE BOT SOLO PUEDE EJECUTARSE EN TERMUX
-```
-
-Estás en PC/VPS. Para dev usa `ALLOW_NON_TERMUX=1 npm start`, pero prod es Termux.
+`lib/termux-guard.js` permite Termux y el modo web explícitamente autorizado por el process manager de MultiBot. En otros entornos el inicio se bloquea. `ALLOW_NON_TERMUX=1 npm start` es solo un bypass de desarrollo.
 
 ## Pairing Code
 
