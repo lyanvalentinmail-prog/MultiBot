@@ -323,24 +323,16 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
       const leyenda = construirLeyenda(video)
 
       if (video.type === 'image' && video.images?.length) {
-        for (const img of video.images.slice(0, 8)) {
-          await conn.sendMessage(
-            m.chat,
-            { image: { url: img }, caption: leyenda, contextInfo: { ...rcanal.contextInfo } },
-            { quoted: m }
-          )
-        }
+        await conn.sendAlbum(m.chat, video.images.slice(0, 8).map((img) => ({ url: img })), {
+          caption: leyenda,
+          contextInfo: { ...rcanal.contextInfo }
+        })
         if (video.music) {
-          await conn.sendMessage(
-            m.chat,
-            {
-            audio: { url: video.music },
-            mimetype: 'audio/mp4',
-            fileName: 'tiktok_audio.mp4',
-            contextInfo: { ...rcanal.contextInfo }
-            },
-            { quoted: m }
-          )
+          await conn.sendAudio(m.chat, { url: video.music }, {
+            fileName: 'tiktok_audio.mp3',
+            contextInfo: { ...rcanal.contextInfo },
+            quoted: m
+          })
         }
       } else {
         await conn.sendMessage(

@@ -437,7 +437,12 @@ for (let plugin of pluginsProcesados) {
   })
 
   if (esComandoCoincide) {
-    
+    // Terminal → Personalizar bot → "Comandos" (global.comandosEnabled).
+    // Apagado = el bot no responde comandos salvo al owner.
+    if (global.comandosEnabled === false && !isOwner && !isROwner && !m.fromMe) {
+      continue
+    }
+
   
     if (m.isGroup && global.db.data.soloAdmin && global.db.data.soloAdmin[m.chat] === true) {
       if (!isAdmin && !isOwner && !isROwner) {

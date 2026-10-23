@@ -1,4 +1,4 @@
-﻿import { generateWAMessageFromContent } from '@whiskeysockets/baileys'
+import { generateWAMessageFromContent } from '@whiskeysockets/baileys'
 import { findGroupParticipant } from '../lib/group-participant.js'
 
 var handler = async (m, { conn, text, participants, isAdmin }) => {
@@ -54,7 +54,16 @@ var handler = async (m, { conn, text, participants, isAdmin }) => {
       await conn.sendMessage(m.chat, { video: mediaBuf, mimetype: 'video/mp4', caption: textoTag, mentions: usuarios }, { quoted: null })
     } else if (esMedia && citado.mtype === 'audioMessage') {
       let mediaBuf = await citado.download?.()
-      await conn.sendMessage(m.chat, { audio: mediaBuf, mimetype: 'audio/mpeg', fileName: 'hidetag.mp3', mentions: usuarios }, { quoted: null })
+      // Conservar formato original: una nota de voz (ogg) etiquetada como mp3 no suena.
+      const mimeOriginal = (citado.msg || citado).mimetype || 'audio/mpeg'
+      const esNotaVoz = (citado.msg || citado).ptt === true
+      await conn.sendMessage(m.chat, {
+        audio: mediaBuf,
+        mimetype: esNotaVoz ? 'audio/ogg; codecs=opus' : mimeOriginal,
+        ptt: esNotaVoz,
+        fileName: esNotaVoz ? 'hidetag.ogg' : 'hidetag.mp3',
+        mentions: usuarios
+      }, { quoted: null })
     } else if (esMedia && citado.mtype === 'stickerMessage') {
       let mediaBuf = await citado.download?.()
       await conn.sendMessage(m.chat, { sticker: mediaBuf, mentions: usuarios }, { quoted: null })

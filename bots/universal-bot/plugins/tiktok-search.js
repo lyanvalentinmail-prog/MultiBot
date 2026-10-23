@@ -30,13 +30,10 @@ function construirLeyendaEnlace(video) {
 
 async function enviarVideo(conn, m, video, leyenda) {
   if (video.type === 'image' && Array.isArray(video.images) && video.images.length) {
-    for (const img of video.images.slice(0, 6)) {
-      await conn.sendMessage(
-        m.chat,
-        { image: { url: img }, caption: leyenda, contextInfo: { ...rcanal.contextInfo } },
-        { quoted: m }
-      )
-    }
+    await conn.sendAlbum(m.chat, video.images.slice(0, 6).map((img) => ({ url: img })), {
+      caption: leyenda,
+      contextInfo: { ...rcanal.contextInfo }
+    })
     return
   }
 

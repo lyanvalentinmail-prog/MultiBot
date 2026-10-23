@@ -118,6 +118,50 @@ source ~/.bashrc   # o cierra y reabre Termux
 
 Es idempotente: puedes ejecutarlo las veces que quieras sin duplicar nada.
 
+## Personalizar el bot (opción 12 · 🎛)
+
+Desde la terminal puedes editar la configuración del bot sin tocar código:
+
+```text
+  1) ✏️  Nombre del bot        7) ⚡ Comandos on/off
+  2) 📦 Nombre de stickers     8) 📨 Reenviados on/off
+  3) 👤 Autor de stickers      9) 💬 Responder como (estado/responder)
+  4) 💰 Moneda                 10) 📋 Menú de lista on/off
+  5) 🖼️  Banner                11) 📄 Ver todo
+  6) 👑 Owners/admins
+```
+
+- **Stickers**: nombre del pack y autor que llevan los stickers creados
+  con `.s` (cada usuario puede poner los suyos con `.setmeta`).
+- **Moneda**: la que muestran RPG, juegos y precios (ej. `UYU`, `USD`, `MXN`).
+- **Banner**: imagen del `.menu`. Por defecto es el gato 🐱
+  (`storage/img/banner-default.jpg`); puedes poner una imagen local o una URL,
+  o restaurar el defecto cuando quieras. El bot usa tu banner sin reiniciar
+  nada más (los cambios de config se recargan solos).
+- **Owners/admins**: agregar o quitar owners (número + nombre) y admins/mods.
+- **Comandos OFF**: el bot no responde comandos a nadie salvo al owner.
+- **Reenviados OFF**: los mensajes del bot dejan de verse como "reenviados".
+- **Responder como**: `estado` = cita estilo estado de WhatsApp (como ahora) ·
+  `responder` = cita normal de tu mensaje.
+- **Menú de lista ON**: `.menu` envía foto + lista para elegir categoría
+  (más compatible) en vez del menú interactivo.
+
+Atajo directo: `bash termux.sh --customize` (o `--bot <id> --customize`).
+
+> Los cambios se guardan en `bots/<id>/config.js` y el bot los toma al
+> instante (observa el archivo). Si el bot está corriendo, verás
+> `Update 'config.js'` y listo.
+
+## Audios que suenan y fotos en álbum
+
+- **Audios**: se corrigió el envío (antes algunos se etiquetaban con un
+  formato inválido y no se escuchaban). Notas de voz en ogg/opus, audios
+  normales en su formato original, y `.tag` conserva el formato citado.
+- **Fotos juntas**: `.imagen`, `.pinterest`, descargas de TikTok e
+  IG-search múltiple ahora llegan como **álbum** (leyenda en la primera,
+  sin citas que lo rompan). Las búsquedas numeradas (cada foto con su
+  texto) siguen por separado a propósito.
+
 ## Atajos directos (sin menú)
 
 ```bash
@@ -129,6 +173,7 @@ bash termux.sh --list-bots             # Ver bots detectados
 bash termux.sh --install               # npm install del bot
 bash termux.sh --doctor                # Diagnóstico
 bash termux.sh --setup                 # Configurar owner/nombre
+bash termux.sh --customize            # Personalizar bot (stickers, banner, owners…)
 bash termux.sh --logout                # Borrar sesión (desvincular)
 bash termux.sh --update                # git pull del repo
 ```

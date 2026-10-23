@@ -17,13 +17,10 @@ let handler = async (m, { conn, text, usedPrefix, command }) => {
 
     const leyenda = `𓂃 ࣪ ִֶָ☾. Resultados de búsqueda para: *${text}*`
 
-    for (let url of urls.slice(0, 3)) {
-      await conn.sendMessage(m.chat, {
-        image: { url },
-        caption: leyenda,
-        contextInfo: { ...rcanal.contextInfo }
-      }, { quoted: m })
-    }
+    await conn.sendAlbum(m.chat, urls.slice(0, 3).map((url) => ({ url })), {
+      caption: leyenda,
+      contextInfo: { ...rcanal.contextInfo }
+    })
 
 
   } catch (error) {

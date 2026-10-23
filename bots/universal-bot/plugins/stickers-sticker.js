@@ -49,14 +49,12 @@ handler.command = ['s', 'stickers', 'sticker']
 
 export default handler
 
-/** Usa pack/autor de .setmeta; si no hay, el diseño por defecto del bot. */
+/** Usa pack/autor de .setmeta; si no hay, los de la config (terminal → Personalizar bot). */
 export function resolverMetaSticker(m, conn) {
   const usuario = global.db?.data?.users?.[m.sender] || {}
-  const nombreUsuario = m.pushName || conn?.getName?.(m.sender) || 'Usuario'
-  const nombreBot = global.namebot || 'PAIN BOT'
 
-  const packPorDefecto = `👑 𝗢𝘄𝗻𝗲𝗿𝘀: \n✰ Sunkovv`
-  const autorPorDefecto = `\n\n🪐 𝗕𝗼𝘁:\n↳${nombreBot}\n\n🍁 𝑼𝒔𝒖𝒂𝒓𝒊𝒐:\n↳@${nombreUsuario}`
+  const packPorDefecto = global.packname || 'UNIVERSAL BOT'
+  const autorPorDefecto = global.author || 'MultiBot'
 
   const packPersonalizado = String(usuario.packname || '').trim()
   const autorPersonalizado = String(usuario.author || '').trim()
