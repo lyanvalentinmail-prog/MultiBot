@@ -61,14 +61,31 @@ bash <(curl -fsSL https://raw.githubusercontent.com/lyanvalentinmail-prog/MultiB
   3) 🔑 Pedir Pairing Code
   4) 📷 Mostrar QR
   5) ⚙  Configurar bot (número, nombre)
-  6) 📦 Instalar / reinstalar dependencias
+  6) 📦 Instalar todo (sistema + dependencias)
   7) 🩺 Diagnóstico (doctor)
   8) ℹ  Ver info del bot
   9) 🚪 Borrar sesión (desvincular WhatsApp)
  10) ⬆  Actualizar desde GitHub
  11) 🎨 Personalizar terminal Termux
+ 12) 🎛 Personalizar bot (stickers, banner, owners…)
   0) 👋 Salir
 ```
+
+## Instalar todo (opción 6 · `bash termux.sh --install`)
+
+Deja el bot funcionando de una sola vez, sin comandos manuales:
+
+1. **Paquetes del sistema** con `pkg` (solo lo que falte): `nodejs-lts`,
+   `ffmpeg` (stickers y audio), `imagemagick` (stickers), `git`,
+   `python`, `make`, `clang` y `pkg-config` (para compilar deps nativas).
+2. **Paquetes npm** del bot (`npm install`).
+3. **Ajuste de sharp** para Android (`npm run fix:sharp`), para que los
+   plugins de imagen (ocr, stickers, hd…) no fallen.
+4. **Verificación final**: ffmpeg, ImageMagick y Baileys; si algo falta
+   te dice qué y por qué importa.
+
+También se instala solo lo que falte al elegir `1` (Iniciar bot) si el
+bot está marcado como `● sin instalar`.
 
 ## Vincular WhatsApp
 

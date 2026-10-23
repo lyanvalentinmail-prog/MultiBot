@@ -14,7 +14,7 @@
 #    bash termux.sh --code 59899123456→ inicia el bot con pairing code
 #    bash termux.sh --bot universal-bot --qr
 #    bash termux.sh --list-bots       → lista los bots detectados
-#    bash termux.sh --install         → instala dependencias del bot
+#    bash termux.sh --install         → instala TODO (sistema + npm + sharp)
 #    bash termux.sh --personalize     → personaliza el prompt de Termux
 #    bash termux.sh --help
 # ═══════════════════════════════════════════════════════════════════
@@ -231,16 +231,87 @@ ask_phone() { # → echo número normalizado o vacío si inválido
 }
 
 # ── Acciones ───────────────────────────────────────────────────────
-cmd_install() { # $1 = bot id
-  local id="$1" dir="$BOTS_DIR/$1"
-  title "📦 Instalando dependencias — $id"
-  if ! command -v npm >/dev/null 2>&1; then
-    err "npm no encontrado."
-    if is_termux; then info "Ejecuta: pkg install nodejs-lts -y"; else info "Instala Node.js ≥ 20 primero."; fi
+# ── Paquetes del sistema (Termux) ────────────────────────────────────
+# El bot necesita binarios fuera de npm: ffmpeg (stickers/audio),
+# convert|magick (ImageMagick, stickers), node ≥ 20, git y herramientas
+# de compilación (algunas deps nativas se compilan en el teléfono).
+install_termux_system() {
+  if ! command -v pkg >/dev/null 2>&1; then
+    err "No encontré 'pkg' (¿es Termux de verdad?)."
     return 1
   fi
-  (cd "$dir" && npm install) || { err "npm install falló."; return 1; }
-  ok "Dependencias listas."
+  local faltan=()
+  command -v node >/dev/null 2>&1    || faltan+=("nodejs-lts")
+  command -v ffmpeg >/dev/null 2>&1  || faltan+=("ffmpeg")
+  { command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; } || faltan+=("imagemagick")
+  command -v git >/dev/null 2>&1     || faltan+=("git")
+  command -v python3 >/dev/null 2>&1 || faltan+=("python")
+  command -v make >/dev/null 2>&1    || faltan+=("make")
+  command -v cc >/dev/null 2>&1      || faltan+=("clang")
+  command -v pkg-config >/dev/null 2>&1 || faltan+=("pkg-config")
+  if [ "${#faltan[@]}" -eq 0 ]; then
+    ok "Paquetes del sistema: todo instalado."
+    return 0
+  fi
+  info "Instalando con pkg: ${faltan[*]}"
+  pkg update -y || warn "pkg update falló, sigo igual..."
+  pkg install -y "${faltan[@]}" || { err "pkg install falló."; return 1; }
+  ok "Paquetes del sistema listos."
+}
+
+node_major() { node -v 2>/dev/null | sed -n 's/^v\([0-9]*\).*/\1/p'; }
+
+cmd_install() { # $1 = bot id → sistema (Termux) + npm + sharp + verificación
+  local id="$1" dir="$BOTS_DIR/$1"
+  title "📦 Instalando todo — $id"
+  # 1) Paquetes del sistema (solo Termux).
+  if is_termux; then
+    install_termux_system || return 1
+  elif ! command -v ffmpeg >/dev/null 2>&1; then
+    warn "Sin ffmpeg el bot arranca, pero stickers/audio fallarán."
+  fi
+  # 2) Node ≥ 20.
+  if ! command -v node >/dev/null 2>&1; then
+    err "Falta node."
+    if is_termux; then info "No se pudo instalar nodejs-lts con pkg."; else info "Instala Node.js ≥ 20 primero."; fi
+    return 1
+  fi
+  local major; major="$(node_major)"
+  if [ -n "$major" ] && [ "$major" -lt 20 ]; then
+    err "Node v$major muy viejo (el bot pide ≥ 20)."
+    is_termux && info "Actualiza con: pkg upgrade nodejs-lts -y"
+    return 1
+  fi
+  command -v npm >/dev/null 2>&1 || { err "npm no encontrado (¿nodejs a medias?)."; return 1; }
+  # 3) Deps npm del bot.
+  info "Instalando paquetes npm (tarda unos minutos en el teléfono)..."
+  (cd "$dir" && npm install --no-audit --no-fund) || { err "npm install falló."; return 1; }
+  ok "Paquetes npm listos."
+  # 4) sharp en Termux/Android (sin esto, plugins de imagen fallan).
+  if is_termux && bot_has_script "$id" "fix:sharp"; then
+    info "Ajustando sharp para Android..."
+    (cd "$dir" && npm run fix:sharp) || warn "fix:sharp falló (se reintentará al iniciar)."
+  fi
+  # 5) Verificación final.
+  local fallos=0
+  if command -v ffmpeg >/dev/null 2>&1; then
+    ok "ffmpeg listo (stickers y audio)."
+  else
+    warn "ffmpeg no quedó instalado: stickers y audio fallarán."; fallos=$((fallos+1))
+  fi
+  if command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; then
+    ok "ImageMagick listo (stickers)."
+  else
+    warn "ImageMagick no quedó instalado: algunos stickers fallarán."; fallos=$((fallos+1))
+  fi
+  if [ -d "$dir/node_modules/@whiskeysockets/baileys" ] || [ -d "$dir/node_modules/@itsliaaa/baileys" ]; then
+    ok "Baileys instalado (WhatsApp)."
+  else
+    warn "Falta Baileys en node_modules: el bot no va a arrancar."; fallos=$((fallos+1))
+  fi
+  if [ "$fallos" -eq 0 ]; then ok "Todo instalado. Ya puedes iniciar el bot 🚀"
+  else warn "Terminó con $fallos pendiente(s), revisa arriba."; fi
+  return 0
 }
 
 cmd_doctor() { # $1 = bot id
@@ -612,7 +683,7 @@ show_menu() {
   printf '%b  3)%b 🔑 Pedir Pairing Code\n' "$C_YELLOW" "$C_RESET"
   printf '%b  4)%b 📷 Mostrar QR\n' "$C_YELLOW" "$C_RESET"
   printf '%b  5)%b ⚙  Configurar bot (número, nombre)\n' "$C_YELLOW" "$C_RESET"
-  printf '%b  6)%b 📦 Instalar / reinstalar dependencias\n' "$C_YELLOW" "$C_RESET"
+  printf '%b  6)%b 📦 Instalar todo (sistema + dependencias)\n' "$C_YELLOW" "$C_RESET"
   printf '%b  7)%b 🩺 Diagnóstico (doctor)\n' "$C_YELLOW" "$C_RESET"
   printf '%b  8)%b ℹ  Ver info del bot\n' "$C_YELLOW" "$C_RESET"
   printf '%b  9)%b 🚪 Borrar sesión (desvincular WhatsApp)\n' "$C_YELLOW" "$C_RESET"
@@ -662,7 +733,7 @@ Uso:
   bash termux.sh --code [número]        Pairing code (usa el último número si se omite)
   bash termux.sh --start [qr|code|ask]  Inicia el bot por defecto
   bash termux.sh --list-bots            Lista los bots detectados
-  bash termux.sh --install [--bot <id>] Instala dependencias
+  bash termux.sh --install [--bot <id>] Instala todo: sistema (Termux) + npm + sharp
   bash termux.sh --doctor [--bot <id>]  Diagnóstico
   bash termux.sh --setup [--bot <id>]   Configura owner/nombre
   bash termux.sh --customize [--bot <id>] Personaliza el bot (stickers, banner…)
