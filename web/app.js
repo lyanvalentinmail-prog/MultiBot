@@ -33,6 +33,7 @@ const initials = (value) => String(value || 'MB').trim().split(/\s+/).slice(0, 2
 const TOKEN_KEY = 'multibot_session';
 const FAVORITES_KEY = 'multibot_favorites';
 const ENDPOINT_FAVORITES_KEY = 'multibot_endpoint_favorites';
+const THEME_KEY = 'multibot_theme';
 const PREFIXES = ['#', '-', '.', '/', '!'];
 const PATHS = { landing: '/', home: '/home', register: '/register', bots: '/bots', metrics: '/metrics', store: '/store', endpoints: '/endpoints', favorites: '/favorites', tickets: '/tickets', profile: '/profile', commands: '/cmds' };
 const ROUTES = Object.fromEntries(Object.entries(PATHS).map(([key, value]) => [value, key]));
@@ -61,6 +62,7 @@ function routeFromPath() {
 
 const state = {
   view: routeFromPath(),
+  theme: safeRead(THEME_KEY, 'dark') === 'light' ? 'light' : 'dark',
   token: safeRead(TOKEN_KEY, ''),
   user: null,
   catalog: [],
@@ -100,6 +102,10 @@ function liveChip() {
   const ready = Boolean(state.health?.ok);
   return `<span class="live-chip ${ready ? 'is-live' : 'is-off'}" id="live-chip" role="status" aria-live="polite"><span class="dot"></span><span>${ready ? 'Panel disponible' : state.loading ? 'Conectando…' : 'Sin conexión'}</span></span>`;
 }
+function themeButton() {
+  const next = state.theme === 'dark' ? 'light' : 'dark';
+  return `<button class="icon-button theme-toggle" type="button" data-action="toggle-theme" aria-label="Cambiar a tema ${next === 'dark' ? 'oscuro' : 'claro'}" title="Cambiar a tema ${next === 'dark' ? 'oscuro' : 'claro'}">${icon(state.theme === 'dark' ? 'sun' : 'moon')}</button>`;
+}
 
 function renderHeader() {
   const header = $('#site-header');
@@ -108,7 +114,7 @@ function renderHeader() {
     header.className = 'site-header landing-header';
     header.innerHTML = `<a class="brand" href="/" data-page="landing" aria-label="MultiBot, inicio">${brandMarkup()}</a>
       <nav class="header-links" aria-label="Secciones de MultiBot"><a class="header-link" href="#how">Cómo funciona</a><a class="header-link" href="#benefits">Beneficios</a><a class="header-link" href="#faq">Preguntas frecuentes</a></nav>
-      <div class="header-actions">${liveChip()}<a class="btn btn-primary btn-small header-panel-link" href="/home" data-page="home">Ir al panel ${icon('arrow-right')}</a>
+      <div class="header-actions">${liveChip()}${themeButton()}<a class="btn btn-primary btn-small header-panel-link" href="/home" data-page="home">Ir al panel ${icon('arrow-right')}</a>
       <label class="uhamburger mobile-menu-toggle" title="Abrir navegación"><input type="checkbox" id="landing-menu-check" data-action="toggle-landing-menu" aria-label="Abrir navegación" /><span class="toggle"><span class="bars" id="bar1"></span><span class="bars" id="bar2"></span><span class="bars" id="bar3"></span></span></label></div>`;
     return;
   }
@@ -117,7 +123,7 @@ function renderHeader() {
   header.className = 'site-header is-app-header';
   header.innerHTML = `<a class="brand" href="/home" data-page="home" aria-label="MultiBot, panel">${brandMarkup()}</a>
     <nav class="desktop-app-nav" aria-label="Panel principal">${desktopItems.map((item) => `<a class="header-link ${active === item.view ? 'is-active' : ''}" href="${PATHS[item.view]}" data-page="${item.view}">${icon(item.icon)}<span>${item.label}</span></a>`).join('')}</nav>
-    <div class="header-actions">${liveChip()}<button class="icon-button" type="button" data-action="open-palette" aria-label="Buscar vistas (Ctrl+K)" title="Buscar (Ctrl+K)">${icon('search')}</button><button class="icon-button" type="button" data-action="refresh-data" aria-label="Actualizar datos">${icon('refresh')}</button>
+    <div class="header-actions">${liveChip()}${themeButton()}<button class="icon-button" type="button" data-action="open-palette" aria-label="Buscar vistas (Ctrl+K)" title="Buscar (Ctrl+K)">${icon('search')}</button><button class="icon-button" type="button" data-action="refresh-data" aria-label="Actualizar datos">${icon('refresh')}</button>
     <button class="profile-button" type="button" data-action="open-drawer" aria-label="Abrir menú de cuenta"><span class="avatar">${escapeHtml(initials(userName))}</span><span class="profile-name">${escapeHtml(userName)}</span>${icon('chevron')}</button></div>`;
 }
 
@@ -190,6 +196,8 @@ function restoreFocus(snapshot) {
 function renderPage({ force = false } = {}) {
   const focus = focusSnapshot();
   const scrollY = window.scrollY;
+  document.body.classList.toggle('dark-theme', state.theme === 'dark');
+  document.body.classList.toggle('light-theme', state.theme === 'light');
   renderHeader();
   renderBottomNav();
   renderDrawer();
@@ -201,9 +209,8 @@ function renderPage({ force = false } = {}) {
     main.classList.toggle('is-wizard', state.view === 'register');
   }
   if (state.modal) renderModal();
-  document.body.classList.toggle('light-theme', true);
-  const theme = $('meta[name="theme-color"]');
-  if (theme) theme.content = '#ffffff';
+  const themeMeta = $('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.content = state.theme === 'dark' ? '#09090d' : '#ffffff';
   restoreFocus(focus);
   if (!force && focus) window.scrollTo({ top: scrollY, behavior: 'auto' });
 }
@@ -283,8 +290,8 @@ function renderHome() {
     { label: 'Uptime web', value: formatUptime(state.system?.server?.uptimeMs), note: 'Proceso del panel, no de los bots', icon: 'clock' },
     { label: 'Bots Termux-only', value: formatNumber(state.catalog.filter((bot) => bot.termuxOnly).length), note: 'Se inician en Termux', icon: 'smartphone' },
   ];
-  return `<div class="page-content"><section class="welcome-hero"><div class="welcome-copy"><span class="section-kicker">${icon('spark')} Panel central · catálogo real</span><h1>Hola, <span class="gradient-text">${escapeHtml(username)}</span></h1><p>Organiza las preferencias de tus bots sin mover su ejecución ni sus credenciales al servidor web.</p><div class="welcome-actions"><a class="btn btn-primary" href="/bots" data-page="bots">${icon('bot')} Explorar bots</a><a class="btn btn-outline" href="/register" data-page="register">${icon('plus')} Guardar perfil</a></div></div><div class="welcome-emblem" aria-hidden="true">${icon('spark')}</div></section>
-    <section class="info-banner"><span class="info-symbol">${icon('shield')}</span><div><h2>Universal Bot sigue en Termux</h2><p>El panel no crea sesiones ni muestra un estado de conexión inventado. Pairing Code y QR se usan desde la terminal del dispositivo.</p></div><a class="btn btn-primary btn-small" href="/store" data-page="store">Abrir guía ${icon('arrow-right')}</a></section>
+  return `<div class="page-content"><section class="welcome-hero"><div class="welcome-emblem" aria-hidden="true">${icon('spark')}</div><div class="welcome-copy"><span class="welcome-overline">WELCOME · MULTIBOT</span><h1>Hola, <span class="gradient-text">${escapeHtml(username)}</span></h1><p>Bienvenido de nuevo. Explora el catálogo y guarda tus preferencias sin mover la ejecución ni las credenciales al servidor web.</p><div class="welcome-actions"><a class="btn btn-primary" href="/bots" data-page="bots">${icon('bot')} Explorar bots</a><a class="btn btn-outline" href="/register" data-page="register">${icon('plus')} Guardar perfil</a></div></div></section>
+    <section class="info-banner"><span class="info-symbol">${icon('shield')}</span><div><span class="info-kicker">INFORMACIÓN · RUNTIME SEGURO</span><h2>Universal Bot sigue en Termux</h2><p>El panel guarda perfiles, pero no inicia sesiones ni genera códigos. Pairing Code y QR se usan desde la terminal del dispositivo.</p><div class="info-points"><span>${icon('smartphone')} Ejecución solo en Termux</span><span>${icon('lock')} Sin credenciales en Render</span><span>${icon('qr')} Sin códigos de vínculo en la web</span></div></div><a class="btn btn-primary btn-small" href="/store" data-page="store">Abrir guía ${icon('arrow-right')}</a></section>
     <section class="section-block" style="margin-top:34px"><div class="section-heading"><div><span class="section-kicker">${icon('chart')} Resumen</span><h2 class="section-title">MultiBot, de un vistazo</h2><p class="section-copy">Métricas del portal, el catálogo y la persistencia.</p></div><button class="btn btn-outline btn-small" type="button" data-action="refresh-data">${icon('refresh')} Actualizar</button></div><div class="metrics-grid">${metrics.map(renderMetricCard).join('')}</div></section>
     <section class="section-block"><div class="section-heading"><div><span class="section-kicker">${icon('bolt')} Accesos rápidos</span><h2 class="section-title">¿Qué quieres hacer?</h2></div></div><div class="shortcut-grid"><a class="card card-hover shortcut-card" href="/bots" data-page="bots"><span class="shortcut-icon">${icon('bot')}</span><span><strong>Ver catálogo</strong><small>Explora bots y plugins disponibles</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/cmds" data-page="commands"><span class="shortcut-icon">${icon('code')}</span><span><strong>Buscar plugins</strong><small>Archivos del Universal Bot</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/store" data-page="store"><span class="shortcut-icon">${icon('smartphone')}</span><span><strong>Guía Termux</strong><small>Pairing Code y QR en el dispositivo</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a><a class="card card-hover shortcut-card" href="/endpoints" data-page="endpoints"><span class="shortcut-icon">${icon('code')}</span><span><strong>Documentación API</strong><small>Rutas reales del panel</small></span><span class="shortcut-arrow">${icon('arrow-right')}</span></a></div></section>
     <section class="section-block"><div class="section-heading"><div><span class="section-kicker">${icon('folder')} Perfiles</span><h2 class="section-title">Tus configuraciones guardadas</h2></div><a class="btn btn-outline btn-small" href="/bots" data-page="bots">Administrar ${icon('arrow-right')}</a></div>${state.user ? (state.instances.length ? `<div class="bot-list">${state.instances.slice(0, 3).map(renderProfileCard).join('')}</div>` : `<div class="empty-state"><span class="empty-state-icon">${icon('folder')}</span><h2>Aún no guardaste perfiles</h2><p>Un perfil registra preferencias; no inicia ni conecta el bot en el servidor web.</p><a class="btn btn-primary" href="/register" data-page="register">Crear perfil ${icon('plus')}</a></div>`) : `<div class="card fn-login-card"><span class="empty-state-icon">${icon('users')}</span><h2>Inicia sesión para guardar perfiles</h2><p>El catálogo es público; las configuraciones se guardan de forma privada por cuenta.</p><button class="btn btn-primary" type="button" data-action="open-auth" data-mode="register">Crear cuenta</button></div>`}</section>
@@ -712,7 +719,8 @@ function handleClick(event) {
   const target = event.target.closest('[data-action]');
   if (!target) return;
   const action = target.dataset.action;
-  if (action === 'open-drawer') openDrawer();
+  if (action === 'toggle-theme') { state.theme = state.theme === 'dark' ? 'light' : 'dark'; safeWrite(THEME_KEY, state.theme); renderPage({ force: true }); }
+  else if (action === 'open-drawer') openDrawer();
   else if (action === 'close-drawer') closeDrawer();
   else if (action === 'open-auth') openAuth(target.dataset.mode || 'login');
   else if (action === 'auth-mode') openAuth(target.dataset.mode || 'login');
@@ -821,7 +829,6 @@ function exportMetricsCsv() {
 }
 
 async function boot() {
-  document.body.classList.add('light-theme');
   renderPage({ force: true });
   document.addEventListener('click', handleClick);
   document.addEventListener('input', handleInput);
