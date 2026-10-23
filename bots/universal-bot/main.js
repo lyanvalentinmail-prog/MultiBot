@@ -315,12 +315,23 @@ async function handleLogin() {
     return
   }
 
-  let loginMethod = webRuntime ? runtimeLoginMethod : await question(
-    chalk.green(
-      '¿Cómo deseas iniciar sesión?\nEscribe "qr" para escanear el código QR o "code" para usar un código de 8 dígitos:\n'
-    )
-  )
+  // La terminal MultiBot (termux.sh) puede preseleccionar método y número con
+  // MULTIBOT_LOGIN_METHOD=qr|code y MULTIBOT_LOGIN_PHONE=<número> para no
+  // volver a preguntar. Si no vienen, se pregunta como siempre.
+  const termuxPresetMethod = String(process.env.MULTIBOT_LOGIN_METHOD || '').toLowerCase().trim()
+  const useTermuxPreset = !webRuntime && (termuxPresetMethod === 'qr' || termuxPresetMethod === 'code' || termuxPresetMethod === 'pairing-code')
+
+  let loginMethod = webRuntime
+    ? runtimeLoginMethod
+    : useTermuxPreset
+      ? termuxPresetMethod
+      : await question(
+        chalk.green(
+          '¿Cómo deseas iniciar sesión?\nEscribe "qr" para escanear el código QR o "code" para usar un código de 8 dígitos:\n'
+        )
+      )
   loginMethod = String(loginMethod).toLowerCase().trim()
+  if (useTermuxPreset) console.log(chalk.gray(`· Método elegido en la terminal: ${loginMethod === 'qr' ? 'qr' : 'code'}`))
 
   if (loginMethod === 'code' || loginMethod === 'pairing-code') {
     if (webRuntime) {
@@ -329,9 +340,20 @@ async function handleLogin() {
       return
     }
 
-    const phoneNumber = normalizePairingPhone(
-      await question(chalk.blue('Ingresa el número de WhatsApp (incluye el código de país, sin necesidad de +):\n'))
-    )
+    const presetPhone = normalizePairingPhone(process.env.MULTIBOT_LOGIN_PHONE || '')
+    let phoneNumber = presetPhone
+    if (phoneNumber.length < 8 || phoneNumber.length > 15) {
+      if (presetPhone) console.log(chalk.yellow('El número guardado en la terminal no es válido, escríbelo de nuevo.'))
+      phoneNumber = normalizePairingPhone(
+        await question(chalk.blue('Ingresa el número de WhatsApp (incluye el código de país, sin necesidad de +):\n'))
+      )
+    } else {
+      console.log(chalk.gray(`· Número desde la terminal: ${phoneNumber}`))
+    }
+    if (phoneNumber.length < 8 || phoneNumber.length > 15) {
+      console.log(chalk.red('Número no válido. Debe tener entre 8 y 15 dígitos con código de país (ej. 59899123456).'))
+      return
+    }
 
     if (typeof conn.requestPairingCode !== 'function') {
       console.log(chalk.red('Tu versión de Baileys no soporta emparejamiento por código.'))

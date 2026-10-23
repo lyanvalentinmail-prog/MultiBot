@@ -14,6 +14,7 @@ MultiBot/
 ├── scripts/web-runtime.js   # Gestión protegida de procesos hijos
 ├── data/                    # Fallback local ignorado por Git
 ├── docs/                    # Guías de repositorio, Termux y web
+├── termux.sh                # Terminal personalizada Termux (menú, QR, pairing code)
 └── render.yaml              # Blueprint Free: panel + PostgreSQL
 ```
 
@@ -43,6 +44,23 @@ npm start                  # elige "code" (pairing) o "qr"
 > Ejecuta `npm run setup -- --fix` (o `rm config.js && npm run setup`).
 
 Guías completas: [`docs/TERMUX_GUIDE.md`](docs/TERMUX_GUIDE.md) · [`bots/universal-bot/docs/TERMUX.md`](bots/universal-bot/docs/TERMUX.md)
+
+## 🤖 Terminal personalizada (Termux)
+
+`termux.sh` es la forma más fácil de usar MultiBot en Termux: menú interactivo
+en español, sin instalar nada extra, que **detecta tus bots**, te deja
+**elegir cuál iniciar**, **pide el Pairing Code o muestra el QR** y
+personaliza el prompt de Termux (colores, alias `multibot`, banner).
+
+```bash
+git clone https://github.com/lyanvalentinmail-prog/MultiBot.git
+cd MultiBot
+bash termux.sh            # menú: elegir bot, QR, pairing code, config…
+bash termux.sh --code 59899123456   # atajo directo a pairing code
+bash termux.sh --qr                 # atajo directo a QR
+```
+
+Guía completa: [`docs/TERMUX_TERMINAL.md`](docs/TERMUX_TERMINAL.md)
 
 ## Panel web y runtime
 
