@@ -76,7 +76,17 @@
 
     <div class="app-shell">
       <header class="site-header" id="site-header"></header>
-      <main id="main-content" class="main-content" tabindex="-1"></main>
+      <main id="main-content" class="main-content" tabindex="-1">
+        <section class="boot-fallback" role="status" aria-live="polite">
+          <span class="boot-fallback-mark" aria-hidden="true">✦</span>
+          <div>
+            <span class="boot-fallback-kicker">MultiBot · panel web</span>
+            <h1>Preparando el panel…</h1>
+            <p>La interfaz está iniciando. Si esta pantalla permanece, recarga la página.</p>
+            <noscript><p>Este panel necesita JavaScript activado para cargar el catálogo y sus vistas.</p></noscript>
+          </div>
+        </section>
+      </main>
       <nav id="bottom-navigation" class="bottom-navigation" aria-label="Navegación principal"></nav>
     </div>
 

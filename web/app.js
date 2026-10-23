@@ -206,6 +206,7 @@ function renderPage({ force = false } = {}) {
     const pages = { landing: renderLanding, home: renderHome, register: renderWizard, bots: renderBots, metrics: renderMetrics, store: renderGuide, endpoints: renderEndpoints, favorites: renderFavorites, tickets: renderSupport, profile: renderProfile, commands: renderPlugins };
     const html = (pages[state.view] || renderLanding)();
     if (force || main.innerHTML !== html) main.innerHTML = html;
+    main.dataset.ready = 'true';
     main.classList.toggle('is-wizard', state.view === 'register');
   }
   if (state.modal) renderModal();
@@ -828,6 +829,13 @@ function exportMetricsCsv() {
   showToast('Métricas exportadas en CSV.', 'success');
 }
 
+function showStartupFailure(error) {
+  console.error('No se pudo iniciar el panel MultiBot:', error);
+  const main = $('#main-content');
+  if (!main || main.dataset.ready === 'true') return;
+  main.innerHTML = `<section class="boot-failure" role="alert"><span class="boot-fallback-mark" aria-hidden="true">!</span><div><span class="boot-fallback-kicker">Error de inicio</span><h1>No se pudo cargar el panel</h1><p>Comprueba tu conexión y vuelve a cargar la página. El catálogo no pudo inicializarse.</p><a href="">Recargar la página</a></div></section>`;
+}
+
 async function boot() {
   renderPage({ force: true });
   document.addEventListener('click', handleClick);
@@ -848,4 +856,4 @@ async function boot() {
   }, 45000);
 }
 
-boot();
+boot().catch(showStartupFailure);
