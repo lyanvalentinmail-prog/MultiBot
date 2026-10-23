@@ -1,103 +1,66 @@
-# ➕ Cómo añadir un nuevo bot
+# ➕ Cómo añadir un bot
 
-Cada bot está en `bots/<nombre>` aislado.
+Cada bot vive aislado en `bots/<id>`. El catálogo web lo detecta al cargar la API si encuentra un `package.json` válido; no es necesario registrarlo en un archivo central. El panel **no ejecuta** el bot ni administra sus sesiones de WhatsApp.
 
-## Método rápido (script)
+> Universal Bot debe permanecer exclusivo de Termux. Pairing Code y QR se generan desde el flujo de inicio del bot en Termux. No subir credenciales ni contenido NSFW/adulto/+18.
+
+## Método rápido
 
 ```bash
-# Desde la raíz del repo
+# Desde la raíz del repositorio
 bash scripts/create-bot.sh mi-bot
-
-# Ejemplo:
-bash scripts/create-bot.sh ventas-bot
-```
-
-Esto:
-
-1. Copia `bots/_template` → `bots/mi-bot`
-2. Inicializa `package.json` con nombre nuevo
-3. Crea `config.example.js` base
-4. Hace `npm install` opcional
-
-Luego:
-
-```bash
 cd bots/mi-bot
 cp config.example.js config.js
 nano config.js
+npm install
 npm start
 ```
+
+El script copia `_template`, actualiza el nombre de `package.json` y prepara las carpetas locales. `config.js`, sesiones y bases mutables deben permanecer sin seguimiento en Git.
 
 ## Método manual
 
 ```bash
 cp -r bots/_template bots/mi-bot
-# o si no existe template, copia universal-bot y limpia:
-cp -r bots/universal-bot bots/mi-bot
-rm -rf bots/mi-bot/sessions bots/mi-bot/storage/databases/database.json bots/mi-bot/tmp
+cd bots/mi-bot
+cp config.example.js config.js
 ```
 
-Edita:
+También se puede crear una carpeta nueva, siempre con `package.json` y un entrypoint funcional. Evita copiar las credenciales, `sessions/`, bases de datos y temporales de otro bot.
 
-- `bots/mi-bot/package.json` → cambia `name` y `description`
-- `bots/mi-bot/config.js` → cambia `global.namebot`, `global.owner`
+## Metadatos opcionales para el catálogo
 
-## Estructura mínima de un bot
+Agrega `bots/mi-bot/bot.json` para controlar el nombre y las capacidades mostradas. El manifiesto se carga en cada solicitud, sin reiniciar el catálogo:
 
-```
-bots/mi-bot/
-├── config.example.js
-├── config.js          # no commitear, solo example
-├── index.js           # launcher cluster
-├── main.js            # conexión Baileys + login
-├── handler.js         # router
-├── package.json
-├── lib/
-│   └── termux-guard.js  # opcional, quita si quieres permitir VPS
-├── plugins/           # tus comandos
-├── storage/
-│   ├── databases/
-│   └── img/
-├── sessions/          # gitignored
-├── scripts/
-└── docs/
-```
-
-## Compartir código entre bots
-
-Opciones:
-
-- **Duplicar**: cada bot copia plugins que necesita (más simple, aislamiento).
-- **Lib shared**: crea `lib/shared/` en raíz y symlink o importa con `../../lib/shared/...`.
-
-Recomendado: duplicar para mantener aislamiento.
-
-## Web: ¿cada bot necesita soporte web?
-
-No. La futura `web/` leerá todos los `bots/*` automáticamente. Solo asegúrate que cada bot tenga:
-
-- `package.json` con `name` único
-- `sessions/` separado (no compartir creds)
-
-## Checklist nuevo bot
-
-- [ ] Carpeta en `bots/<nombre>` sin espacios
-- [ ] `package.json` name único
-- [ ] `config.js` con owner correcto
-- [ ] `sessions/` gitignored
-- [ ] Probado `npm start` → QR/code funciona
-- [ ] Documentado en `bots/README.md`
-- [ ] Si es solo Termux, deja `lib/termux-guard.js`; si no, elimínalo
-
-## Ejemplo: bot minimal
-
-```js
-// plugins/ping.js
-let handler = async (m, { conn }) => {
-  await conn.sendMessage(m.chat, { text: '🏓 Pong!' }, { quoted: m })
+```json
+{
+  "id": "mi-bot",
+  "name": "Mi Bot",
+  "description": "Descripción breve, apta para todo público",
+  "executionMode": "termux",
+  "webRuntime": false,
+  "supportsPairingCode": true,
+  "supportsQr": true,
+  "adultContent": false,
+  "defaultPrefix": ".",
+  "features": ["Moderación", "Stickers"]
 }
-handler.command = ['ping', 'p']
-export default handler
 ```
 
-¡Listo! `npm start` y prueba `.ping` en WhatsApp.
+`id` debe coincidir con el nombre de la carpeta. `executionMode: "termux"` o `lib/termux-guard.js` marca el bot como Termux-only. La web fuerza `webRuntime: false` para bots Termux-only. Cualquier bot que declare `adultContent: true` queda fuera del catálogo público.
+
+Declarar `webRuntime: true` solo describe un runtime web real; no hace que el panel lo ejecute. Los perfiles guardados por usuarios son metadatos de configuración y nunca se muestran como bots conectados.
+
+## Checklist
+
+- [ ] Carpeta `bots/<id>` con nombre único y sin espacios.
+- [ ] `package.json` y entrypoint válidos.
+- [ ] `config.example.js` sin secretos; configuración privada ignorada por Git.
+- [ ] `sessions/`, `tmp/` y bases locales ignorados por Git.
+- [ ] Pairing Code/QR probados en el entorno real de ejecución (Termux para Universal Bot).
+- [ ] Sin contenido NSFW/adulto/+18.
+- [ ] `bot.json` con metadatos seguros para el catálogo (recomendado).
+- [ ] Guía agregada a `bots/README.md`.
+- [ ] `npm test` ejecutado desde la raíz para probar el portal.
+
+Consulta [`STRUCTURE.md`](STRUCTURE.md) y [`WEB.md`](WEB.md) para la estructura del portal y el despliegue.

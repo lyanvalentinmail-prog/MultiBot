@@ -1,0 +1,27 @@
+# Render Blueprint: MultiBot web + PostgreSQL.
+# Universal Bot remains Termux-only; this service deploys the portal, not the bot.
+services:
+  - type: web
+    name: multibot-panel
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: multibot-db
+          property: connectionString
+
+databases:
+  - name: multibot-db
+    plan: basic-256mb
+    region: oregon
+    databaseName: multibot
+    user: multibot
+    ipAllowList: []

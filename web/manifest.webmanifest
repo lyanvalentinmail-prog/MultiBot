@@ -1,0 +1,20 @@
+{
+  "name": "MultiBot · Panel",
+  "short_name": "MultiBot",
+  "description": "Catálogo y panel de configuración para los bots de WhatsApp del repositorio MultiBot.",
+  "lang": "es-UY",
+  "start_url": "/home",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

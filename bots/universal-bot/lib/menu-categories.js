@@ -289,13 +289,11 @@ ${cmd(p, 'toplindos')}
 ${cmd(p, 'topburros')}
 ${cmd(p, 'topmachos')}
 ${cmd(p, 'topparejas')}
-${cmd(p, 'toppajeros')}
 ${cmd(p, 'topmancos')}
 ${cmd(p, 'topinfieles')}
 ${cmd(p, 'topfieles')}
 ${cmd(p, 'topotakus')}
 ${cmd(p, 'topfemboys')}
-${cmd(p, 'toptrans')}
 ${cmd(p, 'topfracasados')}
 ${cmd(p, 'topingenieros')}
 ${cmd(p, 'meme')}

@@ -51,3 +51,14 @@ __pycache__/
 
 # Termux guard bypass no commitear
 .allow_non_termux
+
+# Local panel datastore (never commit account/session data)
+data/*.json
+data/*.tmp
+!data/.gitkeep
+
+# Ignore private bot configuration; use config.example.js as a template
+bots/universal-bot/config.js
+
+# Root app lockfile is intentionally tracked; nested bot lockfiles remain ignored
+!/package-lock.json

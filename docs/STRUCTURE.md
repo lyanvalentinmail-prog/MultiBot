@@ -1,93 +1,84 @@
 # 📁 Estructura de MultiBot
 
-## Árbol completo
-
-```
+```text
 MultiBot/
-├── README.md                 # Root readme
-├── .gitignore
-├── bots/                     # TODOS los bots
-│   ├── README.md
-│   ├── _template/            # Plantilla para nuevos bots
-│   │   ├── config.example.js
-│   │   ├── index.js
-│   │   ├── main.js
-│   │   ├── handler.js
-│   │   ├── package.json
-│   │   ├── lib/
-│   │   ├── plugins/
-│   │   ├── storage/
-│   │   ├── sessions.example/
-│   │   ├── scripts/
-│   │   └── docs/
-│   └── universal-bot/        # Bot 1: Universal Bot
-│       ├── config.js         # Config real (gitignored ejemplo)
-│       ├── config.example.js
-│       ├── index.js          # Launcher con cluster + cfonts
-│       ├── main.js           # Core Baileys + login QR/code
-│       ├── handler.js        # Router de mensajes/plugins
-│       ├── package.json
-│       ├── eng.traineddata / spa.traineddata  # OCR
-│       ├── lib/
-│       │   ├── termux-guard.js     # Solo Termux
-│       │   ├── Modos/              # modo-ia, human, sad, psico, ilegal, custom, descargas
-│       │   ├── Antis/              # anti-link, anti-spam, etc.
-│       │   ├── characters/         # gacha/harem
-│       │   ├── menu-categories.js  # Menú por categorías
-│       │   ├── geminiAPI.js        # IA (sin hot)
-│       │   └── ...                 # +30 libs
-│       ├── plugins/                # 200+ comandos
-│       │   ├── modo-*.js           # toggles de modos
-│       │   ├── anti-*.js
-│       │   ├── rpg-*.js
-│       │   ├── group-*.js
-│       │   ├── sticker*.js
-│       │   ├── download-*.js
-│       │   └── ...
-│       ├── storage/
-│       │   ├── databases/          # database.json (gitignored), characters-catalog.json
-│       │   └── img/                # imgs del menú
-│       ├── sessions/               # creds.json Baileys (gitignored)
-│       ├── tmp/                    # temp files (gitignored)
-│       ├── scripts/
-│       │   ├── ensure-sharp.js
-│       │   └── sync-characters-catalog.js
-│       └── docs/
-│           └── TERMUX.md
-├── web/                      # Dashboard (placeholder)
-│   ├── README.md
-│   ├── src/
-│   └── public/
-├── docs/                     # Documentación
-│   ├── STRUCTURE.md          # Este archivo
-│   ├── TERMUX_GUIDE.md
-│   ├── ADD_NEW_BOT.md
-│   └── API.md
-└── scripts/
-    ├── create-bot.sh         # Crea nuevo bot desde template
-    └── install-termux.sh     # Instalador Termux
+├── package.json / package-lock.json   # Panel/API Node y dependencia PostgreSQL
+├── render.yaml                        # Blueprint: web service + PostgreSQL
+├── .env.example                       # Variables opcionales para desarrollo local
+├── bots/
+│   ├── _template/                     # Base para crear bots
+│   └── universal-bot/                 # 200 plugins; Baileys; solo Termux
+│       ├── bot.json                   # Metadatos que consume el catálogo web
+│       ├── config.example.js          # Plantilla; config.js es privado/ignorado
+│       ├── index.js / main.js          # Inicio y conexión desde Termux
+│       ├── handler.js                 # Router de mensajes/plugins
+│       ├── lib/                       # Guard Termux, modos y utilidades
+│       ├── plugins/                   # Plugins JavaScript
+│       ├── storage/                   # Datos propios del bot
+│       ├── sessions/                  # Credenciales Baileys (ignorado)
+│       ├── tmp/                       # Archivos temporales (ignorado)
+│       └── docs/                      # Guías específicas del bot
+├── web/                               # SPA/PWA MultiBot inspirada en TomiOka
+│   ├── index.html                     # Shell y símbolos SVG
+│   ├── app.js                         # Navegación, vistas y cliente API
+│   ├── styles.css                     # Diseño responsive
+│   ├── fonts/                         # Outfit, JetBrains Mono y licencia OFL
+│   ├── manifest.webmanifest           # Metadatos de PWA
+│   └── sw.js                          # Cache shell, excluye API dinámica
+├── scripts/
+│   ├── serve-web.js                   # Servidor HTTP, catálogo y API de perfiles
+│   ├── create-bot.sh                  # Crea bot desde _template
+│   └── install-termux.sh              # Ayuda de instalación Termux
+├── data/                              # JSON local (ignorado; no se despliega)
+├── tests/web-api.test.js              # Smoke/integration de auth y perfiles
+└── docs/                              # Guías globales
 ```
 
 ## Principios
 
-1. **Aislamiento por bot**: cada carpeta `bots/<nombre>` es autocontenida. Puede tener su propia `package.json`, `storage`, `sessions` y `config.js`. No comparten DB.
-2. **Template**: `_template` es la base limpia. Para un nuevo bot: `cp -r _template bots/mi-bot`.
-3. **Web separada**: `web/` no está dentro de un bot; es global y leerá/escribirá sobre `bots/*` vía API.
-4. **Docs centralizadas**: `docs/` para guías globales, `bots/<bot>/docs/` para guías específicas del bot.
+1. **Aislamiento por bot:** cada `bots/<id>` mantiene plugins, configuración, storage y sesiones independientes.
+2. **Universal Bot es Termux-only:** Pairing Code y QR se usan desde el inicio del proceso en Termux. No trasladar sus sesiones al panel ni a Render.
+3. **El panel no ejecuta bots:** la web lee metadatos/plugins y persiste perfiles de configuración. PostgreSQL guarda cuentas y perfiles, no credenciales Baileys.
+4. **Catálogo extensible:** la API descubre subcarpetas de `bots/`, lee su `package.json`, plugins y un `bot.json` opcional.
+5. **Datos privados ignorados:** `config.js`, `sessions/`, temporales y el fallback local no se agregan a Git.
+
+## Añadir un bot al catálogo
+
+Cada nueva carpeta debe tener un `package.json`; `bot.json` es opcional pero recomendado. Declara explícitamente el modo y capacidades, por ejemplo:
+
+```json
+{
+  "id": "mi-bot",
+  "name": "Mi Bot",
+  "description": "Descripción pública",
+  "executionMode": "termux",
+  "webRuntime": false,
+  "supportsPairingCode": true,
+  "supportsQr": true,
+  "adultContent": false,
+  "defaultPrefix": ".",
+  "features": ["Moderación", "Stickers"]
+}
+```
+
+No declares `webRuntime: true` a menos que ese bot realmente tenga un runtime web separado y compatible. Ver [`ADD_NEW_BOT.md`](ADD_NEW_BOT.md).
 
 ## ¿Dónde va cada cosa?
 
-| Necesito... | Carpeta |
-|-------------|---------|
-| Añadir comando a Universal Bot | `bots/universal-bot/plugins/mi-comando.js` |
-| Cambiar prefijo/owner de Universal Bot | `bots/universal-bot/config.js` |
-| Ver logs de Universal Bot | `bots/universal-bot/tmp/` o consola Termux |
-| Crear bot nuevo | `bots/mi-bot/` (desde `_template`) |
-| Añadir página al dashboard | `web/src/app/` |
+| Necesito... | Carpeta/archivo |
+|---|---|
+| Añadir plugin al Universal Bot | `bots/universal-bot/plugins/` |
+| Configurar propietario del Universal Bot | crear `bots/universal-bot/config.js` desde `config.example.js` |
+| Consultar logs del bot | consola Termux y `bots/universal-bot/tmp/` |
+| Crear un bot nuevo | `bots/<id>/` desde `_template` |
+| Ajustar interfaz SPA | `web/app.js`, `web/index.html`, `web/styles.css` |
+| Modificar API/servidor | `scripts/serve-web.js` |
+| Cambiar despliegue o PostgreSQL | `render.yaml` y `docs/WEB.md` |
+| Ejecutar smoke tests | `npm test` |
 
 ## Gitignore
 
-- `bots/*/sessions/` → creds sensibles
-- `bots/*/storage/databases/database.json` → DB mutable
-- `bots/*/tmp/` → temporales
-- `node_modules/` → dependencias
+- `bots/*/sessions/` y `config.js` → credenciales y configuración privada.
+- `bots/*/storage/databases/database.json` → datos mutables de cada bot.
+- `bots/*/tmp/`, `node_modules/` → archivos temporales/dependencias.
+- `data/*.json` → fallback local de cuentas y perfiles del panel.

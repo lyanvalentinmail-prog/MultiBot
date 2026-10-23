@@ -1,146 +1,102 @@
 # 🤖 MultiBot
 
-Repositorio central para **múltiples bots de WhatsApp** basados en **Baileys** — con soporte para **Termux**, **Pairing Code & QR**, y una **web** de gestión.
+Repositorio para mantener **varios bots de WhatsApp aislados por carpeta**, con Baileys, Pairing Code/QR, Universal Bot para Termux y un panel web desplegable en **Render con Blueprint + PostgreSQL**.
 
-> Creado por y para la comunidad. Cada bot vive en su propia carpeta dentro de `bots/` con sus plugins, configs y storage aislados.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/MultiBot)
 
-```
+```text
 MultiBot/
-├── bots/                  # ← Aquí van TODOS los bots, uno por carpeta
-│   ├── universal-bot/     # Bot todo-en-uno (Termux only, sin NSFW)
-│   └── _template/         # Plantilla para crear nuevos bots
-├── web/                   # Dashboard web (próximamente)
-├── docs/                  # Documentación
-└── scripts/               # Scripts útiles
+├── bots/
+│   ├── universal-bot/       # Todo-en-uno, 200 plugins, Termux-only, sin NSFW/+18
+│   └── _template/           # Plantilla ligera para nuevos bots
+├── web/                     # SPA/PWA de MultiBot (diseño inspirado en TomiOka)
+├── scripts/serve-web.js     # Servidor/API del portal; PostgreSQL o JSON local
+├── data/                    # Fallback local ignorado por Git
+├── docs/                    # Guías de repositorio, Termux y web
+└── render.yaml              # Blueprint: web service + PostgreSQL
 ```
 
-## 📦 Bots disponibles
+## Bots
 
-| Bot | Descripción | Plataforma | Estado |
-|-----|-------------|------------|--------|
-| **Universal Bot** | Bot completo: RPG, juegos, stickers, IA, descargas, antis, grupos y más. Sin contenido +18. | Termux | ✅ Listo |
-| *(próximos)* | Cada nuevo bot se crea copiando `_template` | Termux / Web / VPS | 🔜 |
+| Bot | Plataforma | Estado | Qué incluye |
+|---|---|---|---|
+| **Universal Bot** | **Termux solamente** | ✅ | RPG, juegos, IA, descargas, stickers, grupos, antis y más; sin contenido NSFW/+18. Pairing Code y QR en la terminal. |
+| `_template` | Para desarrollar un bot nuevo | 📦 | Base pequeña para duplicar y adaptar. |
 
-## ✨ Características generales (Universal Bot)
+> Universal Bot conserva el guard de Termux. El panel web **no ejecuta el bot**: cataloga componentes y guarda perfiles de configuración. WhatsApp se vincula desde Termux y las credenciales permanecen en el dispositivo.
 
-- **Baileys** con **Pairing Code (8 dígitos)** y **QR Code**
-- 100% compatible con **Termux** (Android)
-- **Sin contenido NSFW / +18** — limpio para todo público
-- RPG, economía, gacha/harem, casino, juegos (michi, miner, bomba, etc.)
-- Stickers, stickers con texto, clearmeta, toimg, etc.
-- Anti-link, anti-spam, anti-img, anti-audio, welcome/goodbye, etc.
-- IA (Gemini, ChatGPT, Copilot), OCR, TTS/STT
-- Descargas: Play, FB, IG, TikTok, Spotify, Pinterest, etc.
-- Sub-bots (serbot) con reconexión automática
-- Y mucho más (200+ plugins)
-
-## 🚀 Inicio rápido (Universal Bot en Termux)
+## Universal Bot en Termux
 
 ```bash
-# 1. Actualiza Termux
-pkg update && pkg upgrade -y
-
-# 2. Instala dependencias
-pkg install git nodejs ffmpeg imagemagick python -y
-
-# 3. Clona el repo
+pkg update -y && pkg upgrade -y
+pkg install git nodejs-lts ffmpeg imagemagick python -y
 git clone https://github.com/lyanvalentinmail-prog/MultiBot.git
 cd MultiBot/bots/universal-bot
-
-# 4. Instala módulos
 npm install
-
-# 5. Configura owner (opcional)
 cp config.example.js config.js
-nano config.js   # pon tu número wa.me/@usuario
+nano config.js             # configura owner y LID
+npm start                  # elige "code" (pairing) o "qr"
+```
 
-# 6. Inicia
+Guías completas: [`docs/TERMUX_GUIDE.md`](docs/TERMUX_GUIDE.md) · [`bots/universal-bot/docs/TERMUX.md`](bots/universal-bot/docs/TERMUX.md)
+
+## Panel web
+
+Diseño responsive/PWA inspirado en [TomiOka](https://github.com/lyanvalentinmail-prog/TomiOka), adaptado al catálogo `bots/`:
+
+- Descubre bots y plugins del repositorio.
+- Permite registrar una cuenta y guardar/editar/eliminar perfiles de configuración.
+- Muestra métricas reales del proceso web y estado de la base de datos.
+- Documenta la instalación Termux, Pairing Code, QR y API del panel.
+- No solicita el número de WhatsApp, no crea sesiones, y no afirma que un bot Termux esté conectado al servidor.
+
+### Ejecutar localmente
+
+```bash
+npm ci
 npm start
-# Elige "code" para pairing code o "qr" para QR
+# http://localhost:3000
 ```
 
-📖 Guía detallada: [`docs/TERMUX_GUIDE.md`](./docs/TERMUX_GUIDE.md) y [`bots/universal-bot/docs/TERMUX.md`](./bots/universal-bot/docs/TERMUX.md)
+Si `DATABASE_URL` está configurada, se utiliza PostgreSQL; en local, sin esa variable, la persistencia usa `data/multibot-local.json` (ignorado por Git).
 
-## 🏗️ Estructura
+### Desplegar en Render
 
-Ver [`docs/STRUCTURE.md`](./docs/STRUCTURE.md) para el detalle completo de carpetas.
+1. Abre Render → **New → Blueprint**.
+2. Selecciona el repositorio MultiBot y aplica `render.yaml`.
+3. Render crea el servicio web `multibot-panel` y PostgreSQL `multibot-db`, y conecta `DATABASE_URL`.
+4. Abre la URL del servicio y crea una cuenta para guardar perfiles.
 
-Resumen:
+El Blueprint usa web service **Free** y base de datos PostgreSQL **Basic 256 MB** (la base tiene costo; verifica el precio actual de Render antes de aplicar). El plan Free del servicio puede suspenderse cuando está inactivo. Render aloja el panel y la base de datos, no Universal Bot.
 
-```
-bots/<nombre-bot>/
-├── config.js / config.example.js
-├── index.js / main.js            # entrypoints
-├── handler.js                    # router de plugins
-├── lib/                          # librerías internas
-│   ├── Modos/                    # modo-ia, modo-human, etc.
-│   ├── Antis/
-│   └── termux-guard.js           # bloquea ejecución fuera de Termux
-├── plugins/                      # 200+ comandos (.js)
-├── storage/                      # DBs JSON + imgs
-│   ├── databases/
-│   └── img/
-├── sessions/                     # creds Baileys (gitignored)
-├── scripts/                      # ensure-sharp, sync, etc.
-├── tmp/                          # temp (gitignored)
-└── docs/
-```
+Más detalles: [`docs/WEB.md`](docs/WEB.md).
 
-## ➕ Crear un nuevo bot
+## Crear otro bot
 
 ```bash
-# Usa el script helper
-bash scripts/create-bot.sh mi-nuevo-bot
-
-# O manualmente:
-cp -r bots/_template bots/mi-nuevo-bot
-# edita bots/mi-nuevo-bot/config.js y package.json
+bash scripts/create-bot.sh mi-bot
 ```
 
-Guía: [`docs/ADD_NEW_BOT.md`](./docs/ADD_NEW_BOT.md)
+Agrega un `package.json`, plugins y, opcionalmente, un `bot.json` para declarar el nombre, el modo de ejecución y las capacidades. El panel lee el catálogo desde `bots/` al cargar la API. Ver [`docs/ADD_NEW_BOT.md`](docs/ADD_NEW_BOT.md).
 
-## 🌐 Web Dashboard (en progreso)
+## API web
 
-Carpeta [`web/`](./web/) — será el panel para:
+`GET /api/health`, `/api/state`, `/api/system`, `/api/bots`, `/api/plugins`, `/api/endpoints`; perfiles autenticados en `/api/instances`. La referencia actualizada está en la página [`/endpoints`](docs/WEB.md#api) o en [`docs/WEB.md`](docs/WEB.md#api).
 
-- Ver estado de bots (online/offline, uptime)
-- Escanear QR / pedir pairing code desde el navegador
-- Gestionar plugins on/off por bot
-- Ver logs y stats
+## Seguridad y límites
 
-Por ahora es un placeholder. Cada bot seguirá funcionando 100% por Termux.
+- Universal Bot fue limpiado de funciones y contenido NSFW/+18.
+- El panel almacena hashes de contraseñas y tokens de sesión; los perfiles pertenecen a la cuenta que los creó.
+- No guardar `config.js`, `sessions/`, tokens o datos privados en commits.
+- Pairing Code/QR se generan en el flujo de inicio del bot desde Termux; nunca compartas el código con terceros.
 
-## 🔒 Solo Termux (Universal Bot)
+## Documentación
 
-El Universal Bot tiene un **guard** (`lib/termux-guard.js`) que bloquea la ejecución fuera de Termux:
+- [Estructura del repo](docs/STRUCTURE.md)
+- [Instalación Termux](docs/TERMUX_GUIDE.md)
+- [Agregar bot](docs/ADD_NEW_BOT.md)
+- [Panel web + PostgreSQL + Render](docs/WEB.md)
 
-```
-✖ ESTE BOT SOLO PUEDE EJECUTARSE EN TERMUX
-```
+## Créditos y licencias
 
-Para desarrollo puedes bypassear con:
-
-```bash
-ALLOW_NON_TERMUX=1 npm start
-node main.js --allow-non-termux
-```
-
-## 📚 Docs
-
-- [Estructura del repo](./docs/STRUCTURE.md)
-- [Guía Termux completa](./docs/TERMUX_GUIDE.md)
-- [Cómo añadir un bot](./docs/ADD_NEW_BOT.md)
-
-## 🤝 Contribuir
-
-1. Haz fork
-2. Crea rama `feature/<tu-feature>`
-3. PR hacia `main`
-
-## 📄 Licencia
-
-GPL-3.0-or-later — basado en [Pain-Bot](https://github.com/nexusday/pain-bot) (limpiado de contenido +18).
-
----
-
-Hecho con 💙 para Termux & Baileys
+Universal Bot se basa en [nexusday/pain-bot](https://github.com/nexusday/pain-bot) y mantiene sus obligaciones GPL-3.0-or-later. El diseño web se adaptó de [TomiOka](https://github.com/lyanvalentinmail-prog/TomiOka); ver [`web/THIRD_PARTY_NOTICES.md`](web/THIRD_PARTY_NOTICES.md).

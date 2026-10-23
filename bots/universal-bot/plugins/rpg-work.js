@@ -21,7 +21,7 @@ const trabajos = [
 
 
   { tipo: 'negativo', descripcion: 'Te han atropellado mientras ayudabas a alguien, perdiste dinero en el hospital', perdida: [600, 1200] },
-  { tipo: 'negativo', descripcion: 'Tu prima quiso tener sexo contigo pero le dijiste que eras chipi, perdiste la oportunidad de ganar', perdida: [200, 600] },
+  { tipo: 'negativo', descripcion: 'Olvidaste el material para un encargo y tuviste que reponerlo', perdida: [200, 600] },
   { tipo: 'negativo', descripcion: 'Intentaste robar un banco pero te cacharon, multa pagada', perdida: [800, 1600] },
   { tipo: 'negativo', descripcion: 'Trabajaste en un casino y perdiste todo apostando', perdida: [700, 1400] },
   { tipo: 'negativo', descripcion: 'Intentaste ser influencer pero nadie te siguió, gastaste en equipo', perdida: [500, 1000] },

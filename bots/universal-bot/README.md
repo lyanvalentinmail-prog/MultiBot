@@ -1,6 +1,6 @@
 # 🤖 Universal Bot
 
-**Bot todo-en-uno para WhatsApp** — 200+ plugins, RPG, stickers, IA, descargas, antis, grupos y más.  
+**Bot todo-en-uno para WhatsApp** — 200 plugins, RPG, stickers, IA, descargas, antis, grupos y más.
 **Solo Termux** · **Baileys** · **Pairing Code & QR** · **Sin contenido +18** ✅
 
 > Parte de [MultiBot](../../README.md) · Basado en Pain-Bot, limpiado de NSFW.
@@ -89,7 +89,7 @@ universal-bot/
 ├── config.js / config.example.js
 ├── index.js / main.js / handler.js
 ├── lib/            # Termux guard, Modos, Antis, menu, etc.
-├── plugins/        # 200+ comandos
+├── plugins/        # 200 comandos
 ├── storage/
 │   ├── databases/  # DB + characters
 │   └── img/
