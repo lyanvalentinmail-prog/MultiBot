@@ -214,3 +214,81 @@ test('termux.sh: --customize edita la config del bot', async (t) => {
   assert.match(config, /global\.moneda = 'UYU'/)
   assert.match(config, /global\.comandosEnabled = false/)
 })
+
+test('menú: propietarios dinámicos desde global.owner', async () => {
+  const { construirLineasOwners } = await import('../bots/universal-bot/lib/menu-categories.js')
+  const antes = global.owner
+  try {
+    global.owner = [['59899123456', 'Lyan', true]]
+    const una = construirLineasOwners(null, 'UNIVERSAL BOT')
+    assert.match(una, /wa\.me\/59899123456/)
+    assert.match(una, /\*Lyan\*/)
+    assert.doesNotMatch(una, /Sunkovv/)
+
+    global.owner = [['59899123456', 'Lyan', true], ['52122222222', 'Mod', true]]
+    assert.equal(construirLineasOwners(null, 'UNIVERSAL BOT').split('\n').length, 2)
+
+    // Placeholder o vacío → respaldo con el número del propio bot.
+    global.owner = [['521XXXXXXXXXX', 'TuNombre', true]]
+    const fb = construirLineasOwners({ user: { id: '59800000000@s.whatsapp.net' } }, 'UNIVERSAL BOT')
+    assert.match(fb, /wa\.me\/59800000000/)
+    assert.match(fb, /\*UNIVERSAL BOT\*/)
+    assert.doesNotMatch(fb, /X/)
+
+    // Sin owners y sin conexión → solo el nombre (nunca explota).
+    global.owner = []
+    assert.match(construirLineasOwners(null, 'UNIVERSAL BOT'), /\*UNIVERSAL BOT\*/)
+    global.owner = undefined
+    assert.match(construirLineasOwners(null, 'UNIVERSAL BOT'), /\*UNIVERSAL BOT\*/)
+  } finally {
+    global.owner = antes
+  }
+})
+
+test('menú: encabezado con el formato pedido (sin hosting/canales, TIPO exacto)', async () => {
+  const { construirEncabezadoMenu, construirLineasOwners } = await import('../bots/universal-bot/lib/menu-categories.js')
+  const antes = global.owner
+  try {
+    global.owner = [['59899123456', 'Sunkovv', true]]
+    const ctx = {
+      rentalLine: '> 𓂃 ࣪ ִֶָ☾.  𝙰𝙻𝚀𝚄𝙸𝙻𝙴𝚁:  Sin plan ❌\n',
+      userRole: '👑 Staff Bot y Grupo',
+      nombreBot: 'UNIVERSAL BOT',
+      tipo: 'Principal bot Bot',
+      botFormatUptime: '00:00:28',
+      totalf: 200,
+      processRamMB: 218,
+      totalRamMB: 3589,
+      lineasOwners: construirLineasOwners(null, 'UNIVERSAL BOT'),
+    }
+    const texto = construirEncabezadoMenu({ sender: '59899123456@s.whatsapp.net' }, ctx)
+    const lineas = texto.split('\n')
+    assert.ok(lineas[0].includes('𝙱𝙸𝙴𝙽𝚅𝙴𝙽𝙸𝙳𝙾/𝙰') && lineas[0].includes('@59899123456'))
+    assert.match(texto, /𝚃𝙸𝙿𝙾:  Principal bot Bot/)
+    assert.match(texto, /𝚁𝙾𝙻:  👑 Staff Bot y Grupo/)
+    assert.match(texto, /𝙼𝙴𝙼𝙾𝚁𝙸𝙰: 218\/3589 MB/)
+    assert.match(texto, /wa\.me\/59899123456.*\*Sunkovv\*/)
+    assert.ok(texto.trimEnd().endsWith('𓂃 ࣪ ִֶָ☾. *𝙴𝙻𝙸𝙶𝙴 𝚄𝙽𝙰 𝙲𝙰𝚃𝙴𝙶𝙾𝚁Í𝙰* 𓂃 ࣪ ִֶָ☾.'))
+    // Orden: propietarios → línea owner → ELIGE.
+    assert.ok(
+      texto.indexOf('𝙿𝚁𝙾𝙿𝙸𝙴𝚃𝙰𝚁𝙸𝙾𝚂') < texto.indexOf('wa.me/59899123456') &&
+      texto.indexOf('wa.me/59899123456') < texto.indexOf('𝙴𝙻𝙸𝙶𝙴 𝚄𝙽𝙰 𝙲𝙰𝚃𝙴𝙶𝙾𝚁Í𝙰'),
+    )
+    // Fuera branding ajeno hardcodeado.
+    assert.doesNotMatch(texto, /nexcodea/)
+    assert.doesNotMatch(texto, /whatsapp\.com\/channel/)
+    assert.doesNotMatch(texto, /𝙷𝙾𝚂𝚃𝙸𝙽𝙶/)
+    assert.doesNotMatch(texto, /𝙲𝙰𝙽𝙰𝙻𝙴𝚂 𝙾𝙵𝙸𝙲𝙸𝙰𝙻𝙴𝚂/)
+    assert.doesNotMatch(texto, /wa\.me\/@Sunkovv/)
+  } finally {
+    global.owner = antes
+  }
+})
+
+test('menú: TIPO y carga diferida de modo-sub en el código', async () => {
+  const source = await readFile(path.join(botDir, 'lib', 'menu-categories.js'), 'utf8')
+  assert.match(source, /'Principal bot Bot'/)
+  assert.match(source, /'Sub bot Bot'/)
+  assert.match(source, /await import\('..\/plugins\/modo-sub\.js'\)/)
+  assert.doesNotMatch(source, /from '..\/plugins\/modo-sub\.js'/)
+})
