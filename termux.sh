@@ -693,9 +693,10 @@ cmd_customize() { # $1 = bot id
     printf '%b  7)%b ⚡ Comandos ............. %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff comandosEnabled)"
     printf '%b  8)%b 📨 Reenviados ........... %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff mensajesReenviados)"
     printf '%b  9)%b 💬 Responder como ....... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$resp" "$C_RESET"
-    printf '%b 10)%b 📋 Menú de lista ........ %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff menuLista)"
-    printf '%b 11)%b 🌍 Modo público ......... %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff modoPublico)"
-    printf '%b 12)%b 📄 Ver todo\n' "$C_YELLOW" "$C_RESET"
+    printf '%b 10)%b 🔘 Menú de botones ..... %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff menuBotones)"
+    printf '%b 11)%b ↔️  Botones .............. %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val menuBotonesLayout)" "$C_RESET"
+    printf '%b 12)%b 🌍 Modo público ......... %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff modoPublico)"
+    printf '%b 13)%b 📄 Ver todo\n' "$C_YELLOW" "$C_RESET"
     printf '%b  0)%b ↩ Volver\n' "$C_YELLOW" "$C_RESET"
     printf '\nElige: '
     local opt; read_input opt || return 0
@@ -717,9 +718,18 @@ cmd_customize() { # $1 = bot id
           *) err "Opción no válida." ;;
         esac
         sleep 1 ;;
-      10) cs_toggle "$id" menuLista "Menú de lista"; sleep 1 ;;
-      11) cs_toggle "$id" modoPublico "Modo público"; sleep 1 ;;
-      12)
+      10) cs_toggle "$id" menuBotones "Menú de botones"; sleep 1 ;;
+      11)
+        printf 'Diseño de los botones: %b1)%b horizontal ↔️ (una fila)  %b2)%b vertical ↕ (apilados) : ' "$C_YELLOW" "$C_RESET" "$C_YELLOW" "$C_RESET"
+        local layout; read_input layout || continue
+        case "$layout" in
+          1) bsettings "$id" set menu-layout horizontal >/dev/null 2>&1 && ok "Botones: horizontal ↔️" || err "No se pudo guardar." ;;
+          2) bsettings "$id" set menu-layout vertical >/dev/null 2>&1 && ok "Botones: vertical ↕" || err "No se pudo guardar." ;;
+          *) err "Opción no válida." ;;
+        esac
+        sleep 1 ;;
+      12) cs_toggle "$id" modoPublico "Modo público"; sleep 1 ;;
+      13)
         title "📄 Personalización — $id"
         printf '%s\n' "$CUSTOM_CFG" | sed 's/^/  /'
         pause ;;

@@ -7,6 +7,7 @@ import { configureStickerCache } from '../../../lib/media.js'
 import { LiveMessages } from '../../../lib/live-messages.js'
 import { findCommand } from './registry.js'
 import { getContent, getText } from '../../../lib/message.js'
+import { MENU_BUTTON_IDS, readButtonSelection } from '../../../lib/interactive.js'
 import { truncate } from '../../../lib/text.js'
 import { c, sym } from './lib/colors.js'
 
@@ -140,6 +141,33 @@ async function runCommand(ctx, command) {
 }
 
 /**
+ * Comando que se abre al tocar un botón del menú.
+ *   - "menu"   → el menú completo (comando de ayuda).
+ *   - "perfil" → el perfil del usuario.
+ */
+function botonMenuCommand(id) {
+  const nombre = String(id || '').trim().toLowerCase()
+  if (nombre === MENU_BUTTON_IDS.MENU) return findCommand('help')
+  if (nombre === MENU_BUTTON_IDS.PERFIL) return findCommand('perfil')
+  return null
+}
+
+/**
+ * Ejecuta el comando de un botón sin cooldown: el toque llega enseguida
+ * después de pedir el menú y con el cooldown normal la respuesta se perdería.
+ */
+async function runMenuButton(ctx, command) {
+  try {
+    await command.run(ctx)
+  } catch (error) {
+    ctx.logger.error(`${sym.err} Botón del menú: ${error.message}`)
+    await ctx
+      .reply(`💦 No se pudo abrir eso. Escribe *${ctx.config.prefixes[0]}help* para ver los comandos.`)
+      .catch(() => {})
+  }
+}
+
+/**
  * Procesa un mensaje individual.
  */
 export async function handleMessage({ sock, msg, config, logger, store, commands = null, hooks = null }) {
@@ -155,6 +183,18 @@ export async function handleMessage({ sock, msg, config, logger, store, commands
   if (config.behavior.commandsEnabled === false && !ctx.isOwner) return
   // Terminal → Personalizar → Modo público: apagado = en privado solo el dueño
   if (config.behavior.publicMode === false && !ctx.isGroup && !ctx.isOwner) return
+
+  // Botones del menú (Menu / Perfil): el toque llega como un mensaje aparte.
+  const seleccion = readButtonSelection(msg)
+  if (seleccion) {
+    const comando = botonMenuCommand(seleccion.id)
+    if (comando) {
+      // El botón "Menu" muestra el menú completo, no el lanzador de botones.
+      ctx.menuContentOnly = seleccion.id === MENU_BUTTON_IDS.MENU
+      await runMenuButton(ctx, comando)
+      return
+    }
+  }
 
   // Sin prefijo: probar modo "sin prefijo" en privado o agregar sticker a un pack
   let parsed = ctx.parsed

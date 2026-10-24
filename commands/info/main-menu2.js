@@ -1,9 +1,9 @@
 import { isInteractiveBaileysEnabled } from '../../bots/universal-bot/lib/baileys-dual.js'
+import { MENU_BUTTON_IDS, buildButtonsContent, resolveMenuButtons } from '../../lib/interactive.js'
 import {
   buildFullMenuText,
   buildInteractiveMenuContent,
   buildCategoryInteractiveContent,
-  buildListSections,
   buildMenuCategories,
   buildMenuHeader,
   buildCategoryResponse,
@@ -11,7 +11,6 @@ import {
   extractMenuSelectionId,
   findMenuCategoryFromMessage,
   getMenuCategoryId,
-  MENU_BUTTON_TEXT,
   resolveMenuContext,
 } from '../../bots/universal-bot/lib/menu-categories.js'
 
@@ -151,33 +150,73 @@ async function enviarRespuestaCategoria(conn, m, contexto, categorias, categoria
   }
 }
 
-async function enviarMenuLista(conn, m, contexto, categorias, encabezado) {
-  await conn.sendFile(m.chat, contexto.mainImg, 'menu.jpg', encabezado, m, null, {
-    contextInfo: {
-      ...rcanal.contextInfo,
-      mentionedJid: [m.sender],
-    },
+/**
+ * Menú con botones (Menu / Perfil).
+ *
+ * Los botones son un `buttonsMessage` nativo de WhatsApp: una fila de
+ * respuestas rápidas que el usuario toca. El interruptor
+ * `global.menuBotones` lo apaga y `global.menuBotonesLayout` decide si
+ * van en una fila (horizontal) o apilados (vertical).
+ *
+ * @returns {Promise<boolean>} true si el menú se mandó con botones
+ */
+async function enviarMenuBotones(conn, m, contexto) {
+  const { enabled, layout, options } = resolveMenuButtons({
+    enabled: global.menuBotones,
+    layout: global.menuBotonesLayout
   })
+  if (!enabled) return false
+
+  // Si el mensaje ES el toque a un botón, no se vuelve a pedir el menú.
+  if (['buttonsResponseMessage', 'templateButtonReplyMessage'].includes(m.mtype)) return false
+
+  const texto = [
+    '𓂃 ࣪ ִֶָ☾. 𝙼𝙴𝙽𝚄',
+    '',
+    'Toca un botón para elegir: el menú de comandos o tu perfil.',
+  ].join('\n')
+
+  const contenido = buildButtonsContent({
+    text: texto,
+    footer: contexto.nombreBot,
+    buttons: options,
+    layout
+  })
+
   try {
-    await conn.sendListLia(
-      m.chat,
-      '𓂃 ࣪ ִֶָ☾. 𝙼𝙴𝙽𝚄',
-      '𓂃 ࣪ ִֶָ☾. 𝙴𝙻𝙸𝙶𝙴 𝚄𝙽𝙰 𝙲𝙰𝚃𝙴𝙶𝙾𝚁Í𝙰 𝚙𝚊𝚛𝚊 𝚟𝚎𝚛 𝚜𝚞𝚜 𝚌𝚘𝚖𝚊𝚗𝚍𝚘𝚜.',
-      MENU_BUTTON_TEXT,
-      buildListSections(categorias),
-      m,
-      { footer: contexto.nombreBot },
-    )
-  } catch (errorLista) {
-    console.error('Menú lista falló, enviando texto completo:', errorLista?.message || errorLista)
-    await conn.sendMessage(m.chat, {
-      text: buildFullMenuText(m, contexto, categorias),
-      contextInfo: {
-        ...rcanal.contextInfo,
-        mentionedJid: [m.sender],
-      },
-    }, { quoted: m })
+    await conn.sendMessageLia(m.chat, contenido, { quoted: m })
+    return true
+  } catch (errorBotones) {
+    console.error('Menú con botones falló:', errorBotones?.message || errorBotones)
+    return false
   }
+}
+
+/**
+ * Abre el comando de perfil del bot (el botón "Perfil").
+ * @returns {Promise<boolean>} true si se ejecutó
+ */
+async function ejecutarComandoPerfil(m, data) {
+  const plugins = global.plugins || {}
+  const plugin = Object.values(plugins).find((item) =>
+    (item?.command || []).some(
+      (cmd) => typeof cmd === 'string' && ['perfil', 'profile'].includes(cmd.toLowerCase())
+    )
+  )
+  const run = plugin?.handler?.run || plugin?.run
+  if (typeof run !== 'function') return false
+
+  const conn = data.conn
+  await run.call(conn, {
+    ...data,
+    m,
+    conn,
+    command: 'perfil',
+    args: [],
+    text: '',
+    usedPrefix: data.usedPrefix || '.'
+  })
+  return true
 }
 
 const handler = async (m, { conn, usedPrefix }) => {
@@ -186,11 +225,8 @@ const handler = async (m, { conn, usedPrefix }) => {
     const categorias = buildMenuCategories(contexto)
     const encabezado = buildMenuHeader(m, contexto)
 
-    // Terminal → Personalizar bot → "Menú de lista" (global.menuLista).
-    if (global.menuLista === true) {
-      await enviarMenuLista(conn, m, contexto, categorias, encabezado)
-      return
-    }
+    // Terminal → Personalizar bot → "Menú de botones" (global.menuBotones).
+    if (await enviarMenuBotones(conn, m, contexto)) return
 
     if (!isInteractiveBaileysEnabled()) {
       const texto = buildFullMenuText(m, contexto, categorias)
@@ -222,18 +258,16 @@ const handler = async (m, { conn, usedPrefix }) => {
           { quoted: m },
         )
       } catch (errorSelector) {
+        // La lista de WhatsApp no se muestra (no es un tipo nativo para
+        // estas cuentas): se cae al menú completo en texto.
         console.error('Selector nativeFlow falló:', errorSelector)
-        if (!m.isGroup) {
-          await conn.sendListLia(
-            m.chat,
-            '𓂃 ࣪ ִֶָ☾. 𝙼𝙴𝙽𝚄',
-            '𓂃 ࣪ ִֶָ☾. 𝙴𝙻𝙸𝙶𝙴 𝚄𝙽𝙰 𝙲𝙰𝚃𝙴𝙶𝙾𝚁Í𝙰 𝚙𝚊𝚛𝚊 𝚟𝚎𝚛 𝚜𝚞𝚜 𝚌𝚘𝚖𝚊𝚗𝚍𝚘𝚜.',
-            MENU_BUTTON_TEXT,
-            buildListSections(categorias),
-            m,
-            { footer: contexto.nombreBot },
-          )
-        }
+        await conn.sendMessage(m.chat, {
+          text: buildFullMenuText(m, contexto, categorias),
+          contextInfo: {
+            ...rcanal.contextInfo,
+            mentionedJid: [m.sender],
+          },
+        }, { quoted: m })
       }
     }
   } catch (error) {
@@ -246,6 +280,47 @@ const handler = async (m, { conn, usedPrefix }) => {
     }, { quoted: m })
     throw error
   }
+}
+
+/**
+ * Botones del menú (Menu / Perfil): el toque llega como un mensaje aparte.
+ *
+ *   - "Menu"   → el menú completo (categorías), no el lanzador de botones.
+ *   - "Perfil" → el comando de perfil del bot.
+ *
+ * @returns {Promise<boolean>} true si el toque se atendió
+ */
+async function manejarBotonMenu(m, data) {
+  if (!['buttonsResponseMessage', 'templateButtonReplyMessage'].includes(m.mtype)) return false
+
+  const id = String(m.text || '').trim().toLowerCase()
+  if (id !== MENU_BUTTON_IDS.MENU && id !== MENU_BUTTON_IDS.PERFIL) return false
+
+  const { conn, usedPrefix } = data
+
+  if (id === MENU_BUTTON_IDS.PERFIL) {
+    const ejecutado = await ejecutarComandoPerfil(m, data)
+    if (ejecutado) m.commandExecuted = true
+    return ejecutado
+  }
+
+  const contexto = await resolveMenuContext(m, conn, usedPrefix)
+  const categorias = buildMenuCategories(contexto)
+  const encabezado = buildMenuHeader(m, contexto)
+
+  if (isInteractiveBaileysEnabled()) {
+    await enviarMenuInteractivo(conn, m, contexto, categorias, encabezado)
+  } else {
+    await conn.sendFile(m.chat, contexto.mainImg, 'thumbnail.jpg', buildFullMenuText(m, contexto, categorias), m, null, {
+      contextInfo: {
+        ...rcanal.contextInfo,
+        mentionedJid: [m.sender],
+      },
+    })
+  }
+
+  m.commandExecuted = true
+  return true
 }
 
 async function manejarSeleccionCategoriaMenu(m, { conn, usedPrefix }) {
@@ -278,6 +353,7 @@ async function manejarSeleccionCategoriaMenu(m, { conn, usedPrefix }) {
 
 handler.all = async function (m, data) {
   try {
+    if (await manejarBotonMenu(m, data)) return
     await manejarSeleccionCategoriaMenu(m, data)
   } catch (error) {
     console.error('Error en selección de menú:', error)

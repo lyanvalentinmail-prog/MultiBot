@@ -38,8 +38,10 @@ global.quotedVerificado = true
 // Modo público: true = todos pueden usar el bot (privado y grupos sin alquiler)
 // false = modo cerrado (privado solo-owner, grupos necesitan plan de alquiler)
 global.modoPublico = true
-// Menú lista: true = .menu envía una lista para elegir · false = menú interactivo
-global.menuLista = false
+// Menú con botones: true = .menu envía botones (Menu / Perfil) · false = menú normal
+global.menuBotones = true
+// Diseño de los botones: horizontal (una fila) | vertical (apilados)
+global.menuBotonesLayout = 'horizontal'
 
 // Canal newsletter (opcional) — pon JID @newsletter o deja vacío
 // Obtén JID con .canalid <link>

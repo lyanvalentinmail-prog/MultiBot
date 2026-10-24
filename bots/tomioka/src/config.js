@@ -133,7 +133,18 @@ export const DEFAULTS = {
     imageCacheMinutes: 720,
     imageTimeoutMs: 25000,
     sendAsCaption: true, // manda el menú como pie de foto del banner
-    listMode: true, // .help manda la lista interactiva (false = menú de texto/banner)
+    // Menú interactivo con botones (ButtonsMessage nativo de WhatsApp).
+    //   enabled: false → menú clásico (banner + texto), sin botones.
+    //   layout: 'horizontal' (una fila) | 'vertical' (botones apilados).
+    // `listMode` (llave vieja, activaba la lista) sigue valiendo como
+    // interruptor cuando el config todavía no trae `buttons.enabled`.
+    buttons: {
+      layout: 'horizontal',
+      options: [
+        { id: 'menu', label: 'Menu' },
+        { id: 'perfil', label: 'Perfil' }
+      ]
+    },
     showDescriptions: false,
     showUser: true,
     phrases: [
@@ -197,7 +208,7 @@ export const DEFAULTS = {
         description: '𝖨𝗇𝖿𝗈',
         kaomoji: '( ᴗ͈ˬᴗ͈ )',
         divider: ['💧', '💙'],
-        commands: ['help', 'debug', 'dado', 'moneda', 'timer', 'lyrics']
+        commands: ['help', 'perfil', 'debug', 'dado', 'moneda', 'timer', 'lyrics']
       }
     ]
   },
@@ -320,6 +331,11 @@ export function loadConfig({ file = process.env.CONFIG_PATH || defaultConfigFile
   }
   if (process.env.LOG_LEVEL) merged.logging.level = process.env.LOG_LEVEL
   if (process.env.MENU_IMAGE) merged.menu.image = process.env.MENU_IMAGE
+  // Menú con botones: interruptor (0/false = apagado) y diseño.
+  if (process.env.MENU_BUTTONS !== undefined) {
+    merged.menu.buttons.enabled = !['0', 'false', 'off', 'no'].includes(String(process.env.MENU_BUTTONS).toLowerCase())
+  }
+  if (process.env.MENU_BUTTONS_LAYOUT) merged.menu.buttons.layout = process.env.MENU_BUTTONS_LAYOUT
   if (process.env.FFMPEG_PATH) merged.ffmpegPath = process.env.FFMPEG_PATH
   // IA (OpenCode): la clave también puede venir del entorno, útil en Termux/VPS.
   if (process.env.OPENCODE_API_KEY) merged.ai.apiKey = process.env.OPENCODE_API_KEY

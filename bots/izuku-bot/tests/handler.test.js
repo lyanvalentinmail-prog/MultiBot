@@ -6,7 +6,7 @@ import { fakeSock, sentTexts, silentLogger, testConfig, textMessage } from './he
 
 function setup(overrides = {}) {
   const config = testConfig(overrides)
-  config.menu = { ...config.menu, image: '', listMode: false } // texto: sin banner ni lista en estos tests
+  config.menu = { ...config.menu, image: '', listMode: false, buttons: { ...config.menu.buttons, enabled: false } } // texto: sin banner ni lista en estos tests
   const logger = silentLogger
   const store = createStore(config, logger)
   const sock = fakeSock()

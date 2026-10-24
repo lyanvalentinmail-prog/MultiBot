@@ -250,6 +250,7 @@
         ],
         "commands": [
           "help",
+          "perfil",
           "debug",
           "dado",
           "moneda",
@@ -261,7 +262,20 @@
     "imageCacheMinutes": 720,
     "imageTimeoutMs": 25000,
     "sendAsCaption": true,
-    "listMode": true
+    "buttons": {
+      "enabled": true,
+      "layout": "horizontal",
+      "options": [
+        {
+          "id": "menu",
+          "label": "Menu"
+        },
+        {
+          "id": "perfil",
+          "label": "Perfil"
+        }
+      ]
+    }
   },
   "logging": {
     "level": "info",

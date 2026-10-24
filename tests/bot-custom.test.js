@@ -35,13 +35,16 @@ test('bot-settings: get/set escalares con defaults sanos', () => {
   assert.equal(all.comandosEnabled, true)
   assert.equal(all.mensajesReenviados, true)
   assert.equal(all.quotedVerificado, true)
-  assert.equal(all.menuLista, false)
+  assert.equal(all.menuBotones, true)
+  assert.equal(all.menuBotonesLayout, 'horizontal')
   assert.equal(all.modoPublico, true)
 
   let next = setSetting(template, 'packname', 'Mis Stickers')
   assert.equal(readSetting(next, 'packname').value, 'Mis Stickers')
-  next = setSetting(next, 'menuLista', true)
-  assert.equal(readSetting(next, 'menuLista').value, true)
+  next = setSetting(next, 'menuBotones', false)
+  assert.equal(readSetting(next, 'menuBotones').value, false)
+  next = setSetting(next, 'menuBotonesLayout', 'vertical')
+  assert.equal(readSetting(next, 'menuBotonesLayout').value, 'vertical')
   next = setSetting(next, 'comandosEnabled', false)
   assert.equal(readSetting(next, 'comandosEnabled').value, false)
   next = setSetting(next, 'modoPublico', false)
@@ -176,8 +179,9 @@ test('bot: personalización cableada (comandos, reenviados, banner, lista, stick
   const menuCtx = await readFile(path.join(botDir, 'lib', 'menu-categories.js'), 'utf8')
   assert.match(menuCtx, /global\.botBanner \|\| '.\/storage\/img\/banner-default\.jpg'/)
   const menu = await readFile(path.join(commandsDir, 'info', 'main-menu2.js'), 'utf8')
-  assert.match(menu, /global\.menuLista === true/)
-  assert.match(menu, /enviarMenuLista/)
+  assert.match(menu, /global\.menuBotones/)
+  assert.match(menu, /enviarMenuBotones/)
+  assert.match(menu, /manejarBotonMenu/)
   const sticker = await readFile(path.join(commandsDir, 'stickers', 'stickers-sticker.js'), 'utf8')
   assert.match(sticker, /global\.packname/)
   assert.match(sticker, /global\.author/)
@@ -217,9 +221,9 @@ test('termux.sh: --customize edita la config del bot', async (t) => {
   await writeFile(path.join(fake, 'package.json'), JSON.stringify({ name: 'fake' }))
   await writeFile(path.join(fake, 'index.js'), 'console.log(1)\n')
 
-  // 4 (moneda) → UYU, 7 (toggle comandos), 11 (toggle modo público), 0 (volver).
+  // 4 (moneda) → UYU, 7 (toggle comandos), 12 (toggle modo público), 0 (volver).
   const result = spawnSync('bash', [path.join(root, 'termux.sh'), '--bot', 'fake', '--customize'], {
-    cwd: root, input: '4\nUYU\n7\n11\n0\n', encoding: 'utf8', timeout: 90000,
+    cwd: root, input: '4\nUYU\n7\n12\n0\n', encoding: 'utf8', timeout: 90000,
     env: { ...process.env, HOME: home, TERM: 'dumb' },
   })
   assert.equal(result.status, 0, result.stderr)

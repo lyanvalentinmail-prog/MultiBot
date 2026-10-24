@@ -116,7 +116,8 @@ test('tomioka: bot-settings CLI edita config.json para la terminal (copia tempor
   const list = run(['list'])
   assert.equal(list.status, 0, list.stderr)
   assert.match(list.stdout, /^namebot=.+/m)
-  assert.match(list.stdout, /^menuLista=true/m)
+  assert.match(list.stdout, /^menuBotones=true/m)
+  assert.match(list.stdout, /^menuBotonesLayout=horizontal/m)
   assert.ok(!/^moneda=/m.test(list.stdout), 'tomioka no trae moneda')
 
   assert.equal(run(['set', 'nombre', 'Tomi Test']).status, 0)

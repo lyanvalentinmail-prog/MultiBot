@@ -4,8 +4,7 @@ import { parseCommand, jidToNumber, truncate } from '../../../../lib/text.js'
 import { writeStickerMetadata } from '../../../../lib/sticker.js'
 import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from '../../../../lib/live-messages.js'
 import { buildEstadoQuote } from './quoted.js'
-import { sendListMessage } from './interactive.js'
-import { LIST_BUTTON_TEXT } from '../menu.js'
+import { sendButtonsMessage, readMenuButtons } from '../../../../lib/interactive.js'
 import * as menu from '../menu.js'
 
 /**
@@ -19,6 +18,8 @@ export class CommandContext {
     this.config = config
     // Menú del bot y listados: los comandos compartidos los piden por ctx.
     this.menu = menu
+    // Menú interactivo con botones (Menu / Perfil): on/off y diseño.
+    this.menuButtons = readMenuButtons(config)
     this.commandList = commandList
     this.visibleCommands = visibleCommands
     this.logger = logger
@@ -157,21 +158,21 @@ export class CommandContext {
   }
 
   /**
-   * Envía una lista interactiva (texto + botón + secciones tocables).
+   * Envía un mensaje con botones (respuesta rápida de WhatsApp).
    *
    * No se usa `sendMessage` a propósito: Baileys no sabe construir un
-   * `listMessage` y descartaría el botón y las secciones. Ver
-   * `lib/interactive.js` para el detalle.
+   * `buttonsMessage` y descartaría los botones. Ver `lib/interactive.js`
+   * para el detalle.
    */
-  async sendList({ text, footer = '', buttonText = LIST_BUTTON_TEXT, title = '', sections = [] }) {
+  async sendButtons({ text, footer = '', buttons = null, layout = null } = {}) {
+    const opciones = this.menuButtons || readMenuButtons(this.config)
     const decoration = this.decorate({})
-    return sendListMessage(this.sock, {
+    return sendButtonsMessage(this.sock, {
       chatJid: this.chatJid,
       text,
       footer,
-      buttonText,
-      title: title || this.config.bot?.name || '',
-      sections,
+      buttons: buttons || opciones.options,
+      layout: layout || opciones.layout,
       quoted: this.quotePayload(),
       contextInfo: decoration.contextInfo || null,
       logger: this.logger

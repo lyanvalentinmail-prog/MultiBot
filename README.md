@@ -18,9 +18,9 @@ MultiBot/
 │   ├── universal-bot/       # Todo-en-uno; Termux + web admin; sin NSFW/+18
 │   │   └── commands.json    # Los 202 comandos que usa este bot
 │   ├── tomioka/             # Stickers, packs, descargas e IA; Termux
-│   │   └── commands.json    # Los 35 comandos que usa este bot
+│   │   └── commands.json    # Los 36 comandos que usa este bot
 │   ├── izuku-bot/           # Estilo Deku (Plus Ultra); Termux
-│   │   └── commands.json    # Los 35 comandos que usa este bot
+│   │   └── commands.json    # Los 36 comandos que usa este bot
 │   └── _template/           # Plantilla ligera para nuevos bots
 │       └── commands.json    # Los comandos de la plantilla
 ├── web/                     # SPA/PWA MultiBot (diseño adaptado de TomiOka)

@@ -11,7 +11,7 @@ import { commandContext, fakeSock, sentTexts, silentLogger, testConfig, textMess
  */
 function setup(overrides = {}) {
   const config = testConfig(overrides)
-  config.menu = { ...config.menu, image: '', listMode: false }
+  config.menu = { ...config.menu, image: '', listMode: false, buttons: { ...config.menu.buttons, enabled: false } }
   const store = createStore(config, silentLogger)
   const sock = fakeSock()
   return { config, store, sock }
