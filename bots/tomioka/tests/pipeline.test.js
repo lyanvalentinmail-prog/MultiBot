@@ -3,13 +3,13 @@ import assert from 'node:assert/strict'
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createWorkDir, tempCandidates, tempInfo, withWorkDir, canWrite } from '../src/lib/tmp.js'
+import { createWorkDir, tempCandidates, tempInfo, withWorkDir, canWrite } from '../../../lib/tmp.js'
 import {
   friendlyFfmpegError,
   resolveFfmpeg,
   selfTestFfmpeg,
   stickerArgVariants
-} from '../src/lib/ffmpeg.js'
+} from '../../../lib/ffmpeg.js'
 import { ROOT } from '../src/config.js'
 
 test('las carpetas candidatas incluyen data/tmp del proyecto', () => {
@@ -165,9 +165,9 @@ exec "${info.path}" "$@"
   const previous = process.env.FFMPEG_PATH
   process.env.FFMPEG_PATH = wrapper
   try {
-    const { resolveFfmpeg: resolve } = await import('../src/lib/ffmpeg.js')
+    const { resolveFfmpeg: resolve } = await import('../../../lib/ffmpeg.js')
     await resolve({ force: true })
-    const { convertToSticker } = await import('../src/lib/media.js')
+    const { convertToSticker } = await import('../../../lib/media.js')
     const fs = await import('node:fs/promises')
     const png = await fs.readFile(path.join(ROOT, 'tests', 'fixtures', 'sample.png'))
     const gif = await fs.readFile(path.join(ROOT, 'tests', 'fixtures', 'sample.gif'))
@@ -182,7 +182,7 @@ exec "${info.path}" "$@"
   } finally {
     if (previous === undefined) delete process.env.FFMPEG_PATH
     else process.env.FFMPEG_PATH = previous
-    const { resolveFfmpeg: resolve } = await import('../src/lib/ffmpeg.js')
+    const { resolveFfmpeg: resolve } = await import('../../../lib/ffmpeg.js')
     await resolve({ force: true })
     rmSync(dir, { recursive: true, force: true })
   }

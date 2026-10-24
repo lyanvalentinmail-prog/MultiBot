@@ -586,75 +586,90 @@ global.reloadHandler = async function (restartConn) {
   return true
 }
 
-const pluginFolder = join(__dirname, 'plugins')
+// ── Comandos ────────────────────────────────────────────────────────
+// Todos los comandos del repo viven en commands/ (carpeta única, con
+// subcarpetas por categoría). Este bot usa los que declara su manifiesto
+// bots/universal-bot/commands.json.
+const { COMMANDS_DIR, loadCommand, readManifest } = await import('../../lib/commands.js')
+const commandManifest = readManifest(join(__dirname, 'commands.json'))
 const pluginFilter = (filename) => /\.js$/.test(filename)
 
-function normalizePlugin(plugin) {
-  if (typeof plugin === 'function') {
+/** Normaliza un comando canónico al shape que consume el handler. */
+function normalizePlugin(command) {
+  if (!command) return null
+  if (typeof command === 'function') {
     return {
-      handler: plugin,
-      command: plugin.command || [],
-      tags: plugin.tags || [],
-      help: plugin.help || [],
-      all: plugin.all,
-      before: plugin.before,
-      customPrefix: plugin.customPrefix,
-      disabled: false,
+      handler: command,
+      command: command.command || [],
+      tags: command.tags || [],
+      help: command.help || [],
+      all: command.all,
+      before: command.before,
+      customPrefix: command.customPrefix,
+      disabled: false
     }
   }
-  if (plugin.command && typeof plugin.command === 'string') {
-    plugin.command = [plugin.command]
+  return {
+    ...command,
+    // El formato canónico usa name + aliases; el handler compara por command.
+    command: [command.name, ...(command.aliases || [])].filter(Boolean),
+    tags: command.tags || [],
+    help: command.help || (command.description ? [command.description] : [])
   }
-  return plugin
 }
 
 global.plugins = {}
 
 async function filesInit() {
-  for (const filename of readdirSync(pluginFolder).filter(pluginFilter)) {
+  for (const id of commandManifest.commands) {
     try {
-      const file = global.__filename(join(pluginFolder, filename))
-      const module = await import(file)
-      global.plugins[filename] = normalizePlugin(module.default || module)
+      global.plugins[id] = normalizePlugin(await loadCommand(id))
     } catch (e) {
-      conn.logger.error(`Error cargando plugin ${filename}:`, e)
-      delete global.plugins[filename]
+      conn.logger.error(`Error cargando el comando ${id}:`, e)
+      delete global.plugins[id]
     }
   }
 }
 await filesInit()
 
 global.reload = async (_ev, filename) => {
-  if (pluginFilter(filename)) {
-    const dir = global.__filename(join(pluginFolder, filename), true)
-    if (filename in global.plugins) {
-      if (existsSync(dir)) conn.logger.info(`Updated plugin - '${filename}'`)
-      else {
-        conn.logger.warn(`Deleted plugin - '${filename}'`)
-        return delete global.plugins[filename]
-      }
-    } else conn.logger.info(`New plugin - '${filename}'`)
-
-    const err = syntaxerror(readFileSync(dir), filename, {
-      sourceType: 'module',
-      allowAwaitOutsideFunction: true,
-    })
-    if (err) conn.logger.error(`Syntax error while loading '${filename}':\n${format(err)}`)
+  if (!pluginFilter(filename)) return
+  const id = path.relative(COMMANDS_DIR, filename).split(path.sep).join('/')
+  if (!id || id.startsWith('..')) return
+  const dir = global.__filename(join(COMMANDS_DIR, id), true)
+  if (id in global.plugins) {
+    if (existsSync(dir)) conn.logger.info(`Comando actualizado - '${id}'`)
     else {
-      try {
-        const module = await import(`${global.__filename(dir)}?update=${Date.now()}`)
-        global.plugins[filename] = normalizePlugin(module.default || module)
-      } catch (e) {
-        conn.logger.error(`Error requiring plugin '${filename}':\n${format(e)}`)
-      } finally {
-        global.plugins = Object.fromEntries(Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b)))
-      }
+      conn.logger.warn(`Comando eliminado - '${id}'`)
+      return delete global.plugins[id]
+    }
+  } else conn.logger.info(`Comando nuevo - '${id}'`)
+
+  const err = syntaxerror(readFileSync(dir), id, {
+    sourceType: 'module',
+    allowAwaitOutsideFunction: true
+  })
+  if (err) conn.logger.error(`Error de sintaxis al cargar '${id}':\n${format(err)}`)
+  else {
+    try {
+      const module = await import(`${global.__filename(dir)}?update=${Date.now()}`)
+      global.plugins[id] = normalizePlugin(module.default || module)
+    } catch (e) {
+      conn.logger.error(`Error al cargar el comando '${id}':\n${format(e)}`)
+    } finally {
+      global.plugins = Object.fromEntries(
+        Object.entries(global.plugins).sort(([a], [b]) => a.localeCompare(b))
+      )
     }
   }
 }
 Object.freeze(global.reload)
 
-watch(pluginFolder, global.reload)
+// Recarga en caliente: la carpeta de comandos y cada categoría.
+watch(COMMANDS_DIR, global.reload)
+for (const entry of readdirSync(COMMANDS_DIR, { withFileTypes: true })) {
+  if (entry.isDirectory()) watch(join(COMMANDS_DIR, entry.name), global.reload)
+}
 await global.reloadHandler()
 await handleLogin()
 
@@ -724,7 +739,7 @@ global.reconnectSubBots = async function() {
       })
 
       
-      const serbotModule = await import('./plugins/serbot-serbot.js')
+      const serbotModule = await import('../../commands/subbots/serbot-serbot.js')
       if (serbotModule.AYBot) {
         await serbotModule.AYBot({
           pathAYBot: botPath,

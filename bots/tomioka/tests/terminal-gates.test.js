@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { commands } from '../src/commands/index.js'
+import { commands } from '../src/registry.js'
 import { createStore, handleMessage } from '../src/handler.js'
 import { buildEstadoQuote } from '../src/lib/quoted.js'
 import { commandContext, fakeSock, sentTexts, silentLogger, testConfig, textMessage } from './helpers.js'

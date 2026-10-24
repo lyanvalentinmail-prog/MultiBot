@@ -288,6 +288,11 @@ cmd_install() { # $1 = bot id → sistema (Termux) + npm + sharp + verificación
   info "Instalando paquetes npm (tarda unos minutos en el teléfono)..."
   (cd "$dir" && npm install --no-audit --no-fund) || { err "npm install falló."; return 1; }
   ok "Paquetes npm listos."
+  # 3b) Deps del kit compartido (commands/ y lib/ viven en la raíz del repo).
+  if [ -f "$ROOT/package.json" ] && [ "$ROOT" != "$dir" ]; then
+    info "Instalando paquetes npm del repo (kit compartido de comandos)..."
+    (cd "$ROOT" && npm install --no-audit --no-fund) || warn "npm install del repo falló (algunos comandos pueden no funcionar)."
+  fi
   # 4) sharp en Termux/Android (sin esto, plugins de imagen fallan).
   if is_termux && bot_has_script "$id" "fix:sharp"; then
     info "Ajustando sharp para Android..."

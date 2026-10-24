@@ -23,8 +23,8 @@ import {
   searchPacks,
   searchSettings,
   searchStickers
-} from '../src/lib/sticker-search.js'
-import { auditSticker } from '../src/lib/webp.js'
+} from '../../../lib/sticker-search.js'
+import { auditSticker } from '../../../lib/webp.js'
 import { c, sym } from '../src/lib/colors.js'
 
 const args = process.argv.slice(2)

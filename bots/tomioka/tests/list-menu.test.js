@@ -1,14 +1,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandContext } from '../src/lib/context.js'
-import { getText } from '../src/lib/message.js'
+import { getText } from '../../../lib/message.js'
 import {
   LIST_BUTTON_TEXT,
   buildListFooter,
   buildListSections,
   buildListText
 } from '../src/menu.js'
-import { commands, commandList, findCommand } from '../src/commands/index.js'
+import { commands, commandList, findCommand } from '../src/registry.js'
+import * as menu from '../src/menu.js'
 import { createStore, handleMessage } from '../src/handler.js'
 import { fakeSock, sentTexts, silentLogger, testConfig, textMessage } from './helpers.js'
 
@@ -90,6 +91,7 @@ test('.help manda la lista interactiva cuando listMode está activo', async () =
   const ctx = {
     config,
     commands,
+    menu,
     args: [],
     pushName: 'Tester',
     senderNumber: '59891111111',
@@ -120,6 +122,7 @@ test('.help <comando> sigue mandando la tarjeta de texto aunque listMode esté a
   const ctx = {
     config,
     commands,
+    menu,
     args: ['sticker'],
     argsText: 'sticker',
     reply: async (text) => replies.push(text)

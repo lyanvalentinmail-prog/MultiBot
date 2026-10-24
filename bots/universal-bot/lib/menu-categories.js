@@ -450,7 +450,7 @@ export async function resolverContextoMenu(m, conn, usedPrefix) {
   // Terminal → Personalizar bot → "Banner" (global.botBanner: '' = defecto, ruta o URL).
   let mainImg = global.botBanner || './storage/img/banner-default.jpg'
   // Import dinámico: modo-sub.js necesita 'ws' (instalado en el bot).
-  const { isMainBotConn, cleanBotNum } = await import('../plugins/modo-sub.js')
+  const { isMainBotConn, cleanBotNum } = await import('../../../commands/modos/modo-sub.js')
   const botActual = cleanBotNum(conn.user?.jid || conn.user?.id)
   const esPrincipal = isMainBotConn(conn)
   const tipo = esPrincipal ? 'Principal bot Bot' : 'Sub bot Bot'

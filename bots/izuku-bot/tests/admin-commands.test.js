@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { findCommand } from '../src/commands/index.js'
+import { findCommand } from '../src/registry.js'
 
 const CHAT = '120363000000000000@g.us'
 const BOT = '59890000000@s.whatsapp.net'

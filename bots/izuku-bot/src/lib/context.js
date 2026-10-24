@@ -1,10 +1,12 @@
-import { getContent, getMediaContent, getMentionedJids, getQuoted, getText, downloadMedia, resolveMediaTarget } from './message.js'
-import { parseCommand, jidToNumber, truncate } from './text.js'
-import { writeStickerMetadata } from './sticker.js'
-import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from './live-messages.js'
+import { getContent, getMediaContent, getMentionedJids, getQuoted, getText, downloadMedia, resolveMediaTarget } from '../../../../lib/message.js'
+import { commandList, visibleCommands } from '../registry.js'
+import { parseCommand, jidToNumber, truncate } from '../../../../lib/text.js'
+import { writeStickerMetadata } from '../../../../lib/sticker.js'
+import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from '../../../../lib/live-messages.js'
 import { buildEstadoQuote } from './quoted.js'
 import { sendListMessage } from './interactive.js'
 import { LIST_BUTTON_TEXT } from '../menu.js'
+import * as menu from '../menu.js'
 
 /**
  * Contexto de un mensaje recibido. Expone helpers cómodos para los comandos.
@@ -15,6 +17,10 @@ export class CommandContext {
     this.msg = msg
     this.message = msg
     this.config = config
+    // Menú del bot y listados: los comandos compartidos los piden por ctx.
+    this.menu = menu
+    this.commandList = commandList
+    this.visibleCommands = visibleCommands
     this.logger = logger
     this.store = store
 

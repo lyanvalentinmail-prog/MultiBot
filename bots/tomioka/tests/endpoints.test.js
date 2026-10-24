@@ -2,19 +2,19 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandContext } from '../src/lib/context.js'
 import { createStore } from '../src/handler.js'
-import { commands, findCommand } from '../src/commands/index.js'
+import { commands, findCommand } from '../src/registry.js'
 import {
   buildYtDlpArgs,
   extractFirstUrl,
   validateDownloadUrl
-} from '../src/lib/downloaders.js'
+} from '../../../lib/downloaders.js'
 import {
   buildTextFrameArgs,
   normalizeStickerText,
   textStickerFontSize,
   wrapStickerText
-} from '../src/lib/text-sticker.js'
-import { readSticker } from '../src/lib/sticker.js'
+} from '../../../lib/text-sticker.js'
+import { readSticker } from '../../../lib/sticker.js'
 import { fakeSock, ffmpegAvailable, silentLogger, testConfig, textMessage } from './helpers.js'
 
 function makeContext(commandText) {

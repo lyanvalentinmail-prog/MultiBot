@@ -66,10 +66,11 @@ function loadBotCatalog(rootDir = ROOT) {
       let manifest = {}
       try { pkg = JSON.parse(readFileSync(path.join(botDir, 'package.json'), 'utf8')) } catch {}
       try { manifest = JSON.parse(readFileSync(path.join(botDir, 'bot.json'), 'utf8')) } catch {}
-      let pluginFiles = []
+      // Los comandos de cada bot se declaran en su manifiesto commands.json.
+      let commandFiles = []
       try {
-        const pluginDir = path.join(botDir, 'plugins')
-        if (existsSync(pluginDir)) pluginFiles = readdirSync(pluginDir).filter((file) => file.endsWith('.js') && !file.startsWith('.'))
+        const manifest = JSON.parse(readFileSync(path.join(botDir, 'commands.json'), 'utf8'))
+        commandFiles = Array.isArray(manifest.commands) ? manifest.commands : []
       } catch {}
       // A web runtime must be an explicit opt-in from the manifest. This intentionally
       // overrides a repository Termux guard only for bots that ship a web entrypoint.
@@ -89,7 +90,7 @@ function loadBotCatalog(rootDir = ROOT) {
         supportsQr: manifest.supportsQr !== false,
         adultContent: manifest.adultContent === true,
         defaultPrefix: manifest.defaultPrefix || '.',
-        pluginCount: pluginFiles.length,
+        pluginCount: commandFiles.length,
         features: featureList,
         path: `bots/${id}`
       }
@@ -100,14 +101,28 @@ function loadBotCatalog(rootDir = ROOT) {
 function loadPluginCatalog(botId, rootDir = ROOT) {
   const catalog = loadBotCatalog(rootDir)
   if (!catalog.some((bot) => bot.id === botId)) return null
-  const pluginDir = path.join(rootDir, 'bots', botId, 'plugins')
-  let files = []
-  try { files = readdirSync(pluginDir).filter((file) => file.endsWith('.js') && !file.startsWith('.')).sort((a, b) => a.localeCompare(b)) } catch {}
-  return files.map((file) => {
+  // Todos los comandos viven en commands/<categoría>/<comando>.js; cada bot
+  // declara los que usa en bots/<id>/commands.json.
+  const manifestPath = path.join(rootDir, 'bots', botId, 'commands.json')
+  let entries = []
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
+    entries = (Array.isArray(manifest.commands) ? manifest.commands : []).map(String)
+  } catch {
+    return []
+  }
+  return entries.sort().map((entry) => {
+    const relative = entry.replace(/^\/+/, '')
+    const file = path.basename(relative)
     const id = file.slice(0, -3)
-    const split = id.indexOf('-')
-    const category = split > 0 ? id.slice(0, split) : 'general'
-    return { id, file, category, label: id.replace(/[-_]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase()) }
+    const category = relative.includes('/') ? relative.split('/')[0] : 'general'
+    return {
+      id,
+      file,
+      category,
+      path: relative,
+      label: id.replace(/[-_]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+    }
   })
 }
 

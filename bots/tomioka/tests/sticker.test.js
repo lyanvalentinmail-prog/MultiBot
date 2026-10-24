@@ -1,4 +1,6 @@
 import test from 'node:test'
+// El kit compartido toma los valores por defecto del bot (pack, autor, emojis).
+import '../src/config.js'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -10,7 +12,7 @@ import {
   newPackId,
   readSticker,
   writeStickerMetadata
-} from '../src/lib/sticker.js'
+} from '../../../lib/sticker.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const staticSticker = await readFile(path.join(here, 'fixtures/sticker-static.webp'))

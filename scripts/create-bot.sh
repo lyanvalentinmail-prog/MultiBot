@@ -76,6 +76,22 @@ PY
   fi
 fi
 
+# El manifiesto de comandos pasa a ser del bot nuevo.
+if [ -f "$BOT_DIR/commands.json" ]; then
+  echo "→ Actualizando commands.json → $BOT_NAME"
+  if command -v python3 &> /dev/null; then
+    python3 << PY
+import json, pathlib
+p = pathlib.Path("$BOT_DIR/commands.json")
+j = json.loads(p.read_text())
+j["bot"] = "$BOT_NAME"
+j["description"] = f"Comandos que usa {\"$BOT_NAME\"} (viven en commands/)."
+p.write_text(json.dumps(j, indent=2, ensure_ascii=False))
+print("  commands.json actualizado")
+PY
+  fi
+fi
+
 # Mensaje final
 echo ""
 echo "✅ Bot creado en $BOT_DIR"
@@ -85,6 +101,7 @@ echo "  cd $BOT_DIR"
 echo "  cp config.example.js config.js"
 echo "  nano config.js   # pon tu owner"
 echo "  npm install"
+echo "  (cd .. && npm install)   # deps del kit compartido (commands/ y lib/)"
 echo "  npm start        # elige qr o code"
 echo ""
 echo "Docs: docs/ADD_NEW_BOT.md"
