@@ -61,8 +61,9 @@ pkg update -y && pkg install -y nodejs-lts git ffmpeg libwebp yt-dlp
 git clone https://github.com/lyanvalentinmail-prog/MultiBot.git
 cd MultiBot/bots/izuku-bot
 
-# 3. Instalar dependencias de Node
-npm install
+# 3. Instalar dependencias del bot y del código compartido en MultiBot/lib
+npm install --omit=dev
+(cd ../.. && npm install --omit=dev)
 
 # 4. (Opcional) diagnóstico del entorno
 npm run doctor
@@ -78,7 +79,7 @@ bash scripts/setup-termux.sh
 npm start
 ```
 
-> Si vienes de MultiBot, más fácil: `bash termux.sh` desde la raíz → elige `izuku-bot` → opción 6 (instalar).
+> Si vienes de MultiBot, más fácil: `bash termux.sh` desde la raíz → elige `izuku-bot` → opción 6 (instalar). El bot importa módulos desde `MultiBot/lib`, por eso necesita las dependencias tanto en `bots/izuku-bot` como en la raíz del repositorio. `npm start` comprueba ambos lugares e intenta instalar lo que falte.
 
 ### Mantener el bot vivo en Android
 
@@ -155,7 +156,8 @@ Termux sin compilar nada.
 
 ```bash
 sudo apt update && sudo apt install -y nodejs npm ffmpeg yt-dlp
-npm install
+npm install --omit=dev
+(cd ../.. && npm install --omit=dev)
 npm start
 ```
 

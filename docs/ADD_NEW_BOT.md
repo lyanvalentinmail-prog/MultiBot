@@ -11,11 +11,12 @@ bash scripts/create-bot.sh mi-bot
 cd bots/mi-bot
 cp config.example.js config.js
 nano config.js
-npm install
+npm install --omit=dev
+(cd ../.. && npm install --omit=dev)  # dependencias de los módulos compartidos lib/ y commands/
 npm start
 ```
 
-El script copia `_template`, actualiza el nombre de `package.json` y prepara carpetas locales. `config.js`, sesiones y bases mutables deben permanecer fuera de Git.
+El script copia `_template`, actualiza el nombre de `package.json` y prepara carpetas locales. Los bots también importan módulos compartidos desde `MultiBot/lib`, así que hay que instalar las dependencias en la raíz del repo además de las propias del bot. `config.js`, sesiones y bases mutables deben permanecer fuera de Git.
 
 ## Metadatos del catálogo
 

@@ -10,6 +10,11 @@ CYAN='\033[0;36m'
 YELLOW='\033[1;33m'
 RESET='\033[0m'
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$BOT_DIR/../.." && pwd)"
+cd "$BOT_DIR"
+
 info() { printf "${CYAN}➜${RESET} %s\n" "$1"; }
 ok()   { printf "${GREEN}✔${RESET} %s\n" "$1"; }
 warn() { printf "${YELLOW}▲${RESET} %s\n" "$1"; }
@@ -35,8 +40,11 @@ else
   warn "Instálalo con: pkg install yt-dlp   (o: pip install -U yt-dlp)"
 fi
 
-info "Instalando dependencias de Node..."
-npm install --omit=dev
+info "Instalando dependencias propias de Izuku Bot..."
+npm install --omit=dev --no-audit --no-fund
+
+info "Instalando dependencias compartidas de MultiBot (lib/ y commands/)..."
+(cd "$REPO_ROOT" && npm install --omit=dev --no-audit --no-fund)
 
 info "Verificando que FFmpeg pueda crear WebP..."
 if ffmpeg -hide_banner -encoders 2>/dev/null | grep -qi libwebp; then
