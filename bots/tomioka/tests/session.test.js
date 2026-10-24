@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { backupSession, describeSession, inspectSession } from '../../../lib/session.js'
+import { backupSession, describeSession, inspectSession } from '../../../lib/core/session.js'
 
 const makeDir = () => mkdtemp(path.join(os.tmpdir(), 'tomioka-session-'))
 

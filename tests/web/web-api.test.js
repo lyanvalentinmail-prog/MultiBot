@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { createApplication, createDatabase } from '../scripts/serve-web.js'
+import { createApplication, createDatabase } from '../../scripts/server/serve-web.js'
 
 test('MultiBot web API: auth, profile CRUD, catalog, and profile/runtime separation', async (t) => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'multibot-web-test-'))
@@ -110,7 +110,7 @@ test('MultiBot web API: auth, profile CRUD, catalog, and profile/runtime separat
 })
 
 test('Render Blueprint uses only free plans and enables a zero-config runtime', async () => {
-  const blueprint = await readFile(new URL('../render.yaml', import.meta.url), 'utf8')
+  const blueprint = await readFile(new URL('../../render.yaml', import.meta.url), 'utf8')
   const plans = [...blueprint.matchAll(/^\s+plan:\s*(\S+)/gm)].map((match) => match[1])
   assert.deepEqual(plans, ['free', 'free'])
   assert.match(blueprint, /npm ci && npm ci --prefix bots\/universal-bot --omit=dev/)

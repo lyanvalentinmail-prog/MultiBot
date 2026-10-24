@@ -1,4 +1,4 @@
-import { fetchParticipants, requireBotAdmin, requireSenderAdmin } from '../../lib/groups.js'
+import { fetchParticipants, requireBotAdmin, requireSenderAdmin } from '../../lib/wa/groups.js'
 
 export default {
   name: 'close',

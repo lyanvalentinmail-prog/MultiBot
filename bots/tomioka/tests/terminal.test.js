@@ -26,7 +26,7 @@ import {
   MENU_ITEMS
 } from '../scripts/terminal.js'
 import { stripAnsi } from '../src/lib/colors.js'
-import { inspectSession } from '../../../lib/session.js'
+import { inspectSession } from '../../../lib/core/session.js'
 import { testConfig } from './helpers.js'
 
 const fakeEnv = (extra = {}) => ({

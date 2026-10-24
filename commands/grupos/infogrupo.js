@@ -1,5 +1,5 @@
-import { adminJids, fetchParticipants, mentionOf } from '../../lib/groups.js'
-import { truncate } from '../../lib/text.js'
+import { adminJids, fetchParticipants, mentionOf } from '../../lib/wa/groups.js'
+import { truncate } from '../../lib/ai/text.js'
 
 export default {
   name: 'infogrupo',

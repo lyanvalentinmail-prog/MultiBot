@@ -12,7 +12,7 @@ import {
   pairKey,
   randomMix,
   resetIndexCache
-} from '../../../lib/emojimix.js'
+} from '../../../lib/media/emojimix.js'
 
 test('emojiToCodePoint convierte emojis simples y compuestos', () => {
   assert.equal(emojiToCodePoint('😀'), '1f600')
@@ -99,7 +99,7 @@ test('findMix falla con mensaje claro si no hay caché ni red', async () => {
 })
 
 test('collectCombos se queda con la combinación más nueva', async () => {
-  const { collectCombos } = await import('../../../lib/emojimix.js')
+  const { collectCombos } = await import('../../../lib/media/emojimix.js')
   const text = `
     "gStaticUrl":"https://www.gstatic.com/android/keyboard/emojikitchen/20201001/u1f600/u1f600_u1f525.png"
     "gStaticUrl":"https://www.gstatic.com/android/keyboard/emojikitchen/20230821/u1f600/u1f600_u1f525.png"
@@ -112,7 +112,7 @@ test('collectCombos se queda con la combinación más nueva', async () => {
 })
 
 test('collectCombos ignora URLs con formato desconocido', async () => {
-  const { collectCombos } = await import('../../../lib/emojimix.js')
+  const { collectCombos } = await import('../../../lib/media/emojimix.js')
   assert.equal(collectCombos('nada acá https://example.com/x.png').size, 0)
 })
 
@@ -129,7 +129,7 @@ test('buildIndex descarga, parsea y guarda el índice', async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'emojimix-build-'))
   const cacheFile = path.join(dir, 'index.json')
 
-  const { buildIndex, findMix } = await import('../../../lib/emojimix.js')
+  const { buildIndex, findMix } = await import('../../../lib/media/emojimix.js')
   try {
     const index = await buildIndex({
       metadataUrl: `http://127.0.0.1:${port}/metadata.json`,
@@ -151,7 +151,7 @@ test('buildIndex descarga, parsea y guarda el índice', async () => {
 })
 
 test('buildIndex informa un error claro si la URL falla', async () => {
-  const { buildIndex } = await import('../../../lib/emojimix.js')
+  const { buildIndex } = await import('../../../lib/media/emojimix.js')
   const dir = mkdtempSync(path.join(os.tmpdir(), 'emojimix-fail-'))
   try {
     await assert.rejects(

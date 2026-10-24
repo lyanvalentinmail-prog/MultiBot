@@ -2,8 +2,8 @@ import { loadConfig } from '../src/config.js'
 import { CommandContext } from '../src/lib/context.js'
 import { createStore } from '../src/handler.js'
 import { commands } from '../src/registry.js'
-import { resolveFfmpeg } from '../../../lib/ffmpeg.js'
-import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from '../../../lib/live-messages.js'
+import { resolveFfmpeg } from '../../../lib/media/ffmpeg.js'
+import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from '../../../lib/wa/live-messages.js'
 
 export function testConfig(overrides = {}) {
   const config = loadConfig()

@@ -2,7 +2,7 @@ import {
   fetchParticipants,
   mentionOf,
   requireSenderAdmin
-} from '../../lib/groups.js'
+} from '../../lib/wa/groups.js'
 
 export default {
   name: 'tagall',

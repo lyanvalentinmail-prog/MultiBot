@@ -8,7 +8,7 @@ import { findCommand } from '../src/registry.js'
 import { looksLikePackCode } from '../../../commands/stickers/searchpack.js'
 import { parseSearchArgs } from '../../../commands/stickers/search.js'
 import { SearchStore } from '../src/lib/searches.js'
-import { resetSearchEndpoints } from '../../../lib/sticker-search.js'
+import { resetSearchEndpoints } from '../../../lib/media/sticker-search.js'
 import { commandContext, fakeSock, silentLogger, testConfig } from './helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))

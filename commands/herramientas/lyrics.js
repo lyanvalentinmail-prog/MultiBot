@@ -1,4 +1,4 @@
-import { fetchJson } from '../../lib/http.js'
+import { fetchJson } from '../../lib/net/http.js'
 
 export const LYRICS_API = 'https://api.delirius.online/search/lyrics'
 const MAX_CHUNK = 3800

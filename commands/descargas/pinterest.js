@@ -1,4 +1,4 @@
-import { downloadWithYtDlp, validateDownloadUrl } from '../../lib/downloaders.js'
+import { downloadWithYtDlp, validateDownloadUrl } from '../../lib/net/downloaders.js'
 
 export default {
   name: 'pinterest',

@@ -1,7 +1,7 @@
-import { convertToSticker } from '../../lib/media.js'
-import { extensionFor } from '../../lib/message.js'
-import { isAnimatedExtension } from '../../lib/ffmpeg.js'
-import { isWebp } from '../../lib/sticker.js'
+import { convertToSticker } from '../../lib/media/media.js'
+import { extensionFor } from '../../lib/wa/message.js'
+import { isAnimatedExtension } from '../../lib/media/ffmpeg.js'
+import { isWebp } from '../../lib/media/sticker.js'
 
 const MEDIA_KINDS = ['image', 'video', 'sticker', 'document']
 

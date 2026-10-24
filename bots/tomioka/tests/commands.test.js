@@ -8,8 +8,8 @@ import { readFile } from 'node:fs/promises'
 import { CommandContext } from '../src/lib/context.js'
 import { createStore } from '../src/handler.js'
 import { commands, findCommand } from '../src/registry.js'
-import { readSticker } from '../../../lib/sticker.js'
-import { resetIndexCache } from '../../../lib/emojimix.js'
+import { readSticker } from '../../../lib/media/sticker.js'
+import { resetIndexCache } from '../../../lib/media/emojimix.js'
 import { fakeSock, ffmpegAvailable, silentLogger, testConfig } from './helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))

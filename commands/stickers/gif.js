@@ -1,5 +1,5 @@
-import { convertToSticker } from '../../lib/media.js'
-import { extensionFor } from '../../lib/message.js'
+import { convertToSticker } from '../../lib/media/media.js'
+import { extensionFor } from '../../lib/wa/message.js'
 
 export default {
   name: 'gif',

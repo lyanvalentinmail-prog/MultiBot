@@ -14,9 +14,9 @@ import {
   normalizeOwnerPhone,
   readOwnerSettings,
   repairConfigSource,
-} from '../bots/universal-bot/lib/config-repair.js'
+} from '../../bots/universal-bot/lib/config-repair.js'
 
-const botDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'bots', 'universal-bot')
+const botDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'bots', 'universal-bot')
 const template = await readFile(path.join(botDir, 'config.example.js'), 'utf8')
 
 // Reproduce el reporte de Termux: `npm start` pegado al inicio de config.js.

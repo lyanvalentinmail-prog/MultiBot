@@ -1,10 +1,10 @@
-import { getContent, getMediaContent, getMentionedJids, getQuoted, getText, downloadMedia, resolveMediaTarget } from '../../../../lib/message.js'
+import { getContent, getMediaContent, getMentionedJids, getQuoted, getText, downloadMedia, resolveMediaTarget } from '../../../../lib/wa/message.js'
 import { commandList, visibleCommands } from '../registry.js'
-import { parseCommand, jidToNumber, truncate } from '../../../../lib/text.js'
-import { writeStickerMetadata } from '../../../../lib/sticker.js'
-import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from '../../../../lib/live-messages.js'
+import { parseCommand, jidToNumber, truncate } from '../../../../lib/ai/text.js'
+import { writeStickerMetadata } from '../../../../lib/media/sticker.js'
+import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from '../../../../lib/wa/live-messages.js'
 import { buildEstadoQuote } from './quoted.js'
-import { sendButtonsMessage, readMenuButtons } from '../../../../lib/interactive.js'
+import { sendButtonsMessage, readMenuButtons } from '../../../../lib/wa/interactive.js'
 import * as menu from '../menu.js'
 
 /**

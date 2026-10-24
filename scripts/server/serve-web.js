@@ -10,7 +10,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { WebRuntimeManager } from './web-runtime.js'
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const WEB_DIR = path.join(ROOT, 'web')
 const DEFAULT_DATA_DIR = path.join(ROOT, 'data')
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000

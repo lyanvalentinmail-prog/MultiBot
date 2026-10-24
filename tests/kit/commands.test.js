@@ -4,7 +4,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const commandsDir = path.join(repoRoot, 'commands')
 const botsDir = path.join(repoRoot, 'bots')
 
@@ -86,7 +86,7 @@ test('TomiOka e Izuku usan exactamente los mismos comandos', () => {
 })
 
 test('no hay nombres de comando repetidos dentro de un bot', async () => {
-  const { buildRegistry } = await import('../lib/commands.js')
+  const { buildRegistry } = await import('../../lib/commands.js')
   for (const bot of BOTS) {
     const manifest = readManifest(bot)
     const list = []

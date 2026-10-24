@@ -1,5 +1,5 @@
-import { stickerToImage } from '../../lib/media.js'
-import { isAnimatedWebp } from '../../lib/sticker.js'
+import { stickerToImage } from '../../lib/media/media.js'
+import { isAnimatedWebp } from '../../lib/media/sticker.js'
 
 export default {
   name: 'toimg',

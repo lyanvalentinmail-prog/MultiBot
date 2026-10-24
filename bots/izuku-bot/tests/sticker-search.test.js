@@ -19,7 +19,7 @@ import {
   searchSettings,
   searchStickers,
   stickerExtension
-} from '../../../lib/sticker-search.js'
+} from '../../../lib/media/sticker-search.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const stickerFile = readFileSync(path.join(here, 'fixtures/sticker-static.webp'))

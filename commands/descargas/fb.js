@@ -1,5 +1,5 @@
-import { fetchBuffer, fetchJson } from '../../lib/http.js'
-import { truncate } from '../../lib/text.js'
+import { fetchBuffer, fetchJson } from '../../lib/net/http.js'
+import { truncate } from '../../lib/ai/text.js'
 
 export const FB_API = 'https://api.vreden.my.id/api/v1/download/facebook'
 

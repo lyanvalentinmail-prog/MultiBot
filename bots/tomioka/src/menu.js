@@ -1,4 +1,4 @@
-import { boldDigits, pickRandom, truncate } from '../../../lib/text.js'
+import { boldDigits, pickRandom, truncate } from '../../../lib/ai/text.js'
 
 const FILLER = 'ㅤ' // HANGUL FILLER (espacio invisible aesthetic)
 

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { PackStore } from '../src/lib/sessions.js'
 import { finishPack } from '../../../commands/extras/pack.js'
 import { createStore } from '../src/handler.js'
-import { readSticker } from '../../../lib/sticker.js'
+import { readSticker } from '../../../lib/media/sticker.js'
 import { fakeSock, ffmpegAvailable, silentLogger, testConfig, withLiveMessages } from './helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))

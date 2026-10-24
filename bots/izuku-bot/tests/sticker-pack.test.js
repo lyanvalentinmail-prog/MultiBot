@@ -17,7 +17,7 @@ import {
   ensureStickerPackMediaTypes,
   packStickerFileName,
   prepareStickerPackMessage
-} from '../../../lib/sticker-pack.js'
+} from '../../../lib/media/sticker-pack.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const staticSticker = await readFile(path.join(here, 'fixtures/sticker-static.webp'))

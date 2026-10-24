@@ -1,4 +1,4 @@
-import { createTextSticker } from '../../lib/text-sticker.js'
+import { createTextSticker } from '../../lib/media/text-sticker.js'
 
 export default {
   name: 'ttp',

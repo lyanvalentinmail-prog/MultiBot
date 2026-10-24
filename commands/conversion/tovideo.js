@@ -1,4 +1,4 @@
-import { stickerToVideo } from '../../lib/media.js'
+import { stickerToVideo } from '../../lib/media/media.js'
 
 export default {
   name: 'tovideo',

@@ -12,7 +12,7 @@ import {
   requireBotAdmin,
   requireSenderAdmin,
   resolveTargetJid
-} from '../../../lib/groups.js'
+} from '../../../lib/wa/groups.js'
 
 const BOT = '59890000000@s.whatsapp.net'
 const ADMIN = '59891111111@s.whatsapp.net'

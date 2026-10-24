@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { commands, commandList, findCommand } from '../src/registry.js'
 import { buildCommandHelp, buildMenu, resolveCategoryCommands } from '../src/menu.js'
 import { testConfig } from './helpers.js'
-import { loadMenuImage } from '../../../lib/banner.js'
+import { loadMenuImage } from '../../../lib/core/banner.js'
 
 const config = testConfig()
 

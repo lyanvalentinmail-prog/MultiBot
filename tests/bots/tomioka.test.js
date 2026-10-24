@@ -6,9 +6,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { defaultConfigFile, loadConfig } from '../bots/tomioka/src/config.js'
+import { defaultConfigFile, loadConfig } from '../../bots/tomioka/src/config.js'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const botDir = path.join(repoRoot, 'bots', 'tomioka')
 
 test('tomioka: manifiesto válido y solo-Termux (sin runtime web)', async () => {
@@ -84,7 +84,7 @@ test('tomioka: setup guarda owner y nombre en config.json (copia temporal)', asy
 })
 
 test('tomioka: aparece en el catálogo web como solo-Termux', async (t) => {
-  const { createApplication, createDatabase } = await import('../scripts/serve-web.js')
+  const { createApplication, createDatabase } = await import('../../scripts/server/serve-web.js')
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'tomioka-catalog-'))
   const app = await createApplication({ database: createDatabase({ dataDir }) })
   const address = await app.listen(0, '127.0.0.1')

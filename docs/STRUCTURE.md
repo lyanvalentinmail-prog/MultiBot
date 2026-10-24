@@ -9,12 +9,14 @@ MultiBot/
 │   ├── <categoría>/                   # audio, busqueda, grupos, ia, rpg, stickers, top…
 │   ├── categories.json                # Listado oficial de categorías
 │   └── README.md                      # Contrato canónico, ctx y manifiestos
-├── lib/                               # Kit compartido por los bots
-│   ├── commands.js                    # Cargador común (manifiesto → registro)
-│   ├── runtime.js                     # Raíz y marca del bot activo
-│   ├── branding.js                    # Helpers de nombre y emojis
-│   ├── interactive.js                 # Menú con botones (ButtonsMessage) de WhatsApp
-│   ├── media.js / sticker.js / ffmpeg.js / ai.js / text.js / …
+├── lib/                               # Kit compartido por los bots, por dominio
+│   ├── commands.js                    # Cargador común (manifiesto → registro); ancla de la raíz
+│   ├── runtime.js                     # Raíz y marca del bot activo; ancla del kit
+│   ├── core/                          # branding, banner, cache, concurrencia, tmp, sesión
+│   ├── media/                         # media, sticker, ffmpeg, webp, emojimix, zip…
+│   ├── ai/                            # ai.js (gateways de IA) y text.js (texto)
+│   ├── net/                           # http.js y downloaders.js (red y descargas)
+│   └── wa/                            # groups, interactive, live-messages, message
 ├── bots/
 │   ├── _template/                     # Base para crear bots (oculta del catálogo)
 │   ├── tomioka/                       # Stickers, packs, descargas e IA (Termux)
@@ -42,13 +44,20 @@ MultiBot/
 │   ├── manifest.webmanifest           # Metadatos PWA
 │   └── sw.js                          # Cache shell, excluye API dinámica
 ├── scripts/
-│   ├── serve-web.js                   # Servidor, catálogo, API y permisos
-│   ├── web-runtime.js                 # Procesos hijos, QR/código y parada
+│   ├── server/
+│   │   ├── serve-web.js               # Servidor, catálogo, API y permisos
+│   │   ├── web-runtime.js             # Procesos hijos, QR/código y parada
+│   │   └── ensure-bot-dependencies.js # Instala dependencias de un bot bajo demanda
 │   ├── create-bot.sh                  # Crea bot desde _template
-│   └── install-termux.sh              # Ayuda de instalación Termux
+│   ├── install-termux.sh              # Ayuda de instalación Termux
+│   └── termux-go.sh                   # Bootstrap remoto (URL pública estable)
 ├── data/                              # JSON local de cuentas/perfiles (ignorado)
-├── tests/                             # Pruebas de API, catálogo, runtime y UI
-└── docs/                              # Guías globales
+├── tests/                             # Pruebas organizadas por área
+│   ├── web/                           # API y UI del panel
+│   ├── kit/                           # Comandos, stickers y kit compartido
+│   └── bots/                          # Catálogo, personalización y terminales
+└── docs/                              # STRUCTURE.md (índice) y guías en guides/
+    └── guides/                        # WEB, TERMUX_GUIDE, TERMUX_TERMINAL, ADD_NEW_BOT
 ```
 
 ## Principios
@@ -71,9 +80,9 @@ MultiBot/
 | Consultar logs del bot | Panel autenticado o consola Termux |
 | Crear un bot nuevo | `bots/<id>/` desde `_template` |
 | Ajustar interfaz SPA | `web/app.js`, `web/index.html`, `web/styles.css` |
-| Modificar API/permisos | `scripts/serve-web.js` |
-| Gestionar procesos web | `scripts/web-runtime.js` |
-| Cambiar Render o PostgreSQL | `render.yaml` y `docs/WEB.md` |
+| Modificar API/permisos | `scripts/server/serve-web.js` |
+| Gestionar procesos web | `scripts/server/web-runtime.js` |
+| Cambiar Render o PostgreSQL | `render.yaml` y `docs/guides/WEB.md` |
 | Ejecutar pruebas | `npm test` |
 
 ## Gitignore

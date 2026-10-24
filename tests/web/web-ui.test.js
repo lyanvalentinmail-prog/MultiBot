@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { Window } from 'happy-dom'
-import { createApplication, createDatabase } from '../scripts/serve-web.js'
+import { createApplication, createDatabase } from '../../scripts/server/serve-web.js'
 
 async function createUiContext(t, { webRuntimeEnabled = false, webRuntimeAdminEmails = '', rootDir, removeRootDir = false } = {}) {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'multibot-ui-test-'))

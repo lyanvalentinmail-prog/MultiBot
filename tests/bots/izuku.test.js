@@ -6,9 +6,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
-import { defaultConfigFile, loadConfig } from '../bots/izuku-bot/src/config.js'
+import { defaultConfigFile, loadConfig } from '../../bots/izuku-bot/src/config.js'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const botDir = path.join(repoRoot, 'bots', 'izuku-bot')
 
 test('izuku: manifiesto válido y solo-Termux (sin runtime web)', async () => {
@@ -98,7 +98,7 @@ test('izuku: setup guarda owner y nombre en config.json (copia temporal)', async
 })
 
 test('izuku: aparece en el catálogo web como solo-Termux', async (t) => {
-  const { createApplication, createDatabase } = await import('../scripts/serve-web.js')
+  const { createApplication, createDatabase } = await import('../../scripts/server/serve-web.js')
   const dataDir = await mkdtemp(path.join(os.tmpdir(), 'izuku-catalog-'))
   const app = await createApplication({ database: createDatabase({ dataDir }) })
   const address = await app.listen(0, '127.0.0.1')

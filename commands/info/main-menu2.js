@@ -1,5 +1,5 @@
 import { isInteractiveBaileysEnabled } from '../../bots/universal-bot/lib/baileys-dual.js'
-import { MENU_BUTTON_IDS, buildButtonsContent, resolveMenuButtons } from '../../lib/interactive.js'
+import { MENU_BUTTON_IDS, buildButtonsContent, resolveMenuButtons } from '../../lib/wa/interactive.js'
 import {
   buildFullMenuText,
   buildInteractiveMenuContent,

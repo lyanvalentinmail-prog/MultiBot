@@ -34,7 +34,7 @@ Abre `http://localhost:3000`, crea la primera cuenta y entra en **Crear bot**. N
 
 ## Render Free
 
-El [`render.yaml`](../render.yaml) configura:
+El [`render.yaml`](../../render.yaml) configura:
 
 - `multibot-panel`: servicio web Node en plan **Free**. Instala las dependencias de la web y de Universal Bot.
 - `multibot-db`: PostgreSQL en plan **Free**, conectado mediante `DATABASE_URL`.
@@ -123,4 +123,4 @@ Las rutas `/api/instances` se conservan por compatibilidad con datos/clientes an
 
 ## Atribución
 
-La interfaz se adaptó de TomiOka; conserva la atribución y licencia en [`web/THIRD_PARTY_NOTICES.md`](../web/THIRD_PARTY_NOTICES.md) y [`web/LICENSE-TOMIOKA.txt`](../web/LICENSE-TOMIOKA.txt). Las fuentes locales conservan sus avisos OFL en `web/fonts/OFL.txt`.
+La interfaz se adaptó de TomiOka; conserva la atribución y licencia en [`web/THIRD_PARTY_NOTICES.md`](../../web/THIRD_PARTY_NOTICES.md) y [`web/LICENSE-TOMIOKA.txt`](../../web/LICENSE-TOMIOKA.txt). Las fuentes locales conservan sus avisos OFL en `web/fonts/OFL.txt`.

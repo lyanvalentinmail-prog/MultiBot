@@ -1,2 +1,2 @@
 # Template Bot Docs
-Ver /docs/ADD_NEW_BOT.md
+Ver /docs/guides/ADD_NEW_BOT.md
