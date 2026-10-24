@@ -7,6 +7,7 @@ MultiBot/
 ├── .env.example                       # Variables opcionales locales/runtime
 ├── bots/
 │   ├── _template/                     # Base para crear bots (oculta del catálogo)
+│   ├── tomioka/                       # Stickers, packs, descargas e IA (Termux)
 │   └── universal-bot/                 # Baileys, Termux + runtime web autorizado
 │       ├── bot.json                   # Metadatos y entrypoint web opt-in
 │       ├── config-loader.js           # config.js privado o defaults/env

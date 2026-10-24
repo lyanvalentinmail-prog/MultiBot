@@ -136,8 +136,8 @@ bot_has_script() { # $1=id $2=script → 0 si existe en package.json
 bot_status() { # $1 = id → "listo|falta-deps|sin-config"
   local dir="$BOTS_DIR/$1"
   if [ ! -d "$dir/node_modules" ]; then echo "falta-deps"; return; fi
-  # Solo se exige config.js si el bot trae asistente "setup".
-  if bot_has_script "$1" "setup" && [ ! -f "$dir/config.js" ]; then echo "sin-config"; return; fi
+  # Solo se exige config (js o json) si el bot trae asistente "setup".
+  if bot_has_script "$1" "setup" && [ ! -f "$dir/config.js" ] && [ ! -f "$dir/config.json" ]; then echo "sin-config"; return; fi
   echo "listo"
 }
 status_icon() {
@@ -353,6 +353,10 @@ cmd_setup() { # $1 = bot id
     if [ ! -f "$dir/config.js" ] && [ -f "$dir/config.example.js" ]; then
       cp "$dir/config.example.js" "$dir/config.js"
       ok "Creado config.js desde config.example.js — edítalo a mano."
+    fi
+    if [ ! -f "$dir/config.json" ] && [ -f "$dir/config.example.json" ]; then
+      cp "$dir/config.example.json" "$dir/config.json"
+      ok "Creado config.json desde config.example.json — edítalo a mano."
     fi
     return 0
   fi

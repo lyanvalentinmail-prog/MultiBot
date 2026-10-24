@@ -180,11 +180,13 @@ test('termux forwarder: sin terminal raíz explica cómo arreglarlo', async (t) 
 })
 
 test('termux forwarder: el de _template es idéntico (se propaga a bots nuevos)', async () => {
-  const [a, b] = await Promise.all([
+  const [a, b, c] = await Promise.all([
     readFile(path.join(repoRoot, 'bots', 'universal-bot', 'termux.sh'), 'utf8'),
     readFile(path.join(repoRoot, 'bots', '_template', 'termux.sh'), 'utf8'),
+    readFile(path.join(repoRoot, 'bots', 'tomioka', 'termux.sh'), 'utf8'),
   ])
   assert.equal(a, b)
+  assert.equal(a, c)
 })
 
 test('termux-go: sintaxis válida; clona, actualiza y respalda sin borrar', async (t) => {
