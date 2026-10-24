@@ -52,7 +52,7 @@ function ensurePackageDependencies(packageRoot, label, runInstall, logger) {
 
 /**
  * Comprueba e instala tanto las dependencias del bot como las del repo raíz.
- * Los bots Izuku y TomiOka importan módulos compartidos desde ../../lib, así
+ * Los bots importan módulos compartidos desde ../../lib y ../../commands, así
  * que esas importaciones resuelven sus paquetes desde la raíz de MultiBot.
  */
 export function ensureBotDependencies({ botRoot, repoRoot, runInstall, logger = console } = {}) {

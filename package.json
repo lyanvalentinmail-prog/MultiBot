@@ -30,6 +30,7 @@
     "@whiskeysockets/baileys": "6.7.24",
     "axios": "^1.11.0",
     "chalk": "^5.1.0",
+    "chess.js": "^1.4.0",
     "file-type": "^18.0.0",
     "fluent-ffmpeg": "^2.1.3",
     "form-data": "^4.0.0",
@@ -54,6 +55,7 @@
   },
   "author": "MultiBot Team",
   "devDependencies": {
+    "awesome-phonenumber": "^3.4.0",
     "happy-dom": "^21.0.4"
   }
 }

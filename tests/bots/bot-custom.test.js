@@ -238,7 +238,7 @@ test('termux.sh: --customize oculta Moneda si el bot no la trae (bot JSON)', asy
   const home = await mkdtemp(path.join(os.tmpdir(), 'multibot-custom-json-home-'))
   t.after(() => rm(root, { recursive: true, force: true }))
   t.after(() => rm(home, { recursive: true, force: true }))
-  const jsonBot = path.join(repoRoot, 'bots', 'izuku-bot')
+  const jsonBot = path.join(repoRoot, 'bots', 'tomioka')
   const fake = path.join(root, 'bots', 'fake')
   await mkdir(path.join(fake, 'scripts'), { recursive: true })
   await copyFile(path.join(repoRoot, 'termux.sh'), path.join(root, 'termux.sh'))

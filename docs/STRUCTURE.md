@@ -21,8 +21,6 @@ MultiBot/
 │   ├── _template/                     # Base para crear bots (oculta del catálogo)
 │   ├── tomioka/                       # Stickers, packs, descargas e IA (Termux)
 │   │   └── commands.json              # Los 36 comandos que usa
-│   ├── izuku-bot/                     # Estilo Deku: stickers, packs, IA (Termux)
-│   │   └── commands.json              # Los 36 comandos que usa
 │   └── universal-bot/                 # Baileys, Termux + runtime web autorizado
 │       ├── bot.json                   # Metadatos y entrypoint web opt-in
 │       ├── config-loader.js           # config.js privado o defaults/env
@@ -30,8 +28,8 @@ MultiBot/
 │       ├── package.json / lockfile     # Dependencias reproducibles del bot
 │       ├── index.js / main.js          # Inicio Termux y proceso Baileys
 │       ├── handler.js                 # Router de mensajes/plugins
-│       ├── lib/                       # Guard, modos y utilidades del bot
-│       ├── commands.json              # Comandos que usa este bot (rutas de commands/)
+│       ├── lib/                       # Contexto completo, guard, modos y utilidades
+│       ├── commands.json              # Catálogo completo (247 rutas de commands/)
 │       ├── storage/                   # Datos propios del bot (efímeros en Render)
 │       ├── sessions/                  # Credenciales Baileys, ignoradas por Git
 │       ├── tmp/                       # Archivos temporales, ignorados por Git
