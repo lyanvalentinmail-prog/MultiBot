@@ -368,8 +368,10 @@ export async function eliminarAlquiler(chatId) {
 
 export function obtenerLineaAlquilerMenu(chatId) {
   const rental = obtenerAlquiler(chatId)
+  // En modo público no se exige plan: no mostrar "Sin plan ❌".
+  const sinPlan = global.modoPublico === false ? 'Sin plan ❌' : 'Modo público 🌍'
 
-  if (!rental) return 'Sin plan ❌'
+  if (!rental) return sinPlan
 
   if (rental.type === 'official') return 'Grupo Oficial ♾️'
   if (rental.type === 'infinite') return 'Infinito ♾️'
@@ -380,7 +382,7 @@ export function obtenerLineaAlquilerMenu(chatId) {
 
   if (rental.expiresAt) return 'Expirado ⏳'
 
-  return 'Sin plan ❌'
+  return sinPlan
 }
 
 async function reaccionarAlquilerBloqueado(m, conn) {

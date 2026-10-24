@@ -276,3 +276,98 @@ test('termux terminal: instalación cubre sistema + npm + sharp', async () => {
   assert.match(source, /npm run fix:sharp/)
   assert.match(source, /Node v\$major muy viejo/)
 })
+
+test('termux terminal: estado en opción 1, reinstall, update auto y doctor', async () => {
+  const source = await readFile(terminal, 'utf8')
+  assert.match(source, /estado1=" \$\(status_icon "\$b"\)"/)
+  assert.match(source, /cmd_reinstall/)
+  assert.match(source, /--reinstall/)
+  assert.match(source, /Reinstalación limpia/)
+  assert.match(source, /diff --name-only/)
+  assert.match(source, /ffmpeg presente/)
+  assert.match(source, /ImageMagick presente/)
+  assert.match(source, /mb-update/)
+  assert.match(source, /mb-doctor/)
+})
+
+test('termux terminal: --reinstall borra node_modules y reinstala (fakes)', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'multibot-reinstall-root-'))
+  const home = await mkdtemp(path.join(os.tmpdir(), 'multibot-reinstall-home-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  t.after(() => rm(home, { recursive: true, force: true }))
+
+  const botDir = path.join(root, 'bots', 'fake-bot')
+  await mkdir(path.join(botDir, 'node_modules'), { recursive: true })
+  await writeFile(path.join(root, 'termux.sh'), await readFile(terminal, 'utf8'))
+  await writeFile(path.join(botDir, 'package.json'), JSON.stringify({ name: 'fake-bot' }))
+  await writeFile(path.join(botDir, 'index.js'), 'console.log("demo")\n')
+  await writeFile(path.join(botDir, 'node_modules', 'junk.txt'), 'basura vieja')
+
+  const bindir = path.join(root, 'bin')
+  await mkdir(bindir, { recursive: true })
+  await writeFile(
+    path.join(bindir, 'npm'),
+    `#!/usr/bin/env bash\necho "NPM $*" >> "${path.join(root, 'npm.log')}"\nmkdir -p "$PWD/node_modules/@whiskeysockets/baileys"\nexit 0\n`,
+    { mode: 0o755 },
+  )
+  await writeFile(path.join(bindir, 'ffmpeg'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 })
+  await writeFile(path.join(bindir, 'convert'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 })
+
+  const result = spawnSync('bash', [path.join(root, 'termux.sh'), '--bot', 'fake-bot', '--reinstall'], {
+    cwd: root, encoding: 'utf8', timeout: 60000,
+    env: { ...process.env, HOME: home, TERM: 'dumb', PATH: `${bindir}${path.delimiter}${process.env.PATH}` },
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /Borrando node_modules/)
+  const { access } = await import('node:fs/promises')
+  await assert.rejects(access(path.join(botDir, 'node_modules', 'junk.txt')))
+  const log = await readFile(path.join(root, 'npm.log'), 'utf8')
+  assert.ok(log.includes('NPM install'), log)
+  assert.match(result.stdout, /Todo instalado/)
+})
+
+test('termux terminal: --update reinstala bots con deps cambiadas (git local)', async (t) => {
+  const remote = await mkdtemp(path.join(os.tmpdir(), 'multibot-upd-remote-'))
+  const work = await mkdtemp(path.join(os.tmpdir(), 'multibot-upd-work-'))
+  const home = await mkdtemp(path.join(os.tmpdir(), 'multibot-upd-home-'))
+  t.after(() => rm(remote, { recursive: true, force: true }))
+  t.after(() => rm(work, { recursive: true, force: true }))
+  t.after(() => rm(home, { recursive: true, force: true }))
+
+  const fakePkg = { name: 'fake-bot', version: '1.0.0' }
+  await mkdir(path.join(remote, 'bots', 'fake-bot'), { recursive: true })
+  await writeFile(path.join(remote, 'termux.sh'), await readFile(terminal, 'utf8'))
+  await writeFile(path.join(remote, 'bots', 'fake-bot', 'package.json'), JSON.stringify(fakePkg))
+  await writeFile(path.join(remote, 'bots', 'fake-bot', 'index.js'), 'console.log("demo")\n')
+  const git = (cwd, ...args) => spawnSync('git', ['-C', cwd, '-c', 'user.email=t@t', '-c', 'user.name=t', ...args], { encoding: 'utf8' })
+  git(remote, 'init', '-q'); git(remote, 'add', '.'); git(remote, 'commit', '-qm', 'init')
+
+  const clone = spawnSync('git', ['clone', '-q', remote, path.join(work, 'MultiBot')], { encoding: 'utf8' })
+  assert.equal(clone.status, 0, clone.stderr)
+  const root = path.join(work, 'MultiBot')
+
+  // El remoto avanza cambiando dependencias del bot.
+  await writeFile(path.join(remote, 'bots', 'fake-bot', 'package.json'), JSON.stringify({ ...fakePkg, version: '1.0.1' }))
+  git(remote, 'add', '.'); git(remote, 'commit', '-qm', 'deps')
+
+  const bindir = path.join(work, 'bin')
+  await mkdir(bindir, { recursive: true })
+  await writeFile(
+    path.join(bindir, 'npm'),
+    `#!/usr/bin/env bash\necho "NPM $* (en $PWD)" >> "${path.join(work, 'npm.log')}"\nmkdir -p "$PWD/node_modules/@whiskeysockets/baileys"\nexit 0\n`,
+    { mode: 0o755 },
+  )
+  await writeFile(path.join(bindir, 'ffmpeg'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 })
+  await writeFile(path.join(bindir, 'convert'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 })
+
+  const result = spawnSync('bash', [path.join(root, 'termux.sh'), '--update'], {
+    cwd: root, encoding: 'utf8', timeout: 120000,
+    env: { ...process.env, HOME: home, TERM: 'dumb', PATH: `${bindir}${path.delimiter}${process.env.PATH}` },
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /Repo actualizado/)
+  assert.match(result.stdout, /Cambiaron dependencias de fake-bot/)
+  const log = await readFile(path.join(work, 'npm.log'), 'utf8')
+  assert.ok(log.includes('NPM install'), log)
+  assert.ok(log.includes(path.join(root, 'bots', 'fake-bot')), log)
+})

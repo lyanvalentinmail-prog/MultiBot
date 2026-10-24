@@ -15,6 +15,7 @@
 #    bash termux.sh --bot universal-bot --qr
 #    bash termux.sh --list-bots       → lista los bots detectados
 #    bash termux.sh --install         → instala TODO (sistema + npm + sharp)
+#    bash termux.sh --reinstall       → reinstala limpio (borra node_modules)
 #    bash termux.sh --personalize     → personaliza el prompt de Termux
 #    bash termux.sh --help
 # ═══════════════════════════════════════════════════════════════════
@@ -314,6 +315,18 @@ cmd_install() { # $1 = bot id → sistema (Termux) + npm + sharp + verificación
   return 0
 }
 
+cmd_reinstall() { # $1 = bot id → borra node_modules y reinstala limpio
+  local id="$1" dir="$BOTS_DIR/$1"
+  title "♻ Reinstalación limpia — $id"
+  if [ -d "$dir/node_modules" ]; then
+    info "Borrando node_modules..."
+    rm -rf "$dir/node_modules" || { err "No se pudo borrar node_modules."; return 1; }
+  else
+    info "No había node_modules, instalando directo."
+  fi
+  cmd_install "$id"
+}
+
 cmd_doctor() { # $1 = bot id
   local id="$1" dir="$BOTS_DIR/$1"
   title "🩺 Diagnóstico — $id"
@@ -321,6 +334,11 @@ cmd_doctor() { # $1 = bot id
   if bot_has_script "$id" "doctor"; then
     (cd "$dir" && npm run doctor) || true
   else
+    local major; major="$(node_major)"
+    if [ -n "$major" ] && [ "$major" -ge 20 ]; then ok "Node $(node -v) (≥ 20 ✓)"
+    else err "Node v${major:-?} ausente o viejo (el bot pide ≥ 20)"; fi
+    command -v ffmpeg >/dev/null 2>&1 && ok "ffmpeg presente" || warn "Falta ffmpeg (stickers/audio fallarán)"
+    { command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; } && ok "ImageMagick presente" || warn "Falta ImageMagick (algunos stickers fallarán)"
     [ -d "$dir/node_modules" ] && ok "node_modules presente" || err "Falta npm install"
     [ -f "$dir/config.js" ] && ok "config.js presente" || warn "Falta config.js (usa Configurar bot)"
     [ -d "$dir/sessions" ] && ok "Carpeta sessions presente" || info "Sin sesión todavía (normal si es la primera vez)"
@@ -428,7 +446,25 @@ cmd_logout() { # $1 = bot id
 cmd_update() {
   title "⬆ Actualizar MultiBot"
   if [ ! -d "$ROOT/.git" ]; then err "No es un clon git ($ROOT)."; return 1; fi
-  (cd "$ROOT" && git pull --ff-only) && ok "Repo actualizado." || err "git pull falló (¿cambios locales?)."
+  local antes; antes="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo "")"
+  (cd "$ROOT" && git pull --ff-only) || { err "git pull falló (¿cambios locales?)."; return 1; }
+  ok "Repo actualizado."
+  # Si el pull trajo nuevas dependencias, reinstala solo esos bots.
+  local despues; despues="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || echo "")"
+  if [ -n "$antes" ] && [ -n "$despues" ] && [ "$antes" != "$despues" ]; then
+    local cambiados
+    cambiados="$(git -C "$ROOT" diff --name-only "$antes" "$despues" -- 'bots/*/package.json' 'bots/*/package-lock.json' 2>/dev/null || true)"
+    if [ -n "$cambiados" ]; then
+      local ids; ids="$(printf '%s\n' "$cambiados" | sed -n 's|^bots/\([^/]*\)/.*|\1|p' | sort -u)"
+      local id
+      for id in $ids; do
+        if [ -f "$BOTS_DIR/$id/package.json" ]; then
+          info "Cambiaron dependencias de $id, reinstalando..."
+          cmd_install "$id" || warn "No se pudo reinstalar $id (usa la opción 6)."
+        fi
+      done
+    fi
+  fi
 }
 
 cmd_info() { # $1 = bot id
@@ -471,6 +507,8 @@ alias multibot='bash "$ROOT/termux.sh"'
 alias mb='bash "$ROOT/termux.sh"'
 alias mb-qr='bash "$ROOT/termux.sh" --qr'
 alias mb-code='bash "$ROOT/termux.sh" --code'
+alias mb-update='bash "$ROOT/termux.sh" --update'
+alias mb-doctor='bash "$ROOT/termux.sh" --doctor'
 # <<< MultiBot Terminal <<<
 EOF
     ok "Bloque añadido a $bashrc"
@@ -481,10 +519,12 @@ EOF
   PS1='\[\033[1;36m\]🤖 multibot\[\033[0m\] \[\033[1;32m\]\w\[\033[0m\] \[\033[1;35m\]❯\[\033[0m\] '
   alias multibot="bash \"$ROOT/termux.sh\"" 2>/dev/null || true
   alias mb="bash \"$ROOT/termux.sh\"" 2>/dev/null || true
+  alias mb-update="bash \"$ROOT/termux.sh\" --update" 2>/dev/null || true
+  alias mb-doctor="bash \"$ROOT/termux.sh\" --doctor" 2>/dev/null || true
   echo ""
   ok "Terminal personalizada:"
   info "Nuevo prompt: 🤖 multibot ruta ❯ (colores cian/verde/magenta)"
-  info "Alias: multibot · mb · mb-qr · mb-code"
+  info "Alias: multibot · mb · mb-qr · mb-code · mb-update · mb-doctor"
   info "Banner de bienvenida al abrir Termux"
   info "Cierra y reabre Termux (o ejecuta: source $bashrc) para verlo."
 }
@@ -643,7 +683,8 @@ cmd_customize() { # $1 = bot id
     printf '%b  8)%b 📨 Reenviados ........... %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff mensajesReenviados)"
     printf '%b  9)%b 💬 Responder como ....... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$resp" "$C_RESET"
     printf '%b 10)%b 📋 Menú de lista ........ %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff menuLista)"
-    printf '%b 11)%b 📄 Ver todo\n' "$C_YELLOW" "$C_RESET"
+    printf '%b 11)%b 🌍 Modo público ......... %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff modoPublico)"
+    printf '%b 12)%b 📄 Ver todo\n' "$C_YELLOW" "$C_RESET"
     printf '%b  0)%b ↩ Volver\n' "$C_YELLOW" "$C_RESET"
     printf '\nElige: '
     local opt; read_input opt || return 0
@@ -666,7 +707,8 @@ cmd_customize() { # $1 = bot id
         esac
         sleep 1 ;;
       10) cs_toggle "$id" menuLista "Menú de lista"; sleep 1 ;;
-      11)
+      11) cs_toggle "$id" modoPublico "Modo público"; sleep 1 ;;
+      12)
         title "📄 Personalización — $id"
         printf '%s\n' "$CUSTOM_CFG" | sed 's/^/  /'
         pause ;;
@@ -678,7 +720,11 @@ cmd_customize() { # $1 = bot id
 
 show_menu() {
   banner
-  printf '%b  1)%b 🚀 Iniciar bot %b[%s]%b\n' "$C_YELLOW" "$C_RESET" "$C_GRAY" "$DEFAULT_BOT" "$C_RESET"
+  local estado1=""
+  for b in "${BOT_IDS[@]}"; do
+    if [ "$b" = "$DEFAULT_BOT" ]; then estado1=" $(status_icon "$b")"; break; fi
+  done
+  printf '%b  1)%b 🚀 Iniciar bot %b[%s]%b%s\n' "$C_YELLOW" "$C_RESET" "$C_GRAY" "$DEFAULT_BOT" "$C_RESET" "$estado1"
   printf '%b  2)%b 🤖 Elegir bot (actual: %b%s%b)\n' "$C_YELLOW" "$C_RESET" "$C_GREEN" "$DEFAULT_BOT" "$C_RESET"
   printf '%b  3)%b 🔑 Pedir Pairing Code\n' "$C_YELLOW" "$C_RESET"
   printf '%b  4)%b 📷 Mostrar QR\n' "$C_YELLOW" "$C_RESET"
@@ -690,6 +736,7 @@ show_menu() {
   printf '%b 10)%b ⬆  Actualizar desde GitHub\n' "$C_YELLOW" "$C_RESET"
   printf '%b 11)%b 🎨 Personalizar terminal Termux\n' "$C_YELLOW" "$C_RESET"
   printf '%b 12)%b 🎛 Personalizar bot (stickers, banner, owners…)\n' "$C_YELLOW" "$C_RESET"
+  printf '%b 13)%b ♻ Reinstalación limpia (borra node_modules)\n' "$C_YELLOW" "$C_RESET"
   printf '%b  0)%b 👋 Salir\n' "$C_YELLOW" "$C_RESET"
   printf '\nElige una opción: '
 }
@@ -713,6 +760,7 @@ menu_loop() {
       10) cmd_update; pause ;;
       11) cmd_personalize; pause ;;
       12) id="$(pick_bot choose)" && cmd_customize "$id" ;;
+      13) id="$(pick_bot choose)" && cmd_reinstall "$id"; pause ;;
       0|q|Q|salir|exit)
         printf '\n%b👋 ¡Nos vemos! MultiBot Terminal%b\n' "$C_MAGENTA" "$C_RESET"
         exit 0 ;;
@@ -734,6 +782,7 @@ Uso:
   bash termux.sh --start [qr|code|ask]  Inicia el bot por defecto
   bash termux.sh --list-bots            Lista los bots detectados
   bash termux.sh --install [--bot <id>] Instala todo: sistema (Termux) + npm + sharp
+  bash termux.sh --reinstall [--bot <id>] Reinstala limpio (borra node_modules)
   bash termux.sh --doctor [--bot <id>]  Diagnóstico
   bash termux.sh --setup [--bot <id>]   Configura owner/nombre
   bash termux.sh --customize [--bot <id>] Personaliza el bot (stickers, banner…)
@@ -785,6 +834,7 @@ main() {
       --phone) phone="${2:-}"; shift 2 ;;
       --list-bots) list_bots; exit $? ;;
       --install) action="install"; shift ;;
+      --reinstall) action="reinstall"; shift ;;
       --doctor) action="doctor"; shift ;;
       --setup) action="setup"; shift ;;
       --logout) action="logout"; shift ;;
@@ -814,6 +864,7 @@ main() {
       fi
       banner; cmd_start "$id" "$method" "$phone" ;;
     install) id="$(resolve_bot "$bot")" || exit 1; cmd_install "$id" ;;
+    reinstall) id="$(resolve_bot "$bot")" || exit 1; cmd_reinstall "$id" ;;
     doctor)  id="$(resolve_bot "$bot")" || exit 1; cmd_doctor "$id" ;;
     setup)   id="$(resolve_bot "$bot")" || exit 1; cmd_setup "$id" ;;
     customize) id="$(resolve_bot "$bot")" || exit 1; cmd_customize "$id" ;;

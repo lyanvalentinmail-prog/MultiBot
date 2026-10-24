@@ -3,14 +3,15 @@
  *
  * Funciones puras (sin dependencias de Baileys) para que la terminal Termux
  * pueda editar: nombre, stickers (pack/autor), moneda, banner, owners, mods
- * y los interruptores (comandos, reenviados, modo de respuesta, menú lista).
+ * y los interruptores (comandos, reenviados, modo de respuesta, menú lista,
+ * modo público).
  *
  * Usado por scripts/bot-settings.js (CLI para termux.sh).
  */
 import { normalizeOwnerPhone, isValidOwnerPhone, OWNER_PLACEHOLDER } from './config-repair.js'
 
 export const STRING_KEYS = ['namebot', 'packname', 'author', 'moneda', 'botBanner']
-export const BOOL_KEYS = ['comandosEnabled', 'mensajesReenviados', 'quotedVerificado', 'menuLista']
+export const BOOL_KEYS = ['comandosEnabled', 'mensajesReenviados', 'quotedVerificado', 'menuLista', 'modoPublico']
 export const ALL_KEYS = [...STRING_KEYS, ...BOOL_KEYS]
 
 const DEFAULTS = {
@@ -23,6 +24,7 @@ const DEFAULTS = {
   mensajesReenviados: true,
   quotedVerificado: true,
   menuLista: false,
+  modoPublico: true,
 }
 
 export function settingDefault(key) {

@@ -35,6 +35,9 @@ global.comandosEnabled = true
 global.mensajesReenviados = true
 // Respuesta: true = cita estilo estado · false = responder normal (cita tu mensaje)
 global.quotedVerificado = true
+// Modo público: true = todos pueden usar el bot (privado y grupos sin alquiler)
+// false = modo cerrado (privado solo-owner, grupos necesitan plan de alquiler)
+global.modoPublico = true
 // Menú lista: true = .menu envía una lista para elegir · false = menú interactivo
 global.menuLista = false
 
