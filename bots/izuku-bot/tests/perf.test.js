@@ -59,7 +59,7 @@ const msgFor = (text) => ({
 
 test('los avisos (⏳ y escribiendo…) no retrasan el resultado', async () => {
   const config = testConfig()
-  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
+  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true, listMode: false }
   const store = createStore(config, silentLogger)
   const sock = latentSock()
 

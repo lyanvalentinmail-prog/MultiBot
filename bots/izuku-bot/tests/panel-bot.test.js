@@ -177,7 +177,11 @@ test('un comando deshabilitado en el panel no responde', async () => {
   sock.emit('messages.upsert', { type: 'notify', messages: [incoming('.help')] })
   await wait()
   const cuerpos = sock.sent.map((item) => item.content?.text || item.content?.caption || '')
-  assert.ok(cuerpos.some((t) => /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼/.test(t)), 'los demás siguen funcionando')
+  const lista = sock.sent.some((item) => (item.content?.sections || []).length > 0)
+  assert.ok(
+    cuerpos.some((t) => /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼/.test(t)) || lista,
+    'los demás siguen funcionando (menú de texto o lista)'
+  )
   rmSync(dir, { recursive: true, force: true })
 })
 

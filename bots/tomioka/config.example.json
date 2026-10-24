@@ -18,6 +18,8 @@
   "pairingPhone": "",
   "owner": {
     "numbers": [],
+    "mods": [],
+    "names": {},
     "allowFromMe": false
   },
   "session": {
@@ -120,7 +122,11 @@
     "respondInGroups": true,
     "requirePrefixInDM": true,
     "replyUnknownCommand": true,
-    "ignoreFromMe": false
+    "ignoreFromMe": false,
+    "commandsEnabled": true,
+    "publicMode": true,
+    "forwardedStyle": false,
+    "estadoQuote": false
   },
   "menu": {
     "image": "https://drive.google.com/file/d/1dt870fo7a7X2DRsqY1DiK55NDKKA5JOV/view?usp=drivesdk",
@@ -146,7 +152,8 @@
           "instagram",
           "pinterest",
           "ytmp3",
-          "ytmp4"
+          "ytmp4",
+          "fb"
         ]
       },
       {
@@ -213,6 +220,26 @@
         ]
       },
       {
+        "emoji": "🐟",
+        "title": "𝕲𝖗𝖚𝖕𝖔𝖘",
+        "description": "𝖦𝗋𝗎𝗉𝗈𝗌",
+        "kaomoji": "( ˶ˆ꒳ˆ˵ )",
+        "divider": [
+          "💙",
+          "💧"
+        ],
+        "commands": [
+          "kick",
+          "promote",
+          "demote",
+          "add",
+          "tagall",
+          "open",
+          "close",
+          "infogrupo"
+        ]
+      },
+      {
         "emoji": "🌊",
         "title": "𝕴𝖓𝖋𝖔",
         "description": "𝖨𝗇𝖿𝗈",
@@ -223,13 +250,18 @@
         ],
         "commands": [
           "help",
-          "debug"
+          "debug",
+          "dado",
+          "moneda",
+          "timer",
+          "lyrics"
         ]
       }
     ],
     "imageCacheMinutes": 720,
     "imageTimeoutMs": 25000,
-    "sendAsCaption": true
+    "sendAsCaption": true,
+    "listMode": true
   },
   "logging": {
     "level": "info",

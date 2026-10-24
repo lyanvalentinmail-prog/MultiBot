@@ -227,6 +227,33 @@ test('termux.sh: --customize edita la config del bot', async (t) => {
   assert.match(config, /global\.modoPublico = false/)
 })
 
+test('termux.sh: --customize oculta Moneda si el bot no la trae (bot JSON)', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'multibot-custom-json-'))
+  const home = await mkdtemp(path.join(os.tmpdir(), 'multibot-custom-json-home-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  t.after(() => rm(home, { recursive: true, force: true }))
+  const jsonBot = path.join(repoRoot, 'bots', 'izuku-bot')
+  const fake = path.join(root, 'bots', 'fake')
+  await mkdir(path.join(fake, 'scripts'), { recursive: true })
+  await copyFile(path.join(repoRoot, 'termux.sh'), path.join(root, 'termux.sh'))
+  await copyFile(path.join(jsonBot, 'scripts', 'bot-settings.js'), path.join(fake, 'scripts', 'bot-settings.js'))
+  await copyFile(path.join(jsonBot, 'config.example.json'), path.join(fake, 'config.example.json'))
+  await writeFile(path.join(fake, 'package.json'), JSON.stringify({ name: 'fake' }))
+  await writeFile(path.join(fake, 'index.js'), 'console.log(1)\n')
+
+  // 4 (moneda ausente) → aviso; 1 (nombre) → cambia; 0 (volver).
+  const result = spawnSync('bash', [path.join(root, 'termux.sh'), '--bot', 'fake', '--customize'], {
+    cwd: root, input: '4\n1\nNombre JSON\n0\n', encoding: 'utf8', timeout: 90000,
+    env: { ...process.env, HOME: home, TERM: 'dumb' },
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.ok(!result.stdout.includes('💰 Moneda'), 'la opción 4 no se muestra')
+  assert.ok(result.stderr.includes('no tiene moneda'), 'avisa al pedirla igual')
+  assert.ok(result.stdout.includes('Nombre del bot'), 'los demás ajustes sí se muestran')
+  const config = JSON.parse(await readFile(path.join(fake, 'config.json'), 'utf8'))
+  assert.equal(config.bot.name, 'Nombre JSON')
+})
+
 test('menú: propietarios dinámicos desde global.owner', async () => {
   const { construirLineasOwners } = await import('../bots/universal-bot/lib/menu-categories.js')
   const antes = global.owner

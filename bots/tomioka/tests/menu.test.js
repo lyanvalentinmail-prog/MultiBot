@@ -27,7 +27,20 @@ test('todos los comandos pedidos existen', () => {
     'chatgpt',
     'deepseek',
     'help',
-    'debug'
+    'debug',
+    'kick',
+    'promote',
+    'demote',
+    'add',
+    'tagall',
+    'open',
+    'close',
+    'infogrupo',
+    'fb',
+    'dado',
+    'moneda',
+    'timer',
+    'lyrics'
   ]) {
     assert.ok(findCommand(name), `falta el comando ${name}`)
     assert.equal(typeof findCommand(name).run, 'function')
@@ -40,18 +53,19 @@ test('los alias apuntan al mismo comando', () => {
   assert.equal(findCommand('noexiste'), null)
 })
 
-test('el menú usa seis categorías con TODOS los comandos del bot', () => {
-  assert.equal(config.menu.categories.length, 6)
-  const [downloads, stickers, conversion, packs, ai, info] = config.menu.categories
-  assert.deepEqual(downloads.commands, ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4'])
+test('el menú usa siete categorías con TODOS los comandos del bot', () => {
+  assert.equal(config.menu.categories.length, 7)
+  const [downloads, stickers, conversion, packs, ai, groups, info] = config.menu.categories
+  assert.deepEqual(downloads.commands, ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'fb'])
   assert.deepEqual(stickers.commands, ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'search', 'searchpack'])
   assert.deepEqual(conversion.commands, ['toimg', 'tovideo', 'take'])
   assert.deepEqual(packs.commands, ['pack'])
   assert.deepEqual(ai.commands, ['gemini', 'chatgpt', 'deepseek'])
-  assert.deepEqual(info.commands, ['help', 'debug'])
+  assert.deepEqual(groups.commands, ['kick', 'promote', 'demote', 'add', 'tagall', 'open', 'close', 'infogrupo'])
+  assert.deepEqual(info.commands, ['help', 'debug', 'dado', 'moneda', 'timer', 'lyrics'])
   assert.deepEqual(
     resolveCategoryCommands(downloads, commands).map((command) => command.name),
-    ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4']
+    ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'fb']
   )
   assert.deepEqual(
     resolveCategoryCommands(stickers, commands).map((command) => command.name),
@@ -62,8 +76,12 @@ test('el menú usa seis categorías con TODOS los comandos del bot', () => {
     ['gemini', 'chatgpt', 'deepseek']
   )
   assert.deepEqual(
+    resolveCategoryCommands(groups, commands).map((command) => command.name),
+    ['kick', 'promote', 'demote', 'add', 'tagall', 'open', 'close', 'infogrupo']
+  )
+  assert.deepEqual(
     resolveCategoryCommands(info, commands).map((command) => command.name),
-    ['help', 'debug']
+    ['help', 'debug', 'dado', 'moneda', 'timer', 'lyrics']
   )
 
   // Todos los comandos registrados aparecen exactamente una vez en alguna categoría
@@ -127,9 +145,9 @@ test('el menú muestra solo el comando, sin descripciones', () => {
   assert.ok(!menu.includes('›'), 'no usa el separador de descripción')
 })
 
-test('el menú agrupa todos los comandos en seis categorías', () => {
+test('el menú agrupa todos los comandos en siete categorías', () => {
   const menu = buildMenu({ config, commands, sender: {} })
-  assert.equal((menu.match(/◢ /g) || []).length, 6, 'seis bloques de categoría')
+  assert.equal((menu.match(/◢ /g) || []).length, 7, 'siete bloques de categoría')
   const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
   const visibleCount = commandList.filter((command) => !command.hidden).length
   assert.equal(commandLines.length, visibleCount, 'una línea por comando, sin separación')
@@ -150,7 +168,7 @@ test('el menú muestra el nombre real de cada categoría, no "Categoría01"', ()
   }
   assert.deepEqual(
     config.menu.categories.map((category) => category.title),
-    ['𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘', '𝕾𝖙𝖎𝖈𝖐𝖊𝖗𝖘', '𝕮𝖔𝖓𝖛𝖊𝖗𝖘𝖎𝖔́𝖓', '𝕻𝖆𝖈𝖐𝖘', '𝕬𝕴', '𝕴𝖓𝖋𝖔']
+    ['𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘', '𝕾𝖙𝖎𝖈𝖐𝖊𝖗𝖘', '𝕮𝖔𝖓𝖛𝖊𝖗𝖘𝖎𝖔́𝖓', '𝕻𝖆𝖈𝖐𝖘', '𝕬𝕴', '𝕲𝖗𝖚𝖕𝖔𝖘', '𝕴𝖓𝖋𝖔']
   )
 })
 

@@ -1,7 +1,9 @@
-import { getContent, getMediaContent, getQuoted, getText, downloadMedia, resolveMediaTarget } from './message.js'
+import { getContent, getMediaContent, getMentionedJids, getQuoted, getText, downloadMedia, resolveMediaTarget } from './message.js'
 import { parseCommand, jidToNumber, truncate } from './text.js'
 import { writeStickerMetadata } from './sticker.js'
 import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from './live-messages.js'
+import { buildEstadoQuote } from './quoted.js'
+import { LIST_BUTTON_TEXT } from '../menu.js'
 
 /**
  * Contexto de un mensaje recibido. Expone helpers cómodos para los comandos.
@@ -29,10 +31,16 @@ export class CommandContext {
     this.isOwner =
       this.fromMe ||
       config.owner.numbers.includes(this.senderNumber)
+    // Moderadores (terminal → Personalizar → Dueños): no son dueños, pero
+    // tampoco esperan el cooldown entre comandos.
+    this.isMod =
+      !this.isOwner &&
+      (config.owner.mods || []).includes(this.senderNumber)
 
     this.content = getContent(msg)
     this.current = getMediaContent(this.content)
     this.quoted = getQuoted(msg)
+    this.mentionedJids = getMentionedJids(msg)
     this.text = typeof text === 'string' ? text : getText(msg)
 
     this.prefixes = config.prefixes
@@ -54,6 +62,20 @@ export class CommandContext {
 
   get latency() {
     return Date.now() - this.startedAt
+  }
+
+  /** Quién envió el mensaje citado (para comandos dirigidos: kick, tag, etc.) */
+  get quotedParticipant() {
+    return this.quoted?.participant || null
+  }
+
+  /** Envía un texto etiquetando a los JIDs indicados */
+  async sendMention(text, mentions = []) {
+    return this.sock.sendMessage(
+      this.chatJid,
+      this.decorate({ text, mentions: [...mentions] }),
+      { quoted: this.msg }
+    )
   }
 
   /** Media a usar: primero el mensaje citado, luego el mensaje actual */
@@ -86,15 +108,54 @@ export class CommandContext {
     return buffer
   }
 
+  /**
+   * Aplica el estilo de "reenviado" al contenido cuando está activado
+   * (terminal → Personalizar → Reenviados). Apagado: devuelve el contenido
+   * tal cual, sin tocarlo.
+   */
+  decorate(content = {}) {
+    if (this.config.behavior?.forwardedStyle === true) {
+      return {
+        ...content,
+        contextInfo: { ...(content.contextInfo || {}), forwardingScore: 999, isForwarded: true }
+      }
+    }
+    return content
+  }
+
+  /**
+   * Qué se cita al responder: el mensaje del usuario (modo "responder") o
+   * una tarjeta de contacto estilo estado (terminal → Personalizar →
+   * Respuesta → estado, igual que el bot principal).
+   */
+  quotePayload() {
+    if (this.config.behavior?.estadoQuote === true) {
+      return buildEstadoQuote({ name: this.pushName || this.senderNumber, waid: this.senderNumber })
+    }
+    return this.msg
+  }
+
   /** Responde citando el mensaje del usuario */
   async reply(text, options = {}) {
     this._replied = true
-    return this.sock.sendMessage(this.chatJid, { text }, { quoted: this.msg, ...options })
+    return this.sock.sendMessage(this.chatJid, this.decorate({ text }), {
+      quoted: this.quotePayload(),
+      ...options
+    })
   }
 
   /** Responde sin citar (útil en grupos con mucho movimiento) */
   async send(text, options = {}) {
-    return this.sock.sendMessage(this.chatJid, { text }, options)
+    return this.sock.sendMessage(this.chatJid, this.decorate({ text }), options)
+  }
+
+  /** Envía una lista interactiva (texto + botón + secciones tocables) */
+  async sendList({ text, footer = '', buttonText = LIST_BUTTON_TEXT, sections = [] }) {
+    return this.sock.sendMessage(
+      this.chatJid,
+      this.decorate({ text, footer, buttonText, sections }),
+      { quoted: this.quotePayload() }
+    )
   }
 
   async react(emoji) {
@@ -139,7 +200,7 @@ export class CommandContext {
     }
     return this.sock.sendMessage(
       this.chatJid,
-      { sticker: output },
+      this.decorate({ sticker: output }),
       quoted ? { quoted: this.msg } : undefined
     )
   }
@@ -147,7 +208,7 @@ export class CommandContext {
   async sendImage(buffer, caption = '', options = {}) {
     return this.sock.sendMessage(
       this.chatJid,
-      { image: buffer, caption, ...options },
+      this.decorate({ image: buffer, caption, ...options }),
       { quoted: this.msg }
     )
   }
@@ -155,7 +216,7 @@ export class CommandContext {
   async sendVideo(buffer, caption = '', options = {}) {
     return this.sock.sendMessage(
       this.chatJid,
-      { video: buffer, caption, ...options },
+      this.decorate({ video: buffer, caption, ...options }),
       { quoted: this.msg }
     )
   }

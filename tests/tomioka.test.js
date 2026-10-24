@@ -40,7 +40,7 @@ test('tomioka: sin config.json privada usa config.example.json', () => {
   assert.equal(defaultConfigFile(), path.join(botDir, 'config.example.json'))
   const config = loadConfig()
   assert.deepEqual(config.prefixes, ['.'])
-  assert.equal(config.menu.categories.length, 6)
+  assert.equal(config.menu.categories.length, 7)
   assert.equal(config.login, 'ask')
 })
 
@@ -103,4 +103,39 @@ test('tomioka: aparece en el catálogo web como solo-Termux', async (t) => {
   assert.equal(tomioka.termuxOnly, true)
   assert.equal(tomioka.executionMode, 'termux')
   assert.equal(tomioka.webRuntime, false)
+})
+
+test('tomioka: bot-settings CLI edita config.json para la terminal (copia temporal)', async (t) => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), 'tomioka-settings-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  await mkdir(path.join(dir, 'scripts'), { recursive: true })
+  await copyFile(path.join(botDir, 'scripts', 'bot-settings.js'), path.join(dir, 'scripts', 'bot-settings.js'))
+  await copyFile(path.join(botDir, 'config.example.json'), path.join(dir, 'config.example.json'))
+
+  const run = (args) => spawnSync('node', [path.join(dir, 'scripts', 'bot-settings.js'), ...args], { encoding: 'utf8', timeout: 30000 })
+  const list = run(['list'])
+  assert.equal(list.status, 0, list.stderr)
+  assert.match(list.stdout, /^namebot=.+/m)
+  assert.match(list.stdout, /^menuLista=true/m)
+  assert.ok(!/^moneda=/m.test(list.stdout), 'tomioka no trae moneda')
+
+  assert.equal(run(['set', 'nombre', 'Tomi Test']).status, 0)
+  assert.equal(run(['set', 'respuesta', 'estado']).status, 0)
+  assert.equal(run(['set', 'comandos', 'off']).status, 0)
+  assert.notEqual(run(['set', 'moneda', 'USD']).status, 0, 'moneda debe fallar')
+  assert.equal(run(['owner-add', '59899123456', 'Lyan']).status, 0)
+  assert.equal(run(['mod-add', '59899765432']).status, 0)
+
+  const saved = JSON.parse(await readFile(path.join(dir, 'config.json'), 'utf8'))
+  assert.equal(saved.bot.name, 'Tomi Test')
+  assert.equal(saved.behavior.estadoQuote, true)
+  assert.equal(saved.behavior.commandsEnabled, false)
+  assert.deepEqual(saved.owner.numbers, ['59899123456'])
+  assert.equal(saved.owner.names['59899123456'], 'Lyan')
+  assert.deepEqual(saved.owner.mods, ['59899765432'])
+
+  const owners = run(['owners'])
+  assert.match(owners.stdout, /owner\.0=59899123456\|Lyan/)
+  const mods = run(['mods'])
+  assert.match(mods.stdout, /mod\.0=59899765432/)
 })

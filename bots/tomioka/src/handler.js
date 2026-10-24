@@ -100,7 +100,7 @@ async function runCommand(ctx, command) {
     return
   }
 
-  if (!ctx.isOwner && inCooldown(ctx.store, ctx.senderJid, config.behavior.cooldownMs)) {
+  if (!ctx.isOwner && !ctx.isMod && inCooldown(ctx.store, ctx.senderJid, config.behavior.cooldownMs)) {
     ctx.logger.debug?.(`⏳ cooldown ${ctx.displayName}`)
     return
   }
@@ -150,6 +150,11 @@ export async function handleMessage({ sock, msg, config, logger, store, commands
   ctx.commands = commands
 
   if (!config.behavior.respondInGroups && ctx.isGroup) return
+
+  // Terminal → Personalizar → Comandos: apagado = solo el dueño usa el bot
+  if (config.behavior.commandsEnabled === false && !ctx.isOwner) return
+  // Terminal → Personalizar → Modo público: apagado = en privado solo el dueño
+  if (config.behavior.publicMode === false && !ctx.isGroup && !ctx.isOwner) return
 
   // Sin prefijo: probar modo "sin prefijo" en privado o agregar sticker a un pack
   let parsed = ctx.parsed

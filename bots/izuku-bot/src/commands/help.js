@@ -1,6 +1,6 @@
 import { loadMenuImage } from '../lib/banner.js'
 import { RETIRED_MENU_TEXT } from '../lib/live-messages.js'
-import { buildCommandHelp, buildMenu } from '../menu.js'
+import { buildCommandHelp, buildListFooter, buildListSections, buildListText, buildMenu } from '../menu.js'
 
 /**
  * Límite máximo de texto que WhatsApp Web / Baileys acepta como pie de foto
@@ -34,6 +34,25 @@ export default {
     // llevan banner (foto) se eliminan para todos, porque WhatsApp no
     // permite editar una foto hasta convertirla en texto.
     await ctx.retireLive('menu', RETIRED_MENU_TEXT)
+
+    // Lista interactiva (terminal → Personalizar → Menú lista): un mensaje
+    // con botón y secciones; al tocar una fila llega el comando y se ejecuta.
+    if (ctx.config.menu?.listMode !== false) {
+      const sections = buildListSections({ config: ctx.config, commands: ctx.commands })
+      if (sections.length) {
+        const sent = await ctx.sendList({
+          text: buildListText({
+            config: ctx.config,
+            sender: { label: ctx.pushName || ctx.senderNumber, jid: ctx.senderJid }
+          }),
+          footer: buildListFooter({ config: ctx.config }),
+          sections
+        })
+        // Las listas no se pueden editar a texto: al pedir otro menú se borran
+        ctx.rememberLive('menu', sent, { kind: 'media' })
+        return 'menu lista'
+      }
+    }
 
     const menu = buildMenu({
       config: ctx.config,

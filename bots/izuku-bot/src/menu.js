@@ -137,4 +137,54 @@ export function buildCommandHelp({ config, command }) {
   return lines.filter((line) => line !== null).join('\n')
 }
 
+/** Texto del botón que abre la lista interactiva de comandos */
+export const LIST_BUTTON_TEXT = '📋 Ver comandos'
+
+/** Nombre visible corto de una categoría dentro de la lista interactiva */
+function listSectionTitle(category) {
+  const name = String(category.title || category.description || 'Comandos').trim()
+  const emoji = category.emoji ? `${category.emoji} ` : ''
+  return truncate(`${emoji}${name}`, 24)
+}
+
+/**
+ * Secciones de la lista interactiva: una por categoría del menú, con una
+ * fila por comando. El `rowId` es el comando con prefijo (ej. `.sticker`):
+ * al tocar la fila, WhatsApp devuelve ese texto y el handler lo ejecuta.
+ * Las categorías sin comandos se omiten (WhatsApp rechaza secciones vacías).
+ * @param {{config:object, commands:Map<string,object>}} options
+ */
+export function buildListSections({ config, commands = new Map() }) {
+  const prefix = config.prefixes[0]
+  const categories = config.menu.categories?.length ? config.menu.categories : []
+  const sections = []
+  for (const category of categories) {
+    const rows = resolveCategoryCommands(category, commands).map((command) => ({
+      title: `${prefix}${command.name}`.slice(0, 24),
+      rowId: `${prefix}${command.name}`,
+      description: truncate(command.description || '', 60)
+    }))
+    if (rows.length) sections.push({ title: listSectionTitle(category), rows })
+  }
+  return sections
+}
+
+/** Texto corto que acompaña a la lista interactiva (usa los emojis del bot) */
+export function buildListText({ config, sender = {} }) {
+  const [main = '✦', second = '✦'] = config.bot.emojis || []
+  const lines = [
+    `${main} *${config.bot.name}* ${main}`,
+    `${FILLER}▸ Equipo: ${config.bot.team}`,
+    config.menu.showUser && sender?.label ? `${FILLER}▸ Hola, ${truncate(sender.label, 28)}` : null,
+    `${FILLER}▸ Toca el botón y elige un comando ${second}`,
+    `${FILLER}▸ Ayuda: ${config.prefixes[0]}help <comando>`
+  ]
+  return lines.filter((line) => line !== null).join('\n')
+}
+
+/** Pie de la lista interactiva */
+export function buildListFooter({ config }) {
+  return `${config.bot.team} · v${config.bot.version}`
+}
+
 export { FILLER, SEPARATOR }
