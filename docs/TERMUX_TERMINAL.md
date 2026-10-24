@@ -68,8 +68,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/lyanvalentinmail-prog/MultiB
  10) ⬆  Actualizar desde GitHub
  11) 🎨 Personalizar terminal Termux
  12) 🎛 Personalizar bot (stickers, banner, owners…)
+ 13) ♻ Reinstalación limpia (borra node_modules)
   0) 👋 Salir
 ```
+
+> La opción `1` muestra el estado del bot por defecto (`● listo`,
+> `● sin config`, `● sin instalar`). La `10` (actualizar) reinstala
+> sola las dependencias si el pull las cambió. Y si algo quedó roto,
+> la `13` borra `node_modules` y reinstala limpio.
 
 ## Instalar todo (opción 6 · `bash termux.sh --install`)
 
@@ -144,8 +150,8 @@ Desde la terminal puedes editar la configuración del bot sin tocar código:
   2) 📦 Nombre de stickers     8) 📨 Reenviados on/off
   3) 👤 Autor de stickers      9) 💬 Responder como (estado/responder)
   4) 💰 Moneda                 10) 📋 Menú de lista on/off
-  5) 🖼️  Banner                11) 📄 Ver todo
-  6) 👑 Owners/admins
+  5) 🖼️  Banner                11) 🌍 Modo público on/off
+  6) 👑 Owners/admins          12) 📄 Ver todo
 ```
 
 - **Stickers**: nombre del pack y autor que llevan los stickers creados
@@ -157,6 +163,10 @@ Desde la terminal puedes editar la configuración del bot sin tocar código:
   nada más (los cambios de config se recargan solos).
 - **Owners/admins**: agregar o quitar owners (número + nombre) y admins/mods.
 - **Comandos OFF**: el bot no responde comandos a nadie salvo al owner.
+- **Modo público ON** (así viene): todos pueden usar el bot, en privado
+  y en grupos sin alquiler. En OFF vuelve el modo cerrado (privado
+  solo-owner y grupos con plan). Los comandos de owner/admin siguen
+  protegidos en ambos modos.
 - **Reenviados OFF**: los mensajes del bot dejan de verse como "reenviados".
 - **Responder como**: `estado` = cita estilo estado de WhatsApp (como ahora) ·
   `responder` = cita normal de tu mensaje.
@@ -187,7 +197,8 @@ bash termux.sh --code 59899123456      # Pairing code directo
 bash termux.sh --code                  # Reutiliza el último número
 bash termux.sh --bot universal-bot --qr
 bash termux.sh --list-bots             # Ver bots detectados
-bash termux.sh --install               # npm install del bot
+bash termux.sh --install               # Instala todo: sistema + npm + sharp
+bash termux.sh --reinstall             # Reinstala limpio (borra node_modules)
 bash termux.sh --doctor                # Diagnóstico
 bash termux.sh --setup                 # Configurar owner/nombre
 bash termux.sh --customize            # Personalizar bot (stickers, banner, owners…)

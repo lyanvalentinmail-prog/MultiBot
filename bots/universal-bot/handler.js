@@ -224,7 +224,9 @@ const isBotAdmin = bot?.admin || false
 
 if (shouldBlockByGrupoOff(m, this)) return
 
-if (m.isGroup && !isRentalBypassCommand(m, this, isOwner, isROwner)) {
+// Modo público (global.modoPublico, default true): todos pueden usar el bot.
+// Con modoPublico === false vuelve el modo cerrado (el grupo necesita alquiler).
+if (global.modoPublico === false && m.isGroup && !isRentalBypassCommand(m, this, isOwner, isROwner)) {
   const alquilerBloqueado = await checkGroupRental(m, this)
   if (alquilerBloqueado) return
 }
@@ -451,8 +453,9 @@ for (let plugin of pluginsProcesados) {
       }
     }
     
+    // En modo cerrado (modoPublico === false) el privado es solo-owner salvo estos.
     const comandosPrivadosPermitidos = ['qr', 'code', 'setbotname', 'setbotimg', 'setautoread']
-    if (!m.isGroup && !comandosPrivadosPermitidos.includes(command) && !isOwner) {
+    if (global.modoPublico === false && !m.isGroup && !comandosPrivadosPermitidos.includes(command) && !isOwner) {
       return 
     }
     

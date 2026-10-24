@@ -34,6 +34,7 @@ test('bot-settings: get/set escalares con defaults sanos', () => {
   assert.equal(all.mensajesReenviados, true)
   assert.equal(all.quotedVerificado, true)
   assert.equal(all.menuLista, false)
+  assert.equal(all.modoPublico, true)
 
   let next = setSetting(template, 'packname', 'Mis Stickers')
   assert.equal(readSetting(next, 'packname').value, 'Mis Stickers')
@@ -41,6 +42,8 @@ test('bot-settings: get/set escalares con defaults sanos', () => {
   assert.equal(readSetting(next, 'menuLista').value, true)
   next = setSetting(next, 'comandosEnabled', false)
   assert.equal(readSetting(next, 'comandosEnabled').value, false)
+  next = setSetting(next, 'modoPublico', false)
+  assert.equal(readSetting(next, 'modoPublico').value, false)
   // No rompe el resto del archivo.
   assert.match(next, /global\.APIs = \{/)
   assert.match(next, /watchFile\(file/)
@@ -107,6 +110,8 @@ test('bot-settings CLI: list/set/get/owners/mods sobre config temporal', async (
   assert.equal(run(['set', 'respuesta', 'responder']).status, 0)
   assert.match(run(['get', 'quotedVerificado']).stdout, /^quotedVerificado=false$/m)
   assert.equal(run(['set', 'respuesta', 'estado']).status, 0)
+  assert.equal(run(['set', 'publico', 'off']).status, 0)
+  assert.match(run(['get', 'modoPublico']).stdout, /^modoPublico=false$/m)
   assert.equal(run(['owner-add', '59899123456', 'Lyan']).status, 0)
   assert.match(run(['owners']).stdout, /59899123456\|Lyan/)
   assert.equal(run(['mod-add', '59876123456']).status, 0)
@@ -151,6 +156,12 @@ test('banner por defecto: existe y es un JPEG válido', async () => {
 test('bot: personalización cableada (comandos, reenviados, banner, lista, stickers)', async () => {
   const handler = await readFile(path.join(botDir, 'handler.js'), 'utf8')
   assert.match(handler, /global\.comandosEnabled === false/)
+  // Modo público: el alquiler y el candado de privado solo aplican en modo cerrado.
+  const gates = handler.match(/global\.modoPublico === false/g) || []
+  assert.equal(gates.length, 2)
+  assert.match(handler, /modoPublico === false && m\.isGroup && !isRentalBypassCommand/)
+  assert.match(handler, /modoPublico === false && !m\.isGroup && !comandosPrivadosPermitidos/)
+  assert.match(template, /global\.modoPublico = true/)
   const simple = await readFile(path.join(botDir, 'lib', 'simple.js'), 'utf8')
   assert.match(simple, /aplicarPreferenciaReenviado\(content\)/)
   assert.match(simple, /toPTT\(archivo/)
@@ -204,15 +215,16 @@ test('termux.sh: --customize edita la config del bot', async (t) => {
   await writeFile(path.join(fake, 'package.json'), JSON.stringify({ name: 'fake' }))
   await writeFile(path.join(fake, 'index.js'), 'console.log(1)\n')
 
-  // 4 (moneda) → UYU, 7 (toggle comandos), 0 (volver).
+  // 4 (moneda) → UYU, 7 (toggle comandos), 11 (toggle modo público), 0 (volver).
   const result = spawnSync('bash', [path.join(root, 'termux.sh'), '--bot', 'fake', '--customize'], {
-    cwd: root, input: '4\nUYU\n7\n0\n', encoding: 'utf8', timeout: 90000,
+    cwd: root, input: '4\nUYU\n7\n11\n0\n', encoding: 'utf8', timeout: 90000,
     env: { ...process.env, HOME: home, TERM: 'dumb' },
   })
   assert.equal(result.status, 0, result.stderr)
   const config = await readFile(path.join(fake, 'config.js'), 'utf8')
   assert.match(config, /global\.moneda = 'UYU'/)
   assert.match(config, /global\.comandosEnabled = false/)
+  assert.match(config, /global\.modoPublico = false/)
 })
 
 test('menú: propietarios dinámicos desde global.owner', async () => {
@@ -291,4 +303,27 @@ test('menú: TIPO y carga diferida de modo-sub en el código', async () => {
   assert.match(source, /'Sub bot Bot'/)
   assert.match(source, /await import\('..\/plugins\/modo-sub\.js'\)/)
   assert.doesNotMatch(source, /from '..\/plugins\/modo-sub\.js'/)
+})
+
+test('alquiler: línea del menú coherente con el modo público', async () => {
+  const { obtenerLineaAlquilerMenu } = await import('../bots/universal-bot/lib/alquiler.js')
+  const antesDb = global.db
+  const antesModo = global.modoPublico
+  try {
+    global.db = { data: { alquiler: {} } }
+    global.modoPublico = true
+    assert.equal(obtenerLineaAlquilerMenu('123@g.us'), 'Modo público 🌍')
+    delete global.modoPublico // undefined = abierto por defecto
+    assert.equal(obtenerLineaAlquilerMenu('123@g.us'), 'Modo público 🌍')
+    global.modoPublico = false
+    assert.equal(obtenerLineaAlquilerMenu('123@g.us'), 'Sin plan ❌')
+    // Con plan vigente se muestra el restante en ambos modos.
+    global.db.data.alquiler['123@g.us'] = { type: 'normal', expiresAt: Date.now() + 3600000 }
+    global.modoPublico = true
+    assert.match(obtenerLineaAlquilerMenu('123@g.us'), /restante/)
+  } finally {
+    global.db = antesDb
+    if (antesModo === undefined) delete global.modoPublico
+    else global.modoPublico = antesModo
+  }
 })
