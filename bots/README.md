@@ -6,7 +6,7 @@ Cada bot vive en su **propia carpeta** dentro de `bots/` con plugins, configurac
 
 ```text
 bots/
-├── _template/            # Plantilla para bots nuevos (oculta del catálogo)
+├── _template/            # Plantilla para bots nuevos (oculta del catálogo web y del menú de Termux)
 ├── universal-bot/        # Todo-en-uno: Termux + runtime web autorizado, sin NSFW
 │   ├── config.js          # Configuración privada, ignorada por Git
 │   ├── index.js / main.js

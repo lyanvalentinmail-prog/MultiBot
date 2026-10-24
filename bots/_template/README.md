@@ -21,24 +21,27 @@ npm start
 
 ```
 _template/
-├── config.example.js
-├── index.js
-├── main.js
-├── handler.js
+├── config.example.js   # se copia a config.js (privado, gitignored) al configurar
+├── index.js            # maestro cluster: vigila y reinicia main.js
+├── main.js             # worker: Baileys, QR/pairing y carga de comandos
+├── handler.js          # placeholder de lógica de mensajes
+├── commands.json       # comandos de commands/ que usa este bot
 ├── package.json
 ├── lib/
-│   └── termux-guard.js (opcional)
-├── plugins/
-│   └── ping.js (ejemplo)
+│   ├── simple.js       # protoType/serialize/smsg mínimos y autocontenidos
+│   └── termux-guard.js # exige Termux o el runtime web autorizado
 ├── storage/
-├── sessions/  (gitignored)
-└── scripts/
+└── sessions/           # gitignored
 ```
 
-Esta plantilla es **ligera** (sin 200 plugins). Copia plugins desde `universal-bot` si los necesitas:
+Esta plantilla es **ligera y arranca tal cual** tras `npm install` y crear
+`config.js`. No aparece en el menú de Termux ni en el catálogo web (las
+carpetas con prefijo `_` se ocultan); solo se usa como base al crear un bot.
+El `simple.js` incluye utilidades mínimas sin módulos hermanos: si necesitas
+el wrapper completo (`sendFile`, vista única, baileys dual…), copia las piezas
+desde `universal-bot/lib/`:
 
 ```bash
-cp ../universal-bot/plugins/sticker*.js plugins/
 cp ../universal-bot/lib/menu-categories.js lib/
 ```
 

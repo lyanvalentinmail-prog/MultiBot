@@ -91,7 +91,7 @@ export const DEFAULTS = {
       'flint-40b-free'
     ]
   },
-  // 🔎 Búsqueda de stickers y paquetes (Sticker.ly). Ver src/lib/sticker-search.js
+  // 🔎 Búsqueda de stickers y paquetes (Sticker.ly). Ver lib/media/sticker-search.js (kit compartido)
   search: {
     enabled: true,
     provider: 'stickerly', // "stickerly" | "custom"

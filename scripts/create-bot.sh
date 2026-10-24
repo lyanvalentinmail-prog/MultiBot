@@ -60,14 +60,16 @@ if [ -f "$BOT_DIR/package.json" ]; then
   echo "→ Actualizando package.json name → $BOT_NAME"
   # usa python o jq o sed
   if command -v python3 &> /dev/null; then
-    python3 << PY
-import json, pathlib
-p = pathlib.Path("$BOT_DIR/package.json")
+    # El nombre se pasa por entorno: evita f-strings con comillas e interpolación frágil.
+    BOT_NAME="$BOT_NAME" BOT_DIR="$BOT_DIR" python3 << 'PY'
+import json, os, pathlib
+name = os.environ["BOT_NAME"]
+p = pathlib.Path(os.environ["BOT_DIR"]) / "package.json"
 j = json.loads(p.read_text())
-j["name"] = "$BOT_NAME"
-j["description"] = f"Bot {\"$BOT_NAME\"} — parte de MultiBot"
+j["name"] = name
+j["description"] = "Bot " + name + " — parte de MultiBot"
 if "repository" in j and isinstance(j["repository"], dict):
-    j["repository"]["directory"] = "bots/$BOT_NAME"
+    j["repository"]["directory"] = "bots/" + name
 p.write_text(json.dumps(j, indent=2, ensure_ascii=False))
 print("  package.json actualizado")
 PY
@@ -80,12 +82,13 @@ fi
 if [ -f "$BOT_DIR/commands.json" ]; then
   echo "→ Actualizando commands.json → $BOT_NAME"
   if command -v python3 &> /dev/null; then
-    python3 << PY
-import json, pathlib
-p = pathlib.Path("$BOT_DIR/commands.json")
+    BOT_NAME="$BOT_NAME" BOT_DIR="$BOT_DIR" python3 << 'PY'
+import json, os, pathlib
+name = os.environ["BOT_NAME"]
+p = pathlib.Path(os.environ["BOT_DIR"]) / "commands.json"
 j = json.loads(p.read_text())
-j["bot"] = "$BOT_NAME"
-j["description"] = f"Comandos que usa {\"$BOT_NAME\"} (viven en commands/)."
+j["bot"] = name
+j["description"] = "Comandos que usa " + name + " (viven en commands/)."
 p.write_text(json.dumps(j, indent=2, ensure_ascii=False))
 print("  commands.json actualizado")
 PY

@@ -76,12 +76,46 @@ test('termux terminal: menú guarda el bot elegido en la conf', async (t) => {
   const home = await mkdtemp(path.join(os.tmpdir(), 'multibot-termux-menu-'))
   t.after(() => rm(home, { recursive: true, force: true }))
 
-  // Opción 2 (elegir bot) → 1 (_template) → Enter → 0 (salir)
+  // Opción 2 (elegir bot) → 1 (primero visible: izuku-bot) → Enter → 0 (salir)
   const result = runTerminal([], { home, input: '2\n1\n\n0\n' })
   assert.equal(result.status, 0, result.stderr)
-  assert.match(result.stdout + result.stderr, /Bot por defecto: _template/)
+  assert.match(result.stdout + result.stderr, /Bot por defecto: izuku-bot/)
   const conf = await readFile(path.join(home, '.multibot-terminal.conf'), 'utf8')
-  assert.match(conf, /DEFAULT_BOT=_template/)
+  assert.match(conf, /DEFAULT_BOT=izuku-bot/)
+})
+
+test('termux terminal: las carpetas _* y .* no se ofrecen como bots', async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'multibot-termux-hidden-'))
+  const home = await mkdtemp(path.join(os.tmpdir(), 'multibot-termux-hidden-home-'))
+  t.after(() => rm(root, { recursive: true, force: true }))
+  t.after(() => rm(home, { recursive: true, force: true }))
+
+  await writeFile(path.join(root, 'termux.sh'), await readFile(terminal, 'utf8'))
+  for (const id of ['fake-bot', '_template', '.dotbot']) {
+    const botDir = path.join(root, 'bots', id)
+    await mkdir(botDir, { recursive: true })
+    await writeFile(path.join(botDir, 'package.json'), JSON.stringify({
+      name: id,
+      scripts: { start: 'node index.js' },
+    }))
+  }
+
+  const run = (args) => spawnSync('bash', [path.join(root, 'termux.sh'), ...args], {
+    cwd: root, encoding: 'utf8',
+    env: { ...process.env, HOME: home, TERM: 'dumb' },
+    timeout: 60000,
+  })
+
+  const list = run(['--list-bots'])
+  assert.equal(list.status, 0, list.stderr)
+  assert.match(list.stdout, /fake-bot/)
+  assert.doesNotMatch(list.stdout, /_template/)
+  assert.doesNotMatch(list.stdout, /dotbot/)
+
+  // Pedir explícitamente el bot oculto falla como si no existiera.
+  const hidden = run(['--bot', '_template', '--qr'])
+  assert.notEqual(hidden.status, 0)
+  assert.match(hidden.stderr, /no existe/)
 })
 
 test('termux terminal: inicio pasa método y teléfono al bot (fake bot)', async (t) => {

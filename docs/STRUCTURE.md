@@ -18,7 +18,7 @@ MultiBot/
 │   ├── net/                           # http.js y downloaders.js (red y descargas)
 │   └── wa/                            # groups, interactive, live-messages, message
 ├── bots/
-│   ├── _template/                     # Base para crear bots (oculta del catálogo)
+│   ├── _template/                     # Base para crear bots (oculta del catálogo web y del menú de Termux)
 │   ├── tomioka/                       # Stickers, packs, descargas e IA (Termux)
 │   │   └── commands.json              # Los 36 comandos que usa
 │   ├── izuku-bot/                     # Estilo Deku: stickers, packs, IA (Termux)

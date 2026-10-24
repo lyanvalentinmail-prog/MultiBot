@@ -123,6 +123,9 @@ detect_bots() {
   for dir in "$BOTS_DIR"/*/; do
     [ -d "$dir" ] || continue
     local id; id="$(basename "$dir")"
+    # Las carpetas internas (p. ej. _template) no son bots ejecutables: se
+    # ocultan igual que en el catálogo web (serve-web.js ignora "_" y ".").
+    case "$id" in _*|.*) continue ;; esac
     [ -f "$dir/package.json" ] || continue
     if [ -z "$(bot_entry "$id")" ] && ! grep -q '"start"[[:space:]]*:' "$dir/package.json" 2>/dev/null; then
       continue
@@ -366,7 +369,7 @@ cmd_doctor() { # $1 = bot id
     command -v ffmpeg >/dev/null 2>&1 && ok "ffmpeg presente" || warn "Falta ffmpeg (stickers/audio fallarán)"
     { command -v magick >/dev/null 2>&1 || command -v convert >/dev/null 2>&1; } && ok "ImageMagick presente" || warn "Falta ImageMagick (algunos stickers fallarán)"
     [ -d "$dir/node_modules" ] && ok "node_modules presente" || err "Falta npm install"
-    [ -f "$dir/config.js" ] && ok "config.js presente" || warn "Falta config.js (usa Configurar bot)"
+    if [ -f "$dir/config.js" ] || [ -f "$dir/config.json" ]; then ok "Configuración presente (config.js/config.json)"; else warn "Falta configuración (usa Configurar bot)"; fi
     [ -d "$dir/sessions" ] && ok "Carpeta sessions presente" || info "Sin sesión todavía (normal si es la primera vez)"
   fi
 }
@@ -374,6 +377,26 @@ cmd_doctor() { # $1 = bot id
 cmd_setup() { # $1 = bot id
   local id="$1" dir="$BOTS_DIR/$1"
   title "⚙ Configurar — $id ($(bot_name "$id"))"
+  # Sin TTY (runtime web, CI, stdin cerrado) no se puede preguntar: se siembra
+  # la configuración desde los ejemplos que trae el propio bot.
+  if [ ! -t 0 ]; then
+    local sembrada=0
+    if [ ! -f "$dir/config.js" ] && [ -f "$dir/config.example.js" ]; then
+      cp "$dir/config.example.js" "$dir/config.js"
+      ok "Creado config.js desde config.example.js — edítalo a mano."
+      sembrada=1
+    fi
+    if [ ! -f "$dir/config.json" ] && [ -f "$dir/config.example.json" ]; then
+      cp "$dir/config.example.json" "$dir/config.json"
+      ok "Creado config.json desde config.example.json — edítalo a mano."
+      sembrada=1
+    fi
+    if [ "$sembrada" -eq 0 ]; then
+      err "Sin TTY no puedo ejecutar el asistente; crea config.js o config.json a mano para $id."
+      return 1
+    fi
+    return 0
+  fi
   if ! bot_has_script "$id" "setup"; then
     warn "Este bot no tiene asistente 'setup'."
     if [ ! -f "$dir/config.js" ] && [ -f "$dir/config.example.js" ]; then
@@ -412,8 +435,8 @@ cmd_start() { # $1 = bot id, $2 = método (qr|code|ask|sesión), $3 = teléfono
     warn "Faltan dependencias del bot o de MultiBot, instalando primero..."
     cmd_install "$id" || return 1
   fi
-  if [ ! -f "$dir/config.js" ] && bot_has_script "$id" "setup"; then
-    warn "No hay config.js — vamos a configurarlo rápido."
+  if [ ! -f "$dir/config.js" ] && [ ! -f "$dir/config.json" ] && bot_has_script "$id" "setup"; then
+    warn "No hay configuración (config.js/config.json) — vamos a configurarlo rápido."
     cmd_setup "$id" || return 1
   fi
   # Sesión ya vinculada → arranca directo, sin pedir método.

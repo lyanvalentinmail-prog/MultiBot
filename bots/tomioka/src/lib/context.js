@@ -161,7 +161,7 @@ export class CommandContext {
    * Envía un mensaje con botones (respuesta rápida de WhatsApp).
    *
    * No se usa `sendMessage` a propósito: Baileys no sabe construir un
-   * `buttonsMessage` y descartaría los botones. Ver `lib/interactive.js`
+   * `buttonsMessage` y descartaría los botones. Ver `lib/wa/interactive.js`
    * para el detalle.
    */
   async sendButtons({ text, footer = '', buttons = null, layout = null } = {}) {

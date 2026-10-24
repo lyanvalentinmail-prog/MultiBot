@@ -54,7 +54,7 @@ MultiBot/
 | **Universal Bot** | **Termux o runtime web autorizado** | RPG, juegos, IA, descargas, stickers, grupos y más; sin contenido NSFW/+18. QR/Pairing Code reales de Baileys. |
 | **TomiOka** | **Termux** | Stickers, packs, descargas e IA con menú Tomioka. QR/Pairing Code reales de Baileys. |
 | **Izuku Bot** | **Termux** | Estilo Izuku Midoriya (Deku): stickers, packs, descargas e IA con menú Plus Ultra. QR/Pairing Code reales de Baileys. |
-| `_template` | Desarrollo | Plantilla pequeña, oculta del catálogo público. |
+| `_template` | Desarrollo | Plantilla pequeña, oculta del catálogo web y del menú de Termux. |
 
 > La ejecución web solo está disponible para bots con `webRuntime: true`. La primera cuenta del panel queda como propietaria del runtime (o puedes definir `WEB_RUNTIME_ADMIN_EMAILS`). Por límites de Render Free se inicia **un proceso de bot a la vez**; el web service ofrece 512 MB de RAM y 0.1 CPU compartidos entre panel y bot, por lo que algunas tareas pesadas de IA/OCR pueden fallar. El servicio puede suspenderse/reiniciarse y las credenciales de Baileys se guardan en filesystem efímero; no hay garantía 24/7 ni persistencia de sesión.
 
