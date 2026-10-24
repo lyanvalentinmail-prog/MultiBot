@@ -62,7 +62,7 @@ export async function runDoctor({ config = loadConfig(), probeAi = true } = {}) 
     if (result.ok) ok(`dependencia ${name}`)
     else {
       error(`falta ${name}`)
-      recommendations.push('Ejecuta "npm install" dentro de la carpeta del bot.')
+      recommendations.push('Instala dependencias en la raíz de MultiBot (cd ../.. && npm install) y luego en el bot; npm start también intenta repararlo automáticamente.')
     }
   }
 

@@ -134,8 +134,13 @@ bot_has_script() { # $1=id $2=script → 0 si existe en package.json
   grep -q "\"$2\"[[:space:]]*:" "$BOTS_DIR/$1/package.json" 2>/dev/null
 }
 bot_status() { # $1 = id → "listo|falta-deps|sin-config"
-  local dir="$BOTS_DIR/$1"
+  local id="$1" dir="$BOTS_DIR/$1"
   if [ ! -d "$dir/node_modules" ]; then echo "falta-deps"; return; fi
+  case "$id" in
+    izuku-bot|tomioka)
+      [ -d "$ROOT/node_modules/@whiskeysockets/baileys" ] || { echo "falta-deps"; return; }
+      ;;
+  esac
   # Solo se exige config (js o json) si el bot trae asistente "setup".
   if bot_has_script "$1" "setup" && [ ! -f "$dir/config.js" ] && [ ! -f "$dir/config.json" ]; then echo "sin-config"; return; fi
   echo "listo"
@@ -291,7 +296,14 @@ cmd_install() { # $1 = bot id → sistema (Termux) + npm + sharp + verificación
   # 3b) Deps del kit compartido (commands/ y lib/ viven en la raíz del repo).
   if [ -f "$ROOT/package.json" ] && [ "$ROOT" != "$dir" ]; then
     info "Instalando paquetes npm del repo (kit compartido de comandos)..."
-    (cd "$ROOT" && npm install --no-audit --no-fund) || warn "npm install del repo falló (algunos comandos pueden no funcionar)."
+    case "$id" in
+      izuku-bot|tomioka)
+        (cd "$ROOT" && npm install --no-audit --no-fund) || { err "npm install de MultiBot falló; Izuku/TomiOka necesitan las dependencias de lib/."; return 1; }
+        ;;
+      *)
+        (cd "$ROOT" && npm install --no-audit --no-fund) || warn "npm install del repo falló (algunos comandos pueden no funcionar)."
+        ;;
+    esac
   fi
   # 4) sharp en Termux/Android (sin esto, plugins de imagen fallan).
   if is_termux && bot_has_script "$id" "fix:sharp"; then
@@ -315,6 +327,15 @@ cmd_install() { # $1 = bot id → sistema (Termux) + npm + sharp + verificación
   else
     warn "Falta Baileys en node_modules: el bot no va a arrancar."; fallos=$((fallos+1))
   fi
+  case "$id" in
+    izuku-bot|tomioka)
+      if [ -d "$ROOT/node_modules/@whiskeysockets/baileys" ]; then
+        ok "Baileys compartido instalado en la raíz de MultiBot."
+      else
+        err "Falta Baileys en $ROOT/node_modules; ejecuta (cd \"$ROOT\" && npm install)."; fallos=$((fallos+1))
+      fi
+      ;;
+  esac
   if [ "$fallos" -eq 0 ]; then ok "Todo instalado. Ya puedes iniciar el bot 🚀"
   else warn "Terminó con $fallos pendiente(s), revisa arriba."; fi
   return 0
@@ -381,9 +402,14 @@ cmd_setup() { # $1 = bot id
 }
 
 cmd_start() { # $1 = bot id, $2 = método (qr|code|ask|sesión), $3 = teléfono
-  local id="$1" method="${2:-ask}" phone="${3:-}" dir="$BOTS_DIR/$1"
-  if [ ! -d "$dir/node_modules" ]; then
-    warn "Faltan dependencias, instalando primero..."
+  local id="$1" method="${2:-ask}" phone="${3:-}" dir="$BOTS_DIR/$1" needs_shared=0
+  case "$id" in
+    izuku-bot|tomioka)
+      [ -d "$ROOT/node_modules/@whiskeysockets/baileys" ] || needs_shared=1
+      ;;
+  esac
+  if [ ! -d "$dir/node_modules" ] || [ "$needs_shared" -eq 1 ]; then
+    warn "Faltan dependencias del bot o de MultiBot, instalando primero..."
     cmd_install "$id" || return 1
   fi
   if [ ! -f "$dir/config.js" ] && bot_has_script "$id" "setup"; then
