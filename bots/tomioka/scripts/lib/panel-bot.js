@@ -40,7 +40,8 @@ const defaultLoaders = {
   handler: () => import('../../src/handler.js'),
   commands: () => import('../../src/commands/index.js'),
   logger: () => import('../../src/lib/logger.js'),
-  banner: () => import('../../src/lib/banner.js')
+  banner: () => import('../../src/lib/banner.js'),
+  interactive: () => import('../../src/lib/interactive.js')
 }
 
 /**
@@ -184,15 +185,19 @@ export function createPanelBotManager({ getInstance, deps = {}, runtimes = new M
     const existing = runtimes.get(instance.id)
     if (existing) return existing
 
-    const [config, handlerMod, commandsMod, loggerMod, bannerMod] = await Promise.all([
+    const [config, handlerMod, commandsMod, loggerMod, bannerMod, interactiveMod] = await Promise.all([
       configFor(instance),
       moduleFor('handler'),
       moduleFor('commands'),
       moduleFor('logger'),
-      moduleFor('banner')
+      moduleFor('banner'),
+      moduleFor('interactive')
     ])
     const { logger } = loggerMod.createLogger('warn', 'silent')
     if (config.menu.image) bannerMod.loadMenuImage(config, { logger }).catch(() => {})
+    // El primer `.help` del sub-bot no debe pagar el coste de importar el
+    // generador de interactivos.
+    interactiveMod.warmUpInteractive(logger).catch(() => {})
 
     const store = handlerMod.createStore(config, logger, { persistLiveMessages: false })
     const onUpsert = handlerMod.createUpsertHandler({

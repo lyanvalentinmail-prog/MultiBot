@@ -63,19 +63,19 @@ function fakeSock() {
         directPath: '/v/izuku-verify',
         mediaUrl: 'https://mmg.whatsapp.net/v/izuku-verify'
       })
-      sock.relayMessage = async (jid, message, options) => {
-        relayed.push({ jid, message, options })
-        return `native-${relayed.length}`
-      }
     },
     disableNative() {
       delete sock.waUploadToServer
-      delete sock.relayMessage
     },
     user: { id: '59890000000:1@s.whatsapp.net', name: 'Izuku' },
     async sendMessage(jid, content) {
       sent.push({ jid, ...content })
       return { key: { id: `msg-${sent.length}`, remoteJid: jid } }
+    },
+    /** Reenvío de mensajes ya construidos (listas interactivas) */
+    async relayMessage(jid, message, options) {
+      relayed.push({ jid, message, options })
+      return `relay-${relayed.length}`
     },
     async sendPresenceUpdate() {},
     async updateMediaMessage() {
@@ -203,11 +203,21 @@ function record(name, ok, detail, sent) {
 /** Ejecuta un paso y evalúa el resultado */
 async function step({ name, config, store, sock, msg, expect, allowError = false, allowEmpty = false }) {
   const before = sock.sent.length
+  const beforeRelayed = sock.relayed.length
   await handleMessage({ sock, msg, config, logger: noopLogger, store, commands })
   const sent = sock.sent.slice(before)
-  const texts = sent.flatMap((item) =>
-    [item.text, item.caption].filter((value) => typeof value === 'string' && value.length > 0)
-  )
+  const relayed = sock.relayed.slice(beforeRelayed)
+  const texts = [
+    ...sent.flatMap((item) =>
+      [item.text, item.caption].filter((value) => typeof value === 'string' && value.length > 0)
+    ),
+    // Las listas interactivas se retransmiten ya construidas: su texto va en
+    // el `listMessage`, no en un sendMessage normal.
+    ...relayed.flatMap((item) => {
+      const list = item.message?.listMessage
+      return list ? [`${list.description || ''}\n${list.footerText || ''}`] : []
+    })
+  ]
 
   if (allowError) {
     const errorText = texts.find((text) => text.includes('❌'))
@@ -217,14 +227,14 @@ async function step({ name, config, store, sock, msg, expect, allowError = false
       errorText ? errorText.split('\n').slice(1).join(' ').slice(0, 70) : 'no devolvió error',
       sent
     )
-    return { sent, texts }
+    return { sent, texts, relayed }
   }
 
   const ok = expect
     ? texts.some((text) => expect.test(text))
     : sent.length > 0 || allowEmpty
   record(name, ok, ok ? 'OK' : 'sin respuesta esperada', sent)
-  return { sent, texts }
+  return { sent, texts, relayed }
 }
 
 async function main() {
@@ -271,7 +281,10 @@ async function main() {
       msg: textMessage('.help'),
       expect: /Toca el botón y elige un comando/
     })
-    const helpLists = helpStep.sent.filter((item) => (item.sections || []).length > 0)
+    // La lista interactiva se retransmite ya construida (no cabe por sendMessage).
+    const helpLists = helpStep.relayed
+      .map((item) => item.message?.listMessage)
+      .filter((list) => list && (list.sections || []).length > 0)
     record(
       'menú lista con todas las secciones y botón',
       helpLists.length === 1 &&

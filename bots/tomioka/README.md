@@ -28,6 +28,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🔎 **Buscador de stickers**: `.search <texto>` trae stickers de **Sticker.ly** (packs públicos y privados) y `.searchpack` busca paquetes, los lista y los importa como paquete nativo — también por código o enlace (`https://sticker.ly/s/XXXXXX`).
 - ✍️ **Stickers de texto**: `.brat` (fondo verde lima), `.attp` (animado con colores) y `.ttp` (texto con borde), generados localmente con FFmpeg.
 - 🖼️ **Menú con banner**: `.help` carga el menú completo directamente como pie de foto del banner en un único mensaje (por defecto `banner.jpg` de Google Drive, con caché local), nunca por separado. Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los que llevan banner se eliminan para todos y los de solo texto quedan editados como **"Menu eliminado."**.
+- 📋 **Menú de lista interactiva**: `.help` manda un botón **"📋 Ver comandos"** con una sección por categoría y una fila por comando; al tocar una fila, WhatsApp ejecuta el comando. Con `menu.listMode: false` vuelve el menú de texto/banner.
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
 - 🧪 **Tests** con `node --test` (345 pruebas) y `npm run doctor` para diagnóstico.

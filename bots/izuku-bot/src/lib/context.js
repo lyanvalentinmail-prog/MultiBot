@@ -3,6 +3,7 @@ import { parseCommand, jidToNumber, truncate } from './text.js'
 import { writeStickerMetadata } from './sticker.js'
 import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from './live-messages.js'
 import { buildEstadoQuote } from './quoted.js'
+import { sendListMessage } from './interactive.js'
 import { LIST_BUTTON_TEXT } from '../menu.js'
 
 /**
@@ -149,13 +150,26 @@ export class CommandContext {
     return this.sock.sendMessage(this.chatJid, this.decorate({ text }), options)
   }
 
-  /** Envía una lista interactiva (texto + botón + secciones tocables) */
-  async sendList({ text, footer = '', buttonText = LIST_BUTTON_TEXT, sections = [] }) {
-    return this.sock.sendMessage(
-      this.chatJid,
-      this.decorate({ text, footer, buttonText, sections }),
-      { quoted: this.quotePayload() }
-    )
+  /**
+   * Envía una lista interactiva (texto + botón + secciones tocables).
+   *
+   * No se usa `sendMessage` a propósito: Baileys no sabe construir un
+   * `listMessage` y descartaría el botón y las secciones. Ver
+   * `lib/interactive.js` para el detalle.
+   */
+  async sendList({ text, footer = '', buttonText = LIST_BUTTON_TEXT, title = '', sections = [] }) {
+    const decoration = this.decorate({})
+    return sendListMessage(this.sock, {
+      chatJid: this.chatJid,
+      text,
+      footer,
+      buttonText,
+      title: title || this.config.bot?.name || '',
+      sections,
+      quoted: this.quotePayload(),
+      contextInfo: decoration.contextInfo || null,
+      logger: this.logger
+    })
   }
 
   async react(emoji) {

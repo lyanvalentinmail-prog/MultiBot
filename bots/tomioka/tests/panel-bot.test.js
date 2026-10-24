@@ -36,8 +36,10 @@ function makeInstance(overrides = {}) {
 function fakeSock() {
   const listeners = {}
   const sent = []
+  const relayed = []
   const sock = {
     sent,
+    relayed,
     listeners,
     user: { id: '59890000000:1@s.whatsapp.net', name: 'TomiOka' },
     ev: {
@@ -49,6 +51,11 @@ function fakeSock() {
     async sendMessage(jid, content) {
       sent.push({ jid, content })
       return { key: { id: `srv-${sent.length}`, remoteJid: jid } }
+    },
+    /** Reenvío de mensajes ya construidos (listas interactivas) */
+    async relayMessage(jid, message, options) {
+      relayed.push({ jid, message, options })
+      return `relay-${relayed.length}`
     },
     async sendPresenceUpdate() {},
     async updateMediaMessage() {
@@ -70,6 +77,19 @@ const incoming = (text, { fromMe = false, id = null, jid = '59891111111@s.whatsa
 
 const texts = (sock) => sock.sent.filter((item) => typeof item.content?.text === 'string').map((item) => item.content.text)
 const wait = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Espera a que se cumpla una condición en vez de un tiempo fijo: el menú
+ * interactivo carga el generador de listas y puede tardar más que un sleep.
+ */
+async function waitFor(predicate, { timeout = 5000, step = 25 } = {}) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    if (predicate()) return true
+    await wait(step)
+  }
+  return predicate()
+}
 
 /* ── pruebas ─────────────────────────────────────────────────────── */
 
@@ -175,8 +195,14 @@ test('un comando deshabilitado en el panel no responde', async () => {
   assert.equal(texts(sock).length, 0, 'el comando quedó apagado')
 
   sock.emit('messages.upsert', { type: 'notify', messages: [incoming('.help')] })
-  await wait()
-  assert.ok(texts(sock).length >= 1, 'los demás siguen funcionando')
+  await waitFor(() => sock.relayed.length > 0 || texts(sock).length > 0)
+  const cuerpos = sock.sent.map((item) => item.content?.text || item.content?.caption || '')
+  const lista = sock.sent.some((item) => (item.content?.sections || []).length > 0)
+  const listaRelayed = sock.relayed.some((item) => (item.message?.listMessage?.sections || []).length > 0)
+  assert.ok(
+    cuerpos.some((t) => /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼/.test(t)) || lista || listaRelayed,
+    'los demás siguen funcionando (menú de texto o lista)'
+  )
   rmSync(dir, { recursive: true, force: true })
 })
 

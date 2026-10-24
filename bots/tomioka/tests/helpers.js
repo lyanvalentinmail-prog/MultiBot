@@ -29,10 +29,12 @@ export const silentLogger = {
 /** Socket falso que guarda los mensajes enviados */
 export function fakeSock() {
   const sent = []
+  const relayed = []
   const reactions = []
   const presence = []
   return {
     sent,
+    relayed,
     reactions,
     presence,
     user: { id: '59890000000:1@s.whatsapp.net', name: 'TomiOka' },
@@ -40,6 +42,11 @@ export function fakeSock() {
       sent.push({ jid, content, options })
       if (content?.react) reactions.push(content.react)
       return { key: { id: `msg-${sent.length}`, remoteJid: jid } }
+    },
+    /** Reenvío de mensajes ya construidos (listas interactivas) */
+    async relayMessage(jid, message, options) {
+      relayed.push({ jid, message, options })
+      return `relay-${relayed.length}`
     },
     async sendPresenceUpdate(mode, jid) {
       presence.push({ mode, jid })
