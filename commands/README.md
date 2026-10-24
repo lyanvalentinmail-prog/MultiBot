@@ -70,7 +70,8 @@ mismos campos, así que un comando escrito una vez sirve para todos:
 | `ctx.reply(texto)` | Responde citando el mensaje. |
 | `ctx.send(texto)` | Responde sin citar. |
 | `ctx.sendImage/sendVideo/sendSticker/sendFile` | Envía multimedia. |
-| `ctx.sendList({...})` | Envía la lista interactiva de WhatsApp. |
+| `ctx.sendButtons({ text, footer, buttons })` | Envía un `ButtonsMessage` (botones de respuesta rápida de WhatsApp). |
+| `ctx.menuButtons` | Config del menú con botones: `{ enabled, layout, options }`. |
 | `ctx.react(emoji)` | Reacciona al mensaje. |
 | `ctx.config` | Config del bot (`ctx.config.bot.name`, `ctx.config.bot.emojis`…). |
 | `ctx.commands` | Mapa nombre/alias → comando. |

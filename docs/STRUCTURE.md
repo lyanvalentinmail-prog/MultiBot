@@ -13,13 +13,14 @@ MultiBot/
 │   ├── commands.js                    # Cargador común (manifiesto → registro)
 │   ├── runtime.js                     # Raíz y marca del bot activo
 │   ├── branding.js                    # Helpers de nombre y emojis
+│   ├── interactive.js                 # Menú con botones (ButtonsMessage) de WhatsApp
 │   ├── media.js / sticker.js / ffmpeg.js / ai.js / text.js / …
 ├── bots/
 │   ├── _template/                     # Base para crear bots (oculta del catálogo)
 │   ├── tomioka/                       # Stickers, packs, descargas e IA (Termux)
-│   │   └── commands.json              # Los 35 comandos que usa
+│   │   └── commands.json              # Los 36 comandos que usa
 │   ├── izuku-bot/                     # Estilo Deku: stickers, packs, IA (Termux)
-│   │   └── commands.json              # Los 35 comandos que usa
+│   │   └── commands.json              # Los 36 comandos que usa
 │   └── universal-bot/                 # Baileys, Termux + runtime web autorizado
 │       ├── bot.json                   # Metadatos y entrypoint web opt-in
 │       ├── config-loader.js           # config.js privado o defaults/env

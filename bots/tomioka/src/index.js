@@ -6,7 +6,7 @@ import { commands } from './registry.js'
 import { startBot } from './connection.js'
 import { resolveFfmpeg, selfTestFfmpeg } from '../../../lib/ffmpeg.js'
 import { canWrite, prewarmWorkDir, tempInfo } from '../../../lib/tmp.js'
-import { warmUpInteractive } from './lib/interactive.js'
+import { warmUpInteractive } from '../../../lib/interactive.js'
 import { createLogger } from './lib/logger.js'
 import { banner, box, c, error, info, step, sym, warn } from './lib/ui.js'
 
@@ -114,7 +114,7 @@ async function main() {
     logger.debug?.(warmed ? 'carpeta temporal precalentada' : 'no se pudo precalentar la carpeta temporal')
   }
 
-  // Precalentado del generador de interactivos: sin esto el primer `.help`
+  // Precalentado del generador de botones: sin esto el primer `.menu`
   // tarda ~300 ms extra en importar el paquete y el menú parece lento.
   warmUpInteractive(logger).catch(() => {})
 

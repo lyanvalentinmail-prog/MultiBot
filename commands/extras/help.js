@@ -34,22 +34,28 @@ export default {
     // permite editar una foto hasta convertirla en texto.
     await ctx.retireLive('menu', RETIRED_MENU_TEXT)
 
-    // Lista interactiva (terminal → Personalizar → Menú lista): un mensaje
-    // con botón y secciones; al tocar una fila llega el comando y se ejecuta.
-    if (ctx.config.menu?.listMode !== false) {
-      const sections = ctx.menu.buildListSections({ config: ctx.config, commands: ctx.commands })
-      if (sections.length) {
-        const sent = await ctx.sendList({
-          text: ctx.menu.buildListText({
-            config: ctx.config,
-            sender: { label: ctx.pushName || ctx.senderNumber, jid: ctx.senderJid }
-          }),
-          footer: ctx.menu.buildListFooter({ config: ctx.config }),
-          sections
-        })
-        // Las listas no se pueden editar a texto: al pedir otro menú se borran
+    // Menú con botones (Menu / Perfil): el interruptor `menu.buttons.enabled`
+    // lo apaga y `ctx.menuContentOnly` lo salta (es el toque en el botón
+    // "Menu", que debe mostrar el menú completo y no el lanzador otra vez).
+    const botones = ctx.menuButtons
+    const puedeBotones =
+      !ctx.menuContentOnly &&
+      botones?.enabled !== false &&
+      typeof ctx.sendButtons === 'function' &&
+      typeof ctx.menu?.buildButtonsText === 'function'
+
+    if (puedeBotones) {
+      const sent = await ctx.sendButtons({
+        text: ctx.menu.buildButtonsText({
+          config: ctx.config,
+          sender: { label: ctx.pushName || ctx.senderNumber, jid: ctx.senderJid }
+        }),
+        footer: ctx.menu.buildButtonsFooter({ config: ctx.config })
+      })
+      if (sent) {
+        // Los botones no se pueden editar a texto: al pedir otro menú se borran
         ctx.rememberLive('menu', sent, { kind: 'media' })
-        return 'menu lista'
+        return 'menu botones'
       }
     }
 

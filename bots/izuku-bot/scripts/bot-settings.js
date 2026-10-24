@@ -12,10 +12,11 @@
  *   mod-add <tel> | mod-del <tel>
  *
  * Ajustes: namebot, packname, author, botBanner,
- *   comandosEnabled, mensajesReenviados, quotedVerificado, menuLista, modoPublico
+ *   comandosEnabled, mensajesReenviados, quotedVerificado, menuBotones,
+ *   menuBotonesLayout, modoPublico
  * Alias: nombre, stickers-pack/nombre-stickers, stickers-autor/autor-stickers,
- *   banner, comandos, reenviados, respuesta (estado|responder), menu-lista,
- *   publico/modo-publico
+ *   banner, comandos, reenviados, respuesta (estado|responder),
+ *   menu-botones (menu-lista), menu-layout, publico/modo-publico
  *
  * Variables: BOT_SETTINGS_CONFIG=<ruta config.json> (para pruebas).
  * Salida pensada para bash: líneas `clave=valor`.
@@ -37,10 +38,11 @@ const ALL_KEYS = [
   'comandosEnabled',
   'mensajesReenviados',
   'quotedVerificado',
-  'menuLista',
+  'menuBotones',
+  'menuBotonesLayout',
   'modoPublico'
 ]
-const BOOL_KEYS = ['comandosEnabled', 'mensajesReenviados', 'quotedVerificado', 'menuLista', 'modoPublico']
+const BOOL_KEYS = ['comandosEnabled', 'mensajesReenviados', 'quotedVerificado', 'menuBotones', 'modoPublico']
 
 // Misma llave que universal-bot → ruta dentro del config.json
 const PATHS = {
@@ -51,7 +53,8 @@ const PATHS = {
   comandosEnabled: ['behavior', 'commandsEnabled'],
   mensajesReenviados: ['behavior', 'forwardedStyle'],
   quotedVerificado: ['behavior', 'estadoQuote'],
-  menuLista: ['menu', 'listMode'],
+  menuBotones: ['menu', 'buttons', 'enabled'],
+  menuBotonesLayout: ['menu', 'buttons', 'layout'],
   modoPublico: ['behavior', 'publicMode']
 }
 
@@ -64,7 +67,8 @@ const DEFAULTS = {
   comandosEnabled: true,
   mensajesReenviados: false,
   quotedVerificado: false,
-  menuLista: true,
+  menuBotones: true,
+  menuBotonesLayout: 'horizontal',
   modoPublico: true
 }
 
@@ -82,7 +86,11 @@ const ALIASES = {
   comandos: 'comandosEnabled',
   reenviados: 'mensajesReenviados',
   respuesta: 'quotedVerificado',
-  'menu-lista': 'menuLista',
+  'menu-lista': 'menuBotones', // alias viejo (la lista ahora son botones)
+  'menu-botones': 'menuBotones',
+  botones: 'menuBotones',
+  'menu-layout': 'menuBotonesLayout',
+  'layout-menu': 'menuBotonesLayout',
   publico: 'modoPublico',
   'modo-publico': 'modoPublico'
 }

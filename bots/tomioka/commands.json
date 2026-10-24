@@ -30,6 +30,7 @@
     "ia/gemini.js",
     "juegos/dado.js",
     "juegos/moneda.js",
+    "perfiles/perfil.js",
     "stickers/attp.js",
     "stickers/brat.js",
     "stickers/gif.js",

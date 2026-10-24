@@ -58,7 +58,7 @@ test('loadConfig mezcla defaults, config.json y normaliza', () => {
   assert.deepEqual(config.menu.categories[3].commands, ['pack'])
   assert.deepEqual(config.menu.categories[4].commands, ['gemini', 'chatgpt', 'deepseek'])
   assert.deepEqual(config.menu.categories[5].commands, ['kick', 'promote', 'demote', 'add', 'tagall', 'open', 'close', 'infogrupo'])
-  assert.deepEqual(config.menu.categories[6].commands, ['help', 'debug', 'dado', 'moneda', 'timer', 'lyrics'])
+  assert.deepEqual(config.menu.categories[6].commands, ['help', 'perfil', 'debug', 'dado', 'moneda', 'timer', 'lyrics'])
   assert.ok(config.paths.session.endsWith('sessions'))
   assert.equal(config.stickers.size, 512)
   assert.equal(typeof DEFAULTS.stickers.maxStaticKB, 'number')

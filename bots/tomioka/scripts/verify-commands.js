@@ -211,11 +211,14 @@ async function step({ name, config, store, sock, msg, expect, allowError = false
     ...sent.flatMap((item) =>
       [item.text, item.caption].filter((value) => typeof value === 'string' && value.length > 0)
     ),
-    // Las listas interactivas se retransmiten ya construidas: su texto va en
-    // el `listMessage`, no en un sendMessage normal.
+    // Los menús interactivos se retransmiten ya construidos: su texto va en
+    // el `listMessage` / `buttonsMessage`, no en un sendMessage normal.
     ...relayed.flatMap((item) => {
       const list = item.message?.listMessage
-      return list ? [`${list.description || ''}\n${list.footerText || ''}`] : []
+      if (list) return [`${list.description || ''}\n${list.footerText || ''}`]
+      const buttons = item.message?.buttonsMessage
+      if (buttons) return [`${buttons.contentText || ''}\n${buttons.footerText || ''}`]
+      return []
     })
   ]
 
@@ -274,27 +277,28 @@ async function main() {
   try {
     // ---------- ayuda / menú ----------
     const helpStep = await step({
-      name: '.help (lista interactiva)',
+      name: '.help (menú con botones)',
       config,
       store,
       sock,
       msg: textMessage('.help'),
-      expect: /Toca el botón y elige un comando/
+      expect: /Toca un botón para continuar/
     })
-    // La lista interactiva se retransmite ya construida (no cabe por sendMessage).
-    const helpLists = helpStep.relayed
-      .map((item) => item.message?.listMessage)
-      .filter((list) => list && (list.sections || []).length > 0)
+    // Los botones se retransmiten ya construidos (no caben por sendMessage).
+    const helpButtons = helpStep.relayed
+      .map((item) => item.message?.buttonsMessage)
+      .filter((buttons) => buttons && (buttons.buttons || []).length > 0)
     record(
-      'menú lista con todas las secciones y botón',
-      helpLists.length === 1 &&
-        helpLists[0].sections.length === config.menu.categories.length &&
-        Boolean(helpLists[0].buttonText),
-      helpLists.length === 1 ? 'OK' : `list=${helpLists.length}`,
+      'menú con botones (Menu y Perfil)',
+      helpButtons.length === 1 &&
+        helpButtons[0].buttons.length === 2 &&
+        helpButtons[0].buttons[0].buttonId === 'menu' &&
+        helpButtons[0].buttons[1].buttonId === 'perfil',
+      helpButtons.length === 1 ? 'OK' : `botones=${helpButtons.length}`,
       helpStep.sent
     )
-    // El menú con banner sigue disponible con listMode: false
-    config.menu.listMode = false
+    // El menú con banner sigue disponible con los botones apagados
+    config.menu.buttons = { ...config.menu.buttons, enabled: false }
     const helpBanner = await step({
       name: '.help sin lista (menú cargado junto con el banner)',
       config,
@@ -303,7 +307,7 @@ async function main() {
       msg: textMessage('.help'),
       expect: /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼[\s\S]*\.debug[\s\S]*𝕰𝐍𝐃 𝐎𝐅 𝐌𝐄𝐍𝐔/
     })
-    config.menu.listMode = true
+    config.menu.buttons = { ...config.menu.buttons, enabled: true }
     const helpImages = helpBanner.sent.filter((item) => item.image)
     const helpTexts = helpBanner.sent.filter((item) => typeof item.text === 'string')
     record(
@@ -326,7 +330,7 @@ async function main() {
       store,
       sock,
       msg: textMessage('.menu'),
-      expect: /Toca el botón y elige un comando/
+      expect: /Toca un botón para continuar/
     })
     await step({
       name: '.dado (azar)',

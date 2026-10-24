@@ -28,6 +28,7 @@ test('todos los comandos pedidos existen', () => {
     'chatgpt',
     'deepseek',
     'help',
+    'perfil',
     'debug',
     'kick',
     'promote',
@@ -63,7 +64,7 @@ test('el menú usa siete categorías con TODOS los comandos del bot', () => {
   assert.deepEqual(packs.commands, ['pack'])
   assert.deepEqual(ai.commands, ['gemini', 'chatgpt', 'deepseek'])
   assert.deepEqual(groups.commands, ['kick', 'promote', 'demote', 'add', 'tagall', 'open', 'close', 'infogrupo'])
-  assert.deepEqual(info.commands, ['help', 'debug', 'dado', 'moneda', 'timer', 'lyrics'])
+  assert.deepEqual(info.commands, ['help', 'perfil', 'debug', 'dado', 'moneda', 'timer', 'lyrics'])
   assert.deepEqual(
     resolveCategoryCommands(downloads, commands).map((command) => command.name),
     ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'fb']
@@ -82,7 +83,7 @@ test('el menú usa siete categorías con TODOS los comandos del bot', () => {
   )
   assert.deepEqual(
     resolveCategoryCommands(info, commands).map((command) => command.name),
-    ['help', 'debug', 'dado', 'moneda', 'timer', 'lyrics']
+    ['help', 'perfil', 'debug', 'dado', 'moneda', 'timer', 'lyrics']
   )
 
   // Todos los comandos registrados aparecen exactamente una vez en alguna categoría

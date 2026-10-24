@@ -13,10 +13,11 @@
  *   node scripts/bot-settings.js mod-del <teléfono>
  *
  * Ajustes: namebot, packname, author, moneda, botBanner,
- *   comandosEnabled, mensajesReenviados, quotedVerificado, menuLista, modoPublico
+ *   comandosEnabled, mensajesReenviados, quotedVerificado, menuBotones,
+ *   menuBotonesLayout, modoPublico
  * Alias: nombre, stickers-pack/nombre-stickers, stickers-autor/autor-stickers,
- *   banner, comandos, reenviados, respuesta (estado|responder), menu-lista,
- *   publico/modo-publico
+ *   banner, comandos, reenviados, respuesta (estado|responder),
+ *   menu-botones (menu-lista), menu-layout, publico/modo-publico
  *
  * Variables: BOT_SETTINGS_CONFIG=<ruta config.js> (para pruebas).
  * Salida pensada para bash: líneas `clave=valor`.
@@ -57,7 +58,11 @@ const ALIASES = {
   comandos: 'comandosEnabled',
   reenviados: 'mensajesReenviados',
   respuesta: 'quotedVerificado',
-  'menu-lista': 'menuLista',
+  'menu-lista': 'menuBotones', // alias viejo (la lista ahora son botones)
+  'menu-botones': 'menuBotones',
+  botones: 'menuBotones',
+  'menu-layout': 'menuBotonesLayout',
+  'layout-menu': 'menuBotonesLayout',
   publico: 'modoPublico',
   'modo-publico': 'modoPublico',
 }

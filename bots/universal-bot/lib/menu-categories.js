@@ -674,15 +674,6 @@ ${ctx.lineasOwners}
 𓂃 ࣪ ִֶָ☾. *𝙴𝙻𝙸𝙶𝙴 𝚄𝙽𝙰 𝙲𝙰𝚃𝙴𝙶𝙾𝚁Í𝙰* 𓂃 ࣪ ִֶָ☾.`.trim()
 }
 
-export function construirSeccionesLista(categorias) {
-  return construirSeccionesAgrupadas(categorias, cat => ({
-    title: cat.title,
-    description: cat.description,
-    rowId: cat.rowId,
-  }))
-}
-
-
 export function construirSeccionesInteractivas(categorias) {
   return construirSeccionesAgrupadas(categorias, cat => ({
     header: '',
@@ -789,7 +780,6 @@ export {
   construirRespuestaCategoria as buildCategoryResponse,
   construirEncabezadoMenu as buildMenuHeader,
   construirLineasOwners as buildOwnerLines,
-  construirSeccionesLista as buildListSections,
   construirSeccionesInteractivas as buildInteractiveSections,
   construirContenidoMenuInteractivo as buildInteractiveMenuContent,
   construirContenidoCategoriaInteractivo as buildCategoryInteractiveContent,
