@@ -9,7 +9,7 @@ import {
   splitGraphemes,
   splitNameAuthor,
   truncate
-} from '../../../lib/text.js'
+} from '../../../lib/ai/text.js'
 
 test('parseCommand detecta prefijo, comando y argumentos', () => {
   const parsed = parseCommand('.sticker hola mundo', ['.'])

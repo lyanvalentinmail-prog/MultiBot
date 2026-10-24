@@ -1,5 +1,5 @@
-import { loadMenuImage } from '../../lib/banner.js'
-import { RETIRED_MENU_TEXT } from '../../lib/live-messages.js'
+import { loadMenuImage } from '../../lib/core/banner.js'
+import { RETIRED_MENU_TEXT } from '../../lib/wa/live-messages.js'
 
 /**
  * Límite máximo de texto que WhatsApp Web / Baileys acepta como pie de foto

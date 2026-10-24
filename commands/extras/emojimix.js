@@ -1,7 +1,7 @@
-import { convertToSticker } from '../../lib/media.js'
-import { brandEmoji } from '../../lib/branding.js'
-import { extractEmojis } from '../../lib/text.js'
-import { codePointToEmoji, downloadMix, findMix, indexInfo, randomMix } from '../../lib/emojimix.js'
+import { convertToSticker } from '../../lib/media/media.js'
+import { brandEmoji } from '../../lib/core/branding.js'
+import { extractEmojis } from '../../lib/ai/text.js'
+import { codePointToEmoji, downloadMix, findMix, indexInfo, randomMix } from '../../lib/media/emojimix.js'
 
 export default {
   name: 'emojimix',

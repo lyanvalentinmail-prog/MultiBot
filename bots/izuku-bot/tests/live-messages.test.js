@@ -11,7 +11,7 @@ import {
   inferLiveKind,
   retireLiveMessages,
   sendLiveMessage
-} from '../../../lib/live-messages.js'
+} from '../../../lib/wa/live-messages.js'
 import { fakeSock, silentLogger, testConfig, withLiveMessages } from './helpers.js'
 
 function makeCtx() {

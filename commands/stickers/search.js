@@ -1,15 +1,15 @@
-import { convertToSticker } from '../../lib/media.js'
-import { botName, brandEmoji } from '../../lib/branding.js'
-import { auditSticker, isWebpBuffer } from '../../lib/webp.js'
+import { convertToSticker } from '../../lib/media/media.js'
+import { botName, brandEmoji } from '../../lib/core/branding.js'
+import { auditSticker, isWebpBuffer } from '../../lib/media/webp.js'
 import {
   downloadSticker,
   friendlySearchError,
   searchSettings,
   searchStickers,
   stickerExtension
-} from '../../lib/sticker-search.js'
-import { truncate } from '../../lib/text.js'
-import { mapLimit } from '../../lib/concurrency.js'
+} from '../../lib/media/sticker-search.js'
+import { truncate } from '../../lib/ai/text.js'
+import { mapLimit } from '../../lib/core/concurrency.js'
 import { deliverPack } from '../extras/pack.js'
 
 const MAX_SEND = 10

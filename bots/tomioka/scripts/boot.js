@@ -6,7 +6,7 @@
  */
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { ensureBotDependencies } from '../../../scripts/ensure-bot-dependencies.js'
+import { ensureBotDependencies } from '../../../scripts/server/ensure-bot-dependencies.js'
 
 const BOT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const REPO_ROOT = path.resolve(BOT_ROOT, '../..')

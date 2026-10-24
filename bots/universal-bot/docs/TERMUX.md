@@ -1,6 +1,6 @@
 # 📱 Universal Bot — Guía Termux
 
-Esta guía explica el inicio en Termux. Universal Bot también dispone de un runtime web de MultiBot protegido por allowlist; revisa [`../../../docs/WEB.md`](../../../docs/WEB.md) para Render Free.
+Esta guía explica el inicio en Termux. Universal Bot también dispone de un runtime web de MultiBot protegido por allowlist; revisa [`../../../docs/WEB.md`](../../../docs/guides/WEB.md) para Render Free.
 
 ## Instalación rápida
 
@@ -116,4 +116,4 @@ npm start
 
 ---
 
-Más: `../../docs/TERMUX_GUIDE.md`
+Más: `../../docs/guides/TERMUX_GUIDE.md`

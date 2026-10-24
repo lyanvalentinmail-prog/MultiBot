@@ -9,7 +9,7 @@ import {
   readMenuButtons,
   resolveMenuButtons,
   sendButtonsMessage
-} from '../lib/interactive.js'
+} from '../../lib/wa/interactive.js'
 
 test('el menú con botones trae Menu y Perfil por defecto', () => {
   const botones = resolveMenuButtons({})

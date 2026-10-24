@@ -10,10 +10,14 @@ MultiBot/
 │   ├── <categoría>/         # audio, busqueda, grupos, ia, rpg, stickers, top…
 │   ├── categories.json      # Listado oficial de categorías
 │   └── README.md            # Cómo se escribe y carga un comando
-├── lib/                     # Kit compartido (sticker, media, ffmpeg, IA, texto…)
-│   ├── commands.js          # Cargador común de comandos y registro
-│   ├── runtime.js           # Raíz y marca (branding) del bot activo
-│   └── branding.js          # Helpers de nombre y emojis para los comandos
+├── lib/                     # Kit compartido, organizado por dominio
+│   ├── commands.js          # Cargador común de comandos y registro (ancla: calcula la raíz)
+│   ├── runtime.js           # Raíz y marca (branding) del bot activo (ancla)
+│   ├── core/                # branding, banner, cache, concurrencia, tmp y sesión
+│   ├── media/               # sticker, ffmpeg, webp, emojimix, zip y medios
+│   ├── ai/                  # IA (ai.js) y utilidades de texto
+│   ├── net/                 # http y descargadores
+│   └── wa/                  # grupos, menús interactivos, mensajes y mensajes en vivo
 ├── bots/
 │   ├── universal-bot/       # Todo-en-uno; Termux + web admin; sin NSFW/+18
 │   │   └── commands.json    # Los 202 comandos que usa este bot
@@ -24,11 +28,16 @@ MultiBot/
 │   └── _template/           # Plantilla ligera para nuevos bots
 │       └── commands.json    # Los comandos de la plantilla
 ├── web/                     # SPA/PWA MultiBot (diseño adaptado de TomiOka)
-├── scripts/serve-web.js     # Servidor/API del catálogo, cuentas y runtime (más rutas heredadas)
-├── scripts/web-runtime.js   # Gestión protegida de procesos hijos
-├── scripts/termux-go.sh     # Bootstrap de un comando: clona/actualiza y abre la terminal
+├── scripts/
+│   ├── server/              # Node: serve-web.js (portal/API), web-runtime.js y deps
+│   ├── termux-go.sh         # Bootstrap de un comando: clona/actualiza y abre la terminal
+│   ├── create-bot.sh        # Crea un bot nuevo desde _template
+│   └── install-termux.sh    # Ayuda de instalación en Termux
+├── tests/                   # Pruebas por área: web/, kit/ y bots/
 ├── data/                    # Fallback local ignorado por Git
-├── docs/                    # Guías de repositorio, Termux y web
+├── docs/
+│   ├── STRUCTURE.md         # Mapa oficial de la estructura
+│   └── guides/              # Guías de repositorio, Termux, web y alta de bots
 ├── termux.sh                # Terminal personalizada Termux (menú, QR, pairing code)
 └── render.yaml              # Blueprint Free: panel + PostgreSQL
 ```
@@ -65,7 +74,7 @@ npm start                  # elige "code" (pairing) o "qr"
 > ¿`SyntaxError: Unexpected identifier 'start'` al arrancar? Pegaste `npm start` dentro del editor.
 > Ejecuta `npm run setup -- --fix` (o `rm config.js && npm run setup`).
 
-Guías completas: [`docs/TERMUX_GUIDE.md`](docs/TERMUX_GUIDE.md) · [`bots/universal-bot/docs/TERMUX.md`](bots/universal-bot/docs/TERMUX.md)
+Guías completas: [`docs/TERMUX_GUIDE.md`](docs/guides/TERMUX_GUIDE.md) · [`bots/universal-bot/docs/TERMUX.md`](bots/universal-bot/docs/TERMUX.md)
 
 ## 🤖 Terminal personalizada (Termux)
 
@@ -89,11 +98,11 @@ bash termux.sh --customize          # personalizar bot: stickers, moneda, banner
 > con un comando:
 > `bash <(curl -fsSL https://raw.githubusercontent.com/lyanvalentinmail-prog/MultiBot/main/scripts/termux-go.sh)`
 
-Guía completa: [`docs/TERMUX_TERMINAL.md`](docs/TERMUX_TERMINAL.md)
+Guía completa: [`docs/TERMUX_TERMINAL.md`](docs/guides/TERMUX_TERMINAL.md)
 
 ## Panel web y runtime
 
-La web descubre bots y plugins y ofrece **Crear bot** para desplegar/iniciar Universal Bot como proceso dentro del servicio web existente y vincular WhatsApp con un QR o Pairing Code real. Esto no aprovisiona un servicio Render nuevo. El despliegue no necesita variables extra: **la primera cuenta creada en el panel queda como propietaria** y es la única que puede iniciar/detener el bot y ver los códigos. Si quieres cambiar eso, define `WEB_RUNTIME_OWNER_EMAIL` o una allowlist en `WEB_RUNTIME_ADMIN_EMAILS` (consulta [`docs/WEB.md`](docs/WEB.md)).
+La web descubre bots y plugins y ofrece **Crear bot** para desplegar/iniciar Universal Bot como proceso dentro del servicio web existente y vincular WhatsApp con un QR o Pairing Code real. Esto no aprovisiona un servicio Render nuevo. El despliegue no necesita variables extra: **la primera cuenta creada en el panel queda como propietaria** y es la única que puede iniciar/detener el bot y ver los códigos. Si quieres cambiar eso, define `WEB_RUNTIME_OWNER_EMAIL` o una allowlist en `WEB_RUNTIME_ADMIN_EMAILS` (consulta [`docs/WEB.md`](docs/guides/WEB.md)).
 
 ### Desplegar y vincular en 3 pasos
 
@@ -120,7 +129,7 @@ El Blueprint configura web service y PostgreSQL en plan **Free**, sin cambiar a 
 
 La base de datos PostgreSQL Free de Render vence a los **30 días**: exporta cuentas y configuraciones antiguas o migra antes de esa fecha. No actualices a un plan pago si no quieres cargos. La base del panel nunca almacena credenciales de Baileys.
 
-Más detalles: [`docs/WEB.md`](docs/WEB.md).
+Más detalles: [`docs/WEB.md`](docs/guides/WEB.md).
 
 ## Añadir un bot
 
@@ -128,7 +137,7 @@ Más detalles: [`docs/WEB.md`](docs/WEB.md).
 bash scripts/create-bot.sh mi-bot
 ```
 
-La carpeta se detecta automáticamente en el catálogo. Para iniciarse desde la web, el bot necesita un entrypoint no interactivo, contrato de eventos seguro, pruebas y opt-in explícito en `bot.json`; consulta [`docs/ADD_NEW_BOT.md`](docs/ADD_NEW_BOT.md).
+La carpeta se detecta automáticamente en el catálogo. Para iniciarse desde la web, el bot necesita un entrypoint no interactivo, contrato de eventos seguro, pruebas y opt-in explícito en `bot.json`; consulta [`docs/ADD_NEW_BOT.md`](docs/guides/ADD_NEW_BOT.md).
 
 ## Atribución y contenido
 

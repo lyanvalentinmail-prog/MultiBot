@@ -7,14 +7,14 @@ import {
   buildYtDlpArgs,
   extractFirstUrl,
   validateDownloadUrl
-} from '../../../lib/downloaders.js'
+} from '../../../lib/net/downloaders.js'
 import {
   buildTextFrameArgs,
   normalizeStickerText,
   textStickerFontSize,
   wrapStickerText
-} from '../../../lib/text-sticker.js'
-import { readSticker } from '../../../lib/sticker.js'
+} from '../../../lib/media/text-sticker.js'
+import { readSticker } from '../../../lib/media/sticker.js'
 import { fakeSock, ffmpegAvailable, silentLogger, testConfig, textMessage } from './helpers.js'
 
 function makeContext(commandText) {

@@ -1,11 +1,11 @@
-import { convertToSticker, imageToWebp, stickerToTray } from '../../lib/media.js'
-import { botPrefix, brandEmoji } from '../../lib/branding.js'
-import { extensionFor } from '../../lib/message.js'
-import { isAnimatedExtension } from '../../lib/ffmpeg.js'
-import { isWebp, readSticker, writeStickerMetadata } from '../../lib/sticker.js'
-import { splitNameAuthor } from '../../lib/text.js'
-import { buildStickerPackZip, prepareStickerPackMessage } from '../../lib/sticker-pack.js'
-import { fireAndForget } from '../../lib/concurrency.js'
+import { convertToSticker, imageToWebp, stickerToTray } from '../../lib/media/media.js'
+import { botPrefix, brandEmoji } from '../../lib/core/branding.js'
+import { extensionFor } from '../../lib/wa/message.js'
+import { isAnimatedExtension } from '../../lib/media/ffmpeg.js'
+import { isWebp, readSticker, writeStickerMetadata } from '../../lib/media/sticker.js'
+import { splitNameAuthor } from '../../lib/ai/text.js'
+import { buildStickerPackZip, prepareStickerPackMessage } from '../../lib/media/sticker-pack.js'
+import { fireAndForget } from '../../lib/core/concurrency.js'
 
 const DONE = new Set(['done', 'listo', 'fin', 'finish', 'terminar', 'zip'])
 const CANCEL = new Set(['cancel', 'cancelar', 'salir', 'stop'])

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandContext } from '../src/lib/context.js'
-import { readButtonSelection } from '../../../lib/interactive.js'
+import { readButtonSelection } from '../../../lib/wa/interactive.js'
 import { commands, findCommand } from '../src/registry.js'
 import * as menu from '../src/menu.js'
 import { createStore, handleMessage } from '../src/handler.js'

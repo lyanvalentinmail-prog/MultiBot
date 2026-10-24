@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import { ensureDirs, isValidPhone, loadConfig, normalizePhone } from './config.js'
-import { describeSession, inspectSession } from '../../../lib/session.js'
-import { loadMenuImage } from '../../../lib/banner.js'
+import { describeSession, inspectSession } from '../../../lib/core/session.js'
+import { loadMenuImage } from '../../../lib/core/banner.js'
 import { commands } from './registry.js'
 import { startBot } from './connection.js'
-import { resolveFfmpeg, selfTestFfmpeg } from '../../../lib/ffmpeg.js'
-import { canWrite, prewarmWorkDir, tempInfo } from '../../../lib/tmp.js'
-import { warmUpInteractive } from '../../../lib/interactive.js'
+import { resolveFfmpeg, selfTestFfmpeg } from '../../../lib/media/ffmpeg.js'
+import { canWrite, prewarmWorkDir, tempInfo } from '../../../lib/core/tmp.js'
+import { warmUpInteractive } from '../../../lib/wa/interactive.js'
 import { createLogger } from './lib/logger.js'
 import { banner, box, c, error, info, step, sym, warn } from './lib/ui.js'
 

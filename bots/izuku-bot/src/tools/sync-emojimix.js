@@ -6,7 +6,7 @@
 import { statSync } from 'node:fs'
 import { ensureDirs, loadConfig } from '../config.js'
 import { createLogger } from '../lib/logger.js'
-import { ensureIndex, resetIndexCache } from '../../../../lib/emojimix.js'
+import { ensureIndex, resetIndexCache } from '../../../../lib/media/emojimix.js'
 import { info, ok, warn } from '../lib/ui.js'
 
 const config = loadConfig()

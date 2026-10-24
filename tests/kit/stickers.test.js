@@ -8,9 +8,9 @@ import {
   construirUrlTenor,
   extraerUrlMedia,
   normalizarResultados,
-} from '../bots/universal-bot/lib/sticker-search.js'
+} from '../../bots/universal-bot/lib/sticker-search.js'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const botDir = path.join(repoRoot, 'bots', 'universal-bot')
 // Todos los comandos viven en la carpeta compartida commands/.
 const commandsDir = path.join(repoRoot, 'commands')

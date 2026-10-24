@@ -1,16 +1,16 @@
 import { deliverPack } from '../extras/pack.js'
-import { botName, brandEmoji } from '../../lib/branding.js'
+import { botName, brandEmoji } from '../../lib/core/branding.js'
 import { stickerBufferFromUrl } from './search.js'
-import { readSticker } from '../../lib/sticker.js'
+import { readSticker } from '../../lib/media/sticker.js'
 import {
   friendlySearchError,
   parsePackId,
   resolvePack,
   searchPacks,
   searchSettings
-} from '../../lib/sticker-search.js'
-import { truncate } from '../../lib/text.js'
-import { mapLimit } from '../../lib/concurrency.js'
+} from '../../lib/media/sticker-search.js'
+import { truncate } from '../../lib/ai/text.js'
+import { mapLimit } from '../../lib/core/concurrency.js'
 
 const WAIT = new Set(['get', 'importar', 'descargar', 'link', 'pack', 'enviar'])
 const CANCEL = new Set(['cancel', 'cancelar', 'salir', 'stop', 'limpiar'])

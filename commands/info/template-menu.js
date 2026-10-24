@@ -6,7 +6,7 @@
  * manda con `sendButtonsMessage` (que usa @itsliaaa/baileys + el nodo
  * <biz> que WhatsApp exige para mostrarlos).
  */
-import { resolveMenuButtons, sendButtonsMessage } from '../../lib/interactive.js'
+import { resolveMenuButtons, sendButtonsMessage } from '../../lib/wa/interactive.js'
 
 export default {
   name: 'menu',

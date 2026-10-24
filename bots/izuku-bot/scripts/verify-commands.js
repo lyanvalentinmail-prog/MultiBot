@@ -16,8 +16,8 @@ import { loadConfig } from '../src/config.js'
 import { commands } from '../src/registry.js'
 import { createStore, handleMessage } from '../src/handler.js'
 import { CommandContext } from '../src/lib/context.js'
-import { resolveFfmpeg } from '../../../lib/ffmpeg.js'
-import { resetIndexCache } from '../../../lib/emojimix.js'
+import { resolveFfmpeg } from '../../../lib/media/ffmpeg.js'
+import { resetIndexCache } from '../../../lib/media/emojimix.js'
 import { c, sym } from '../src/lib/colors.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))

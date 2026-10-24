@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { ensureBotDependencies } from '../scripts/ensure-bot-dependencies.js'
+import { ensureBotDependencies } from '../../scripts/server/ensure-bot-dependencies.js'
 
 function writePackage(root, dependencies) {
   mkdirSync(root, { recursive: true })

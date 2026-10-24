@@ -3,11 +3,11 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { crc32, createZip } from '../bots/universal-bot/lib/zip.js'
-import PackSessionStore from '../bots/universal-bot/lib/pack-session.js'
-import { buildWastickerZip, packStickerFileName, safeFileName } from '../bots/universal-bot/lib/wasticker.js'
+import { crc32, createZip } from '../../bots/universal-bot/lib/zip.js'
+import PackSessionStore from '../../bots/universal-bot/lib/pack-session.js'
+import { buildWastickerZip, packStickerFileName, safeFileName } from '../../bots/universal-bot/lib/wasticker.js'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const botDir = path.join(repoRoot, 'bots', 'universal-bot')
 // Todos los comandos viven en la carpeta compartida commands/.
 const commandsDir = path.join(repoRoot, 'commands')

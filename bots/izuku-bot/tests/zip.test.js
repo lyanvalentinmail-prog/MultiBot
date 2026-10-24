@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { crc32, createZip } from '../../../lib/zip.js'
+import { crc32, createZip } from '../../../lib/media/zip.js'
 
 test('crc32 coincide con los valores conocidos', () => {
   assert.equal(crc32(Buffer.from('hello')), 0x3610a686)

@@ -1,13 +1,13 @@
 import path from 'node:path'
-import { botName, brandEmoji } from '../../lib/branding.js'
-import { resolveFfmpeg, selfTestFfmpeg } from '../../lib/ffmpeg.js'
-import { tempInfo, canWrite } from '../../lib/tmp.js'
-import { indexInfo } from '../../lib/emojimix.js'
-import { describeSession, inspectSession } from '../../lib/session.js'
-import { auditSticker } from '../../lib/sticker.js'
-import { loadMenuImage } from '../../lib/banner.js'
-import { truncate } from '../../lib/text.js'
-import { stickerCacheStats } from '../../lib/media.js'
+import { botName, brandEmoji } from '../../lib/core/branding.js'
+import { resolveFfmpeg, selfTestFfmpeg } from '../../lib/media/ffmpeg.js'
+import { tempInfo, canWrite } from '../../lib/core/tmp.js'
+import { indexInfo } from '../../lib/media/emojimix.js'
+import { describeSession, inspectSession } from '../../lib/core/session.js'
+import { auditSticker } from '../../lib/media/sticker.js'
+import { loadMenuImage } from '../../lib/core/banner.js'
+import { truncate } from '../../lib/ai/text.js'
+import { stickerCacheStats } from '../../lib/media/media.js'
 
 const yes = (value) => (value ? '✅' : '❌')
 

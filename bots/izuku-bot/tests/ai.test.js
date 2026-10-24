@@ -24,7 +24,7 @@ import {
   resolveModelChain,
   runAiCommand,
   AiError
-} from '../../../lib/ai.js'
+} from '../../../lib/ai/ai.js'
 import { fakeSock, silentLogger, testConfig, textMessage } from './helpers.js'
 
 /** Config de IA con los valores por defecto del proyecto */

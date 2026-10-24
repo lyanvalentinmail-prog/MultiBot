@@ -5,11 +5,11 @@
   "description": "MultiBot: bots de WhatsApp con los comandos compartidos en commands/ y un panel web para gestionarlos.",
   "type": "module",
   "scripts": {
-    "start": "node scripts/serve-web.js",
-    "web": "node scripts/serve-web.js",
-    "dev": "NODE_ENV=development node scripts/serve-web.js",
-    "check": "node --check scripts/serve-web.js && node --check web/app.js",
-    "test": "npm run check && node --test tests/*.test.js"
+    "start": "node scripts/server/serve-web.js",
+    "web": "node scripts/server/serve-web.js",
+    "dev": "NODE_ENV=development node scripts/server/serve-web.js",
+    "check": "node --check scripts/server/serve-web.js && node --check web/app.js",
+    "test": "npm run check && node --test 'tests/**/*.test.js'"
   },
   "engines": {
     "node": ">=20.9.0"

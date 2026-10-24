@@ -12,7 +12,7 @@ import {
   newPackId,
   readSticker,
   writeStickerMetadata
-} from '../../../lib/sticker.js'
+} from '../../../lib/media/sticker.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const staticSticker = await readFile(path.join(here, 'fixtures/sticker-static.webp'))

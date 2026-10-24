@@ -68,4 +68,4 @@ La versión actual permite un proceso de bot a la vez en Render Free. El servici
 - [ ] Dependencias web instaladas en `render.yaml` si aplica.
 - [ ] `npm test` ejecutado desde la raíz.
 
-Consulta [`STRUCTURE.md`](STRUCTURE.md) y [`WEB.md`](WEB.md) para estructura, permisos, API y límites del runtime.
+Consulta [`STRUCTURE.md`](../STRUCTURE.md) y [`WEB.md`](WEB.md) para estructura, permisos, API y límites del runtime.

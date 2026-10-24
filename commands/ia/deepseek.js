@@ -1,5 +1,5 @@
-import { runAiCommand } from '../../lib/ai.js'
-import { brandEmoji } from '../../lib/branding.js'
+import { runAiCommand } from '../../lib/ai/ai.js'
+import { brandEmoji } from '../../lib/core/branding.js'
 
 export default {
   name: 'deepseek',

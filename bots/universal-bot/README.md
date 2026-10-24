@@ -32,11 +32,11 @@ npm start       # elige code o qr
 ¿Pegaste comandos en `config.js`? El error `Unexpected identifier 'start'` se arregla con
 `npm run setup -- --fix`. El bot también lo detecta al arrancar y muestra qué hacer.
 
-Guía completa: [`docs/TERMUX.md`](./docs/TERMUX.md) y [`../../docs/TERMUX_GUIDE.md`](../../docs/TERMUX_GUIDE.md).
+Guía completa: [`docs/TERMUX.md`](./docs/TERMUX.md) y [`../../docs/TERMUX_GUIDE.md`](../../docs/guides/TERMUX_GUIDE.md).
 
 ## 🌐 Runtime web autorizado
 
-El panel puede iniciar `main.js` desde Render Free. Abre el detalle de Universal Bot con una cuenta incluida en `WEB_RUNTIME_ADMIN_EMAILS` y solicita el QR o Pairing Code real. En Pairing Code, ingresa el número internacional que recibirá el código. Consulta [`../../docs/WEB.md`](../../docs/WEB.md) para despliegue, permisos y variables opcionales.
+El panel puede iniciar `main.js` desde Render Free. Abre el detalle de Universal Bot con una cuenta incluida en `WEB_RUNTIME_ADMIN_EMAILS` y solicita el QR o Pairing Code real. En Pairing Code, ingresa el número internacional que recibirá el código. Consulta [`../../docs/WEB.md`](../../docs/guides/WEB.md) para despliegue, permisos y variables opcionales.
 
 - Una instancia de bot como máximo a la vez.
 - Render Free comparte 512 MB de RAM y 0.1 CPU entre el panel y el bot; IA/OCR y tareas pesadas pueden agotar recursos.

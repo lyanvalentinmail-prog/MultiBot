@@ -1,8 +1,8 @@
-import { convertToSticker } from '../../lib/media.js'
-import { extensionFor } from '../../lib/message.js'
-import { isAnimatedExtension } from '../../lib/ffmpeg.js'
-import { isWebp, newPackId, readSticker, writeStickerMetadata } from '../../lib/sticker.js'
-import { splitNameAuthor, truncate } from '../../lib/text.js'
+import { convertToSticker } from '../../lib/media/media.js'
+import { extensionFor } from '../../lib/wa/message.js'
+import { isAnimatedExtension } from '../../lib/media/ffmpeg.js'
+import { isWebp, newPackId, readSticker, writeStickerMetadata } from '../../lib/media/sticker.js'
+import { splitNameAuthor, truncate } from '../../lib/ai/text.js'
 
 const KINDS = ['sticker', 'image', 'video', 'document']
 

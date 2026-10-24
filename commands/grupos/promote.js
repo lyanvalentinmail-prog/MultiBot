@@ -7,7 +7,7 @@ import {
   requireBotAdmin,
   requireSenderAdmin,
   resolveTargetJid
-} from '../../lib/groups.js'
+} from '../../lib/wa/groups.js'
 
 export default {
   name: 'promote',

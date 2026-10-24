@@ -32,7 +32,7 @@ bots/
 bash scripts/create-bot.sh nombre-del-bot
 ```
 
-O crea la carpeta manualmente con `package.json`, `config.example.js`, guard y plugins. Ver [`docs/ADD_NEW_BOT.md`](../docs/ADD_NEW_BOT.md).
+O crea la carpeta manualmente con `package.json`, `config.example.js`, guard y plugins. Ver [`docs/ADD_NEW_BOT.md`](../docs/guides/ADD_NEW_BOT.md).
 
 ## 📋 Catálogo
 
@@ -47,4 +47,4 @@ Universal Bot permite QR y Pairing Code reales en ambos entornos. En web la prim
 
 ## 🌐 Panel web
 
-La web lista los bots visibles y ofrece controles de runtime solo para manifiestos que optan explícitamente por `executionMode: "web"` y `webRuntime: true`. Para activar Universal Bot en Render, consulta [`docs/WEB.md`](../docs/WEB.md). PostgreSQL Free del panel vence a los 30 días; credenciales Baileys no se guardan ahí.
+La web lista los bots visibles y ofrece controles de runtime solo para manifiestos que optan explícitamente por `executionMode: "web"` y `webRuntime: true`. Para activar Universal Bot en Render, consulta [`docs/WEB.md`](../docs/guides/WEB.md). PostgreSQL Free del panel vence a los 30 días; credenciales Baileys no se guardan ahí.

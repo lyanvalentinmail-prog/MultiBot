@@ -6,10 +6,10 @@
  * Uso: npm run selftest
  */
 import { loadConfig } from '../src/config.js'
-import { getFfmpegInfo, resolveFfmpeg, selfTestFfmpeg } from '../../../lib/ffmpeg.js'
-import { tempInfo } from '../../../lib/tmp.js'
-import { auditSticker } from '../../../lib/webp.js'
-import { describeSession, inspectSession } from '../../../lib/session.js'
+import { getFfmpegInfo, resolveFfmpeg, selfTestFfmpeg } from '../../../lib/media/ffmpeg.js'
+import { tempInfo } from '../../../lib/core/tmp.js'
+import { auditSticker } from '../../../lib/media/webp.js'
+import { describeSession, inspectSession } from '../../../lib/core/session.js'
 import { c, sym } from '../src/lib/colors.js'
 
 const config = loadConfig()

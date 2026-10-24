@@ -9,10 +9,10 @@ import {
   stickerToImage,
   stickerToTray,
   stickerToVideo
-} from '../../../lib/media.js'
-import { readSticker, writeStickerMetadata } from '../../../lib/sticker.js'
-import { auditSticker, parseWebp, webpInfo } from '../../../lib/webp.js'
-import { buildStickerArgs, buildToImageArgs, buildToVideoArgs, buildTrayArgs } from '../../../lib/ffmpeg.js'
+} from '../../../lib/media/media.js'
+import { readSticker, writeStickerMetadata } from '../../../lib/media/sticker.js'
+import { auditSticker, parseWebp, webpInfo } from '../../../lib/media/webp.js'
+import { buildStickerArgs, buildToImageArgs, buildToVideoArgs, buildTrayArgs } from '../../../lib/media/ffmpeg.js'
 import { ffmpegAvailable } from './helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))

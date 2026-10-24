@@ -1,7 +1,7 @@
 /**
  * WhatsApp falso para los tests del panel web.
  *
- * `scripts/serve-web.js` usa este módulo cuando `TOMIOKA_WEB_RUNTIME` apunta
+ * `scripts/server/serve-web.js` usa este módulo cuando `TOMIOKA_WEB_RUNTIME` apunta
  * acá: imita la API de Baileys que usa el gestor de vinculación y deja los
  * sockets en `globalThis.__fakeWA` para poder emitir eventos desde el test.
  */

@@ -16,10 +16,10 @@ import {
   removeMod,
   removeOwner,
   setSetting,
-} from '../bots/universal-bot/lib/bot-settings.js'
-import { sinMarcasReenviado, quiereReenviado } from '../bots/universal-bot/lib/salida.js'
+} from '../../bots/universal-bot/lib/bot-settings.js'
+import { sinMarcasReenviado, quiereReenviado } from '../../bots/universal-bot/lib/salida.js'
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const botDir = path.join(repoRoot, 'bots', 'universal-bot')
 // Todos los comandos viven en la carpeta compartida commands/.
 const commandsDir = path.join(repoRoot, 'commands')
@@ -261,7 +261,7 @@ test('termux.sh: --customize oculta Moneda si el bot no la trae (bot JSON)', asy
 })
 
 test('menú: propietarios dinámicos desde global.owner', async () => {
-  const { construirLineasOwners } = await import('../bots/universal-bot/lib/menu-categories.js')
+  const { construirLineasOwners } = await import('../../bots/universal-bot/lib/menu-categories.js')
   const antes = global.owner
   try {
     global.owner = [['59899123456', 'Lyan', true]]
@@ -291,7 +291,7 @@ test('menú: propietarios dinámicos desde global.owner', async () => {
 })
 
 test('menú: encabezado con el formato pedido (sin hosting/canales, TIPO exacto)', async () => {
-  const { construirEncabezadoMenu, construirLineasOwners } = await import('../bots/universal-bot/lib/menu-categories.js')
+  const { construirEncabezadoMenu, construirLineasOwners } = await import('../../bots/universal-bot/lib/menu-categories.js')
   const antes = global.owner
   try {
     global.owner = [['59899123456', 'Sunkovv', true]]
@@ -339,7 +339,7 @@ test('menú: TIPO y carga diferida de modo-sub en el código', async () => {
 })
 
 test('alquiler: línea del menú coherente con el modo público', async () => {
-  const { obtenerLineaAlquilerMenu } = await import('../bots/universal-bot/lib/alquiler.js')
+  const { obtenerLineaAlquilerMenu } = await import('../../bots/universal-bot/lib/alquiler.js')
   const antesDb = global.db
   const antesModo = global.modoPublico
   try {

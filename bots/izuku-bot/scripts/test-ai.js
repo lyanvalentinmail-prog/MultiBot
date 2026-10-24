@@ -10,7 +10,7 @@
  *      npm run ai:test -- "tu pregunta"     ← misma pregunta a las tres
  */
 import { loadConfig } from '../src/config.js'
-import { askAi, endpointCandidates, friendlyAiError, protocolForModel } from '../../../lib/ai.js'
+import { askAi, endpointCandidates, friendlyAiError, protocolForModel } from '../../../lib/ai/ai.js'
 import { c, sym } from '../src/lib/colors.js'
 
 const config = loadConfig()
