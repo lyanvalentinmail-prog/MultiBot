@@ -296,7 +296,14 @@ ${cmd(p, 'topfemboys')}
 ${cmd(p, 'topfracasados')}
 ${cmd(p, 'topingenieros')}
 ${cmd(p, 'meme')}
-${cmd(p, 'snake')}`.trim()
+${cmd(p, 'juegos → catálogo interactivo')}
+${cmd(p, 'snake')}
+${cmd(p, 'tetris')}
+${cmd(p, 'ajedrez [dificultad]')}
+${cmd(p, 'gd')}
+${cmd(p, 'multi [jugadores] [meta]')}
+${cmd(p, 'calc <operación>')}
+${cmd(p, 'traductor <idioma> <texto>')}`.trim()
 }
 
 

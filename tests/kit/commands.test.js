@@ -22,7 +22,7 @@ function allCommandFiles(dir = commandsDir, prefix = '') {
   return out
 }
 
-const BOTS = ['tomioka', 'izuku-bot', 'universal-bot', '_template']
+const BOTS = ['tomioka', 'universal-bot', '_template']
 
 function readManifest(bot) {
   const file = path.join(botsDir, bot, 'commands.json')
@@ -79,10 +79,10 @@ test('cada bot declara en commands.json los comandos que usa', () => {
   }
 })
 
-test('TomiOka e Izuku usan exactamente los mismos comandos', () => {
-  const tomioka = readManifest('tomioka').commands.slice().sort()
-  const izuku = readManifest('izuku-bot').commands.slice().sort()
-  assert.deepEqual(tomioka, izuku)
+test('Universal Bot declara el catálogo completo de comandos', () => {
+  const available = allCommandFiles().map((entry) => entry.id).sort()
+  const universal = readManifest('universal-bot').commands.slice().sort()
+  assert.deepEqual(universal, available)
 })
 
 test('no hay nombres de comando repetidos dentro de un bot', async () => {

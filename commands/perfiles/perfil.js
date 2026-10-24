@@ -2,8 +2,8 @@
  * Perfil del usuario — comando compartido por todos los bots.
  *
  * Funciona con los dos formatos de contexto que hay en el repo:
- *   - bots con kit propio (tomioka, izuku): `ctx.reply`, `ctx.pushName`…
- *   - universal-bot: `ctx.m`, `ctx.conn`, `ctx.usedPrefix`.
+ *   - contexto canónico: `ctx.reply`, `ctx.pushName`…
+ *   - contexto legacy: `ctx.m`, `ctx.conn`, `ctx.usedPrefix`.
  */
 
 /** Juntá los datos del usuario según el formato de contexto. */

@@ -25,7 +25,7 @@ test('boot installs shared repo dependencies even when the bot has its own Baile
   t.after(() => rmSync(tempRoot, { recursive: true, force: true }))
 
   const repoRoot = tempRoot
-  const botRoot = path.join(repoRoot, 'bots', 'izuku-bot')
+  const botRoot = path.join(repoRoot, 'bots', 'tomioka')
   writePackage(repoRoot, { '@whiskeysockets/baileys': '6.7.24', 'node-webpmux': '^3.2.1' })
   writePackage(botRoot, { '@whiskeysockets/baileys': '6.7.24', pino: '^9.6.0' })
   installDummyPackages(botRoot)
@@ -51,7 +51,7 @@ test('boot stops when npm cannot install missing bot dependencies', () => {
   const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'multibot-deps-fail-'))
   try {
     const repoRoot = tempRoot
-    const botRoot = path.join(repoRoot, 'bots', 'izuku-bot')
+    const botRoot = path.join(repoRoot, 'bots', 'tomioka')
     writePackage(repoRoot, { '@whiskeysockets/baileys': '6.7.24' })
     writePackage(botRoot, { pino: '^9.6.0' })
 

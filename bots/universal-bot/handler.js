@@ -25,6 +25,8 @@ import { isInviteOpponent } from './lib/michi-users.js'
 import { ensureRpgUser, awardCommandProgress, isStickerMessage, trackSentSticker, formatLevelUpMessage } from './lib/rpg-level.js'
 import { trackUserMessage } from './lib/msg-activity.js'
 import { getStaffOwnerIds } from './lib/staff.js'
+import { createUniversalContext } from './lib/command-context.js'
+import { COMMAND_REACTIONS, hasCommandPrefix, reactCommand } from './lib/command-reactions.js'
 
 const { proto } = (await import('@whiskeysockets/baileys')).default
 const isNumber = x => typeof x === 'number' && !isNaN(x)
@@ -222,23 +224,30 @@ const isRAdmin = user?.admin == 'superadmin' || false
 const isAdmin = isRAdmin || user?.admin == 'admin' || false  
 const isBotAdmin = bot?.admin || false
 
-// Contexto canónico de los comandos: es un superconjunto de lo que usaba el
-// bot, para que los comandos de commands/ sirvan para todos los bots.
-const baseCtx = {
-  m,
-  conn: this,
-  participants,
-  groupMetadata,
-  user,
-  bot,
-  isROwner,
-  isOwner,
-  isRAdmin,
-  isAdmin,
-  isBotAdmin,
-  isPrems,
-  chatUpdate
-}  
+// Contexto canónico de los comandos: conserva todas las referencias legacy y
+// añade los helpers de respuesta, multimedia, grupos y mensajes en vivo que
+// necesita el catálogo completo de commands/.
+const baseCtx = createUniversalContext({
+  sock: this,
+  msg: m,
+  logger: this.logger,
+  base: {
+    m,
+    conn: this,
+    participants,
+    groupMetadata,
+    user,
+    bot,
+    isROwner,
+    isOwner,
+    isMod: isMods,
+    isRAdmin,
+    isAdmin,
+    isBotAdmin,
+    isPrems,
+    chatUpdate
+  }
+})
 
 if (shouldBlockByGrupoOff(m, this)) return
 
@@ -403,6 +412,14 @@ for (let plugin of pluginsProcesados) {
   }
 
   
+  // Un hook .all puede atender una respuesta interactiva (Menu / Perfil).
+  // Su selectedButtonId no debe volver a despacharse como comando sin prefijo.
+  if (m.commandExecuted) comandoEjecutado = true
+
+  // Un mensaje ejecuta un solo comando, aunque varios plugins compartan alias.
+  // Seguimos recorriendo para no saltarnos los hooks .all de los demás plugins.
+  if (comandoEjecutado) continue
+
   if (!opts['restrict']) {
     if (plugin.tags && plugin.tags.includes('admin')) continue
   }
@@ -462,13 +479,18 @@ for (let plugin of pluginsProcesados) {
     // Terminal → Personalizar bot → "Comandos" (global.comandosEnabled).
     // Apagado = el bot no responde comandos salvo al owner.
     if (global.comandosEnabled === false && !isOwner && !isROwner && !m.fromMe) {
+      comandoEjecutado = true
+      m.commandExecuted = true
+      await reactCommand(this, m, COMMAND_REACTIONS.denied)
       continue
     }
 
   
     if (m.isGroup && global.db.data.soloAdmin && global.db.data.soloAdmin[m.chat] === true) {
       if (!isAdmin && !isOwner && !isROwner) {
-        
+        comandoEjecutado = true
+        m.commandExecuted = true
+        await reactCommand(this, m, COMMAND_REACTIONS.denied)
         continue
       }
     }
@@ -476,15 +498,24 @@ for (let plugin of pluginsProcesados) {
     // En modo cerrado (modoPublico === false) el privado es solo-owner salvo estos.
     const comandosPrivadosPermitidos = ['qr', 'code', 'setbotname', 'setbotimg', 'setautoread']
     if (global.modoPublico === false && !m.isGroup && !comandosPrivadosPermitidos.includes(command) && !isOwner) {
-      return 
+      comandoEjecutado = true
+      m.commandExecuted = true
+      await reactCommand(this, m, COMMAND_REACTIONS.denied)
+      return
     }
     
     if (m.isGroup && global.db.data.botGroups && global.db.data.botGroups[m.chat] === false) {
-      if (command !== 'grupo') return
+      if (command !== 'grupo') {
+        comandoEjecutado = true
+        m.commandExecuted = true
+        await reactCommand(this, m, COMMAND_REACTIONS.denied)
+        return
+      }
     }
 
     
     comandoEjecutado = true
+    await reactCommand(this, m, COMMAND_REACTIONS.waiting)
     try {
       await plugin.handler.run.call(this, {
         ...baseCtx,
@@ -504,13 +535,16 @@ for (let plugin of pluginsProcesados) {
         __dirname: ___dirname,
         __filename,
         usedPrefix: coincidenciaPrefijo[0],
+        prefix: coincidenciaPrefijo[0] || '.',
         command,
         args,
-        text: args.join(' ').trim()
+        text: args.join(' ').trim(),
+        argsText: args.join(' ').trim()
       })
       m.plugin = plugin.name
       m.command = command
       m.args = args
+      if (!m.commandFailed) await reactCommand(this, m, COMMAND_REACTIONS.success)
 
       if (m.error == null && !m.rpgAwarded) {
         const usuarioDb = global.db.data.users[m.sender]
@@ -522,9 +556,17 @@ for (let plugin of pluginsProcesados) {
       }
     } catch (e) {
       m.error = e
+      m.commandFailed = true
+      await reactCommand(this, m, COMMAND_REACTIONS.error)
       console.error(`Error ejecutando plugin ${plugin.name}:`, e)
     }
   }
+}
+
+// Solo se marca como inexistente un texto que realmente intentó usar un prefijo.
+// Las conversaciones normales y los comandos sin prefijo del owner no se tocan.
+if (!comandoEjecutado && hasCommandPrefix(m.text, conn.prefix || global.prefix)) {
+  await reactCommand(this, m, COMMAND_REACTIONS.unknown)
 }
 
 if (m.rpgProgress?.leveled) {

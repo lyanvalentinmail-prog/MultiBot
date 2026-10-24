@@ -47,11 +47,29 @@ else
   C_WHITE=$'\033[37m'; C_GRAY=$'\033[90m'
 fi
 
-ok()    { printf '%b✔%b %s\n' "$C_GREEN" "$C_RESET" "$*"; }
-warn()  { printf '%b!%b %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
-err()   { printf '%b✖%b %s\n' "$C_RED" "$C_RESET" "$*" >&2; }
-info()  { printf '%b→%b %s\n' "$C_CYAN" "$C_RESET" "$*"; }
-title() { printf '\n%b%b%s%b\n' "$C_BOLD" "$C_CYAN" "$*" "$C_RESET"; }
+# Acentos 256-color: Termux los muestra y los demás emuladores los degradan bien.
+C_ACCENT=$'\033[38;5;45m'
+C_PURPLE=$'\033[38;5;141m'
+C_ORANGE=$'\033[38;5;215m'
+C_PANEL=$'\033[38;5;239m'
+if [ -n "${NO_COLOR:-}" ]; then
+  C_RESET=""; C_BOLD=""; C_RED=""; C_GREEN=""; C_YELLOW=""; C_BLUE=""
+  C_MAGENTA=""; C_CYAN=""; C_WHITE=""; C_GRAY=""; C_ACCENT=""
+  C_PURPLE=""; C_ORANGE=""; C_PANEL=""
+fi
+
+ok()    { printf '  %b✓%b %s\n' "$C_GREEN" "$C_RESET" "$*"; }
+warn()  { printf '  %b⚠%b %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
+err()   { printf '  %b✕%b %s\n' "$C_RED" "$C_RESET" "$*" >&2; }
+info()  { printf '  %b›%b %s\n' "$C_ACCENT" "$C_RESET" "$*"; }
+title() {
+  printf '\n  %b╭─%b %b%s%b\n' "$C_PANEL" "$C_RESET" "$C_BOLD$C_ACCENT" "$*" "$C_RESET"
+  printf '  %b╰────────────────────────────────────────────%b\n' "$C_PANEL" "$C_RESET"
+}
+section() {
+  printf '\n  %b%s%b\n' "$C_BOLD$C_PURPLE" "$*" "$C_RESET"
+  printf '  %b%s%b\n' "$C_PANEL" '────────────────────────────────────────────'
+}
 
 # Lectura robusta: usa /dev/tty si existe (menú dentro de pipes),
 # si no stdin. Devuelve 1 en EOF para no ciclarse sin terminal.
@@ -67,7 +85,7 @@ read_input() {
   IFS= read -r __line || return 1
   printf -v "$__var" '%s' "$__line"
 }
-pause() { printf '%bPulsa Enter para continuar...%b' "$C_GRAY" "$C_RESET"; read_input _ || true; }
+pause() { printf '\n  %b↵ Pulsa Enter para continuar…%b' "$C_GRAY" "$C_RESET"; read_input _ || true; }
 
 # ── Detección de entorno ───────────────────────────────────────────
 is_termux() {
@@ -137,7 +155,7 @@ bot_status() { # $1 = id → "listo|falta-deps|sin-config"
   local id="$1" dir="$BOTS_DIR/$1"
   if [ ! -d "$dir/node_modules" ]; then echo "falta-deps"; return; fi
   case "$id" in
-    izuku-bot|tomioka)
+    universal-bot|tomioka)
       [ -d "$ROOT/node_modules/@whiskeysockets/baileys" ] || { echo "falta-deps"; return; }
       ;;
   esac
@@ -147,41 +165,40 @@ bot_status() { # $1 = id → "listo|falta-deps|sin-config"
 }
 status_icon() {
   case "$(bot_status "$1")" in
-    listo)      printf '%b● listo%b' "$C_GREEN" "$C_RESET" ;;
-    sin-config) printf '%b● sin config%b' "$C_YELLOW" "$C_RESET" ;;
-    *)          printf '%b● sin instalar%b' "$C_RED" "$C_RESET" ;;
+    listo)      printf '%b[●]%b %bLISTO%b' "$C_GREEN" "$C_RESET" "$C_GREEN" "$C_RESET" ;;
+    sin-config) printf '%b[◐]%b %bSIN CONFIG%b' "$C_YELLOW" "$C_RESET" "$C_YELLOW" "$C_RESET" ;;
+    *)          printf '%b[○]%b %bSIN INSTALAR%b' "$C_RED" "$C_RESET" "$C_RED" "$C_RESET" ;;
   esac
 }
 
-# ── Banner ─────────────────────────────────────────────────────────
+# ── Banner / panel de estado ───────────────────────────────────────
 banner() {
   clear 2>/dev/null || true
-  printf '%b' "$C_CYAN"
-  cat <<'ART'
-  █▀▄▀█ █ █   ▀█▀ ▀█▀ █▄▄ █▀▀ ▀█▀
-  █ ▀ █ █ █▄▄  █   █  █▄█ █▄█  █
-ART
-  printf '%b' "$C_RESET"
-  printf '  %b%bTerminal personalizada · Termux%b\n' "$C_BOLD" "$C_MAGENTA" "$C_RESET"
-  printf '  %b%s%b\n' "$C_GRAY" "$(is_termux && echo "📱 Corriendo en Termux" || echo "💻 No-Termux (modo desarrollo)")" "$C_RESET"
   detect_bots
+  printf '\n  %b╭──────────────────────────────────────────────╮%b\n' "$C_PANEL" "$C_RESET"
+  printf '  %b│%b  %b█▀▄▀█ █ █   ▀█▀ ▀█▀ █▄▄ █▀▀ ▀█▀%b\n' "$C_PANEL" "$C_RESET" "$C_ACCENT" "$C_RESET"
+  printf '  %b│%b  %b█ ▀ █ █ █▄▄  █   █  █▄█ █▄█  █%b\n' "$C_PANEL" "$C_RESET" "$C_PURPLE" "$C_RESET"
+  printf '  %b│%b\n' "$C_PANEL" "$C_RESET"
+  printf '  %b│%b  %bMULTIBOT%b %bTERMINAL%b  %b✦%b\n' "$C_PANEL" "$C_RESET" "$C_BOLD$C_WHITE" "$C_RESET" "$C_BOLD$C_ACCENT" "$C_RESET" "$C_ORANGE" "$C_RESET"
+  printf '  %b│%b  %bCentro de control para tus bots de WhatsApp%b\n' "$C_PANEL" "$C_RESET" "$C_GRAY" "$C_RESET"
+  printf '  %b╰──────────────────────────────────────────────╯%b\n' "$C_PANEL" "$C_RESET"
+
+  printf '\n  %bENTORNO%b   %s\n' "$C_GRAY" "$C_RESET" "$(is_termux && echo "📱 Termux" || echo "💻 Desarrollo")"
+  printf '  %bBOT ACTIVO%b %b★ %s%b\n' "$C_GRAY" "$C_RESET" "$C_GREEN" "$DEFAULT_BOT" "$C_RESET"
   if [ "${#BOT_IDS[@]}" -eq 0 ]; then
-    printf '  %b⚠ No se detectaron bots en bots/%b\n' "$C_YELLOW" "$C_RESET"
+    printf '  %bCATÁLOGO%b  %b⚠ No se detectaron bots en bots/%b\n' "$C_GRAY" "$C_RESET" "$C_YELLOW" "$C_RESET"
   else
-    printf '  %bBots:%b ' "$C_GRAY" "$C_RESET"
-    local first=1 id
+    printf '  %bCATÁLOGO%b  %s bot(s) disponible(s)\n' "$C_GRAY" "$C_RESET" "${#BOT_IDS[@]}"
+    local id
     for id in "${BOT_IDS[@]}"; do
-      [ "$first" -eq 1 ] || printf '%b·%b ' "$C_GRAY" "$C_RESET"
-      first=0
       if [ "$id" = "$DEFAULT_BOT" ]; then
-        printf '%b%s ★%b ' "$C_GREEN" "$id" "$C_RESET"
+        printf '             %b★%b %b%s%b\n' "$C_ORANGE" "$C_RESET" "$C_BOLD$C_GREEN" "$id" "$C_RESET"
       else
-        printf '%s ' "$id"
+        printf '             %b·%b %s\n' "$C_PANEL" "$C_RESET" "$id"
       fi
     done
-    printf '\n'
   fi
-  printf '  %b%s%b\n\n' "$C_GRAY" "──────────────────────────────────" "$C_RESET"
+  printf '  %b%s%b\n' "$C_PANEL" '────────────────────────────────────────────────' "$C_RESET"
 }
 
 # ── Selector de bot ────────────────────────────────────────────────
@@ -197,16 +214,16 @@ pick_bot() { # $1 = "choose" (pregunta) o vacío (usa default) → echo id
     done
     echo "${BOT_IDS[0]}"; return 0
   fi
-  title "Elige un bot" >&2
+  title "Selecciona tu bot" >&2
   local i=1 id
   for id in "${BOT_IDS[@]}"; do
     local mark=" "; [ "$id" = "$DEFAULT_BOT" ] && mark="★"
-    printf '  %b%s)%b %b%s%b  %s  %s\n' "$C_YELLOW" "$i" "$C_RESET" "$C_BOLD" "$id" "$C_RESET" "$(status_icon "$id")" "$mark" >&2
-    printf '     %b%s%b\n' "$C_GRAY" "$(bot_name "$id")" "$C_RESET" >&2
+    printf '  %b[%02d]%b %b%-18s%b %s %b%s%b\n' "$C_ORANGE" "$i" "$C_RESET" "$C_BOLD" "$id" "$C_RESET" "$(status_icon "$id")" "$C_ORANGE" "$mark$C_RESET" >&2
+    printf '        %b%s%b\n' "$C_GRAY" "$(bot_name "$id")" "$C_RESET" >&2
     i=$((i+1))
   done
-  printf '  %b0)%b Cancelar\n' "$C_YELLOW" "$C_RESET" >&2
-  printf '\nNúmero: ' >&2
+  printf '  %b[00]%b Volver\n' "$C_GRAY" "$C_RESET" >&2
+  printf '\n  %b›%b Número: ' "$C_ACCENT" "$C_RESET" >&2
   local choice; read_input choice || return 1
   if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 0 ] || [ "$choice" -gt "${#BOT_IDS[@]}" ]; then
     err "Opción no válida."; return 1
@@ -297,8 +314,8 @@ cmd_install() { # $1 = bot id → sistema (Termux) + npm + sharp + verificación
   if [ -f "$ROOT/package.json" ] && [ "$ROOT" != "$dir" ]; then
     info "Instalando paquetes npm del repo (kit compartido de comandos)..."
     case "$id" in
-      izuku-bot|tomioka)
-        (cd "$ROOT" && npm install --no-audit --no-fund) || { err "npm install de MultiBot falló; Izuku/TomiOka necesitan las dependencias de lib/."; return 1; }
+      universal-bot|tomioka)
+        (cd "$ROOT" && npm install --no-audit --no-fund) || { err "npm install de MultiBot falló; Universal/TomiOka necesitan las dependencias de lib/ y commands/."; return 1; }
         ;;
       *)
         (cd "$ROOT" && npm install --no-audit --no-fund) || warn "npm install del repo falló (algunos comandos pueden no funcionar)."
@@ -328,7 +345,7 @@ cmd_install() { # $1 = bot id → sistema (Termux) + npm + sharp + verificación
     warn "Falta Baileys en node_modules: el bot no va a arrancar."; fallos=$((fallos+1))
   fi
   case "$id" in
-    izuku-bot|tomioka)
+    universal-bot|tomioka)
       if [ -d "$ROOT/node_modules/@whiskeysockets/baileys" ]; then
         ok "Baileys compartido instalado en la raíz de MultiBot."
       else
@@ -404,7 +421,7 @@ cmd_setup() { # $1 = bot id
 cmd_start() { # $1 = bot id, $2 = método (qr|code|ask|sesión), $3 = teléfono
   local id="$1" method="${2:-ask}" phone="${3:-}" dir="$BOTS_DIR/$1" needs_shared=0
   case "$id" in
-    izuku-bot|tomioka)
+    universal-bot|tomioka)
       [ -d "$ROOT/node_modules/@whiskeysockets/baileys" ] || needs_shared=1
       ;;
   esac
@@ -523,8 +540,12 @@ cmd_personalize() {
 # MultiBot banner — generado por termux.sh (no editar a mano)
 if [ -z "\${MULTIBOT_BANNER_SHOWN:-}" ]; then
   export MULTIBOT_BANNER_SHOWN=1
-  printf '\033[36m  █▀▄▀█ █ █   ▀█▀ ▀█▀ █▄▄ █▀▀ ▀█▀\033[0m\n'
-  printf '\033[35m  MultiBot Terminal · escribe "multibot" para abrir el menú\033[0m\n'
+  printf '\n\033[38;5;239m  ╭──────────────────────────────────────────────╮\033[0m\n'
+  printf '\033[38;5;45m  │  █▀▄▀█ █ █   ▀█▀ ▀█▀ █▄▄ █▀▀ ▀█▀\033[0m\n'
+  printf '\033[38;5;141m  │  █ ▀ █ █ █▄▄  █   █  █▄█ █▄█  █\033[0m\n'
+  printf '\033[38;5;239m  ╰──────────────────────────────────────────────╯\033[0m\n'
+  printf '\033[1;37m  MultiBot Terminal\033[0m \033[38;5;141m· tu centro de control\033[0m\n'
+  printf '\033[90m  multibot: menú · mb-qr: QR · mb-code: vincular número\033[0m\n\n'
 fi
 EOF
   # 2) Bloque en .bashrc (idempotente)
@@ -537,7 +558,7 @@ EOF
 $marker
 # Prompt personalizado MultiBot + alias + banner (generado por termux.sh)
 if [ -f "$BANNER_FILE" ]; then . "$BANNER_FILE"; fi
-PS1='\[\033[1;36m\]🤖 multibot\[\033[0m\] \[\033[1;32m\]\w\[\033[0m\] \[\033[1;35m\]❯\[\033[0m\] '
+PS1='\[\033[38;5;45m\]╭─ 🤖 multibot \[\033[38;5;239m\]│\[\033[38;5;141m\] \w\n\[\033[38;5;45m\]╰─❯\[\033[0m\] '
 alias multibot='bash "$ROOT/termux.sh"'
 alias mb='bash "$ROOT/termux.sh"'
 alias mb-qr='bash "$ROOT/termux.sh" --qr'
@@ -551,14 +572,17 @@ EOF
   # Aplica en esta sesión también
   # shellcheck disable=SC1090
   [ -f "$BANNER_FILE" ] && . "$BANNER_FILE"
-  PS1='\[\033[1;36m\]🤖 multibot\[\033[0m\] \[\033[1;32m\]\w\[\033[0m\] \[\033[1;35m\]❯\[\033[0m\] '
+  PS1='\[\033[38;5;45m\]╭─ 🤖 multibot \[\033[38;5;239m\]│\[\033[38;5;141m\] \w\n\[\033[38;5;45m\]╰─❯\[\033[0m\] '
   alias multibot="bash \"$ROOT/termux.sh\"" 2>/dev/null || true
   alias mb="bash \"$ROOT/termux.sh\"" 2>/dev/null || true
+  alias mb-qr="bash \"$ROOT/termux.sh\" --qr" 2>/dev/null || true
+  alias mb-code="bash \"$ROOT/termux.sh\" --code" 2>/dev/null || true
   alias mb-update="bash \"$ROOT/termux.sh\" --update" 2>/dev/null || true
   alias mb-doctor="bash \"$ROOT/termux.sh\" --doctor" 2>/dev/null || true
   echo ""
-  ok "Terminal personalizada:"
-  info "Nuevo prompt: 🤖 multibot ruta ❯ (colores cian/verde/magenta)"
+  ok "Terminal personalizada con el nuevo tema:"
+  info "Prompt de dos líneas: 🤖 multibot │ ruta / ╰─❯"
+  info "Paleta cian + violeta, banner y estados de alto contraste"
   info "Alias: multibot · mb · mb-qr · mb-code · mb-update · mb-doctor"
   info "Banner de bienvenida al abrir Termux"
   info "Cierra y reabre Termux (o ejecuta: source $bashrc) para verlo."
@@ -771,21 +795,29 @@ show_menu() {
   for b in "${BOT_IDS[@]}"; do
     if [ "$b" = "$DEFAULT_BOT" ]; then estado1=" $(status_icon "$b")"; break; fi
   done
-  printf '%b  1)%b 🚀 Iniciar bot %b[%s]%b%s\n' "$C_YELLOW" "$C_RESET" "$C_GRAY" "$DEFAULT_BOT" "$C_RESET" "$estado1"
-  printf '%b  2)%b 🤖 Elegir bot (actual: %b%s%b)\n' "$C_YELLOW" "$C_RESET" "$C_GREEN" "$DEFAULT_BOT" "$C_RESET"
-  printf '%b  3)%b 🔑 Pedir Pairing Code\n' "$C_YELLOW" "$C_RESET"
-  printf '%b  4)%b 📷 Mostrar QR\n' "$C_YELLOW" "$C_RESET"
-  printf '%b  5)%b ⚙  Configurar bot (número, nombre)\n' "$C_YELLOW" "$C_RESET"
-  printf '%b  6)%b 📦 Instalar todo (sistema + dependencias)\n' "$C_YELLOW" "$C_RESET"
-  printf '%b  7)%b 🩺 Diagnóstico (doctor)\n' "$C_YELLOW" "$C_RESET"
-  printf '%b  8)%b ℹ  Ver info del bot\n' "$C_YELLOW" "$C_RESET"
-  printf '%b  9)%b 🚪 Borrar sesión (desvincular WhatsApp)\n' "$C_YELLOW" "$C_RESET"
-  printf '%b 10)%b ⬆  Actualizar desde GitHub\n' "$C_YELLOW" "$C_RESET"
-  printf '%b 11)%b 🎨 Personalizar terminal Termux\n' "$C_YELLOW" "$C_RESET"
-  printf '%b 12)%b 🎛 Personalizar bot (stickers, banner, owners…)\n' "$C_YELLOW" "$C_RESET"
-  printf '%b 13)%b ♻ Reinstalación limpia (borra node_modules)\n' "$C_YELLOW" "$C_RESET"
-  printf '%b  0)%b 👋 Salir\n' "$C_YELLOW" "$C_RESET"
-  printf '\nElige una opción: '
+
+  section "✦  CONEXIÓN"
+  printf '  %b[01]%b 🚀 Iniciar bot  %b%s%b%s\n' "$C_ORANGE" "$C_RESET" "$C_GRAY" "$DEFAULT_BOT" "$C_RESET" "$estado1"
+  printf '  %b[02]%b 🤖 Cambiar bot  %b(actual: %s)%b\n' "$C_ORANGE" "$C_RESET" "$C_GRAY" "$DEFAULT_BOT" "$C_RESET"
+  printf '  %b[03]%b 🔑 Vincular con Pairing Code\n' "$C_ORANGE" "$C_RESET"
+  printf '  %b[04]%b 📷 Vincular con código QR\n' "$C_ORANGE" "$C_RESET"
+
+  section "✦  BOT Y PERSONALIZACIÓN"
+  printf '  %b[05]%b ⚙  Configurar número y nombre\n' "$C_ORANGE" "$C_RESET"
+  printf '  %b[12]%b 🎛  Personalizar bot %b(stickers, banner, owners)%b\n' "$C_ORANGE" "$C_RESET" "$C_GRAY" "$C_RESET"
+  printf '  %b[08]%b ℹ  Ver información y estado\n' "$C_ORANGE" "$C_RESET"
+  printf '  %b[09]%b 🚪 Borrar sesión de WhatsApp\n' "$C_ORANGE" "$C_RESET"
+
+  section "✦  MANTENIMIENTO"
+  printf '  %b[06]%b 📦 Instalar sistema y dependencias\n' "$C_ORANGE" "$C_RESET"
+  printf '  %b[07]%b 🩺 Ejecutar diagnóstico\n' "$C_ORANGE" "$C_RESET"
+  printf '  %b[13]%b ♻  Reinstalación limpia\n' "$C_ORANGE" "$C_RESET"
+  printf '  %b[10]%b ⬆  Actualizar desde GitHub\n' "$C_ORANGE" "$C_RESET"
+
+  section "✦  TERMINAL"
+  printf '  %b[11]%b 🎨 Aplicar tema, prompt y aliases\n' "$C_ORANGE" "$C_RESET"
+  printf '  %b[00]%b 👋 Salir\n' "$C_GRAY" "$C_RESET"
+  printf '\n  %b›%b Elige una opción: ' "$C_ACCENT" "$C_RESET"
 }
 
 menu_loop() {
@@ -847,10 +879,14 @@ EOF
 list_bots() {
   detect_bots
   if [ "${#BOT_IDS[@]}" -eq 0 ]; then err "No hay bots en $BOTS_DIR"; return 1; fi
-  printf '%bBots detectados:%b\n' "$C_BOLD" "$C_RESET"
+  printf '\n  %bBOTS DETECTADOS%b\n' "$C_BOLD$C_ACCENT" "$C_RESET"
+  printf '  %b%s%b\n' "$C_PANEL" '────────────────────────────────────────────' "$C_RESET"
+  local index=1
   for id in "${BOT_IDS[@]}"; do
     local mark=" "; [ "$id" = "$DEFAULT_BOT" ] && mark="★"
-    printf '  %s %b%s%b — %s [%s]\n' "$mark" "$C_GREEN" "$id" "$C_RESET" "$(bot_name "$id")" "$(status_icon "$id")"
+    printf '  %b[%02d]%b %b%s%b %b%s%b\n' "$C_ORANGE" "$index" "$C_RESET" "$C_GREEN" "$id" "$C_RESET" "$C_ORANGE" "$mark$C_RESET"
+    printf '       %s · %s\n' "$(bot_name "$id")" "$(status_icon "$id")"
+    index=$((index+1))
   done
 }
 

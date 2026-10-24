@@ -20,10 +20,8 @@ MultiBot/
 │   └── wa/                  # grupos, menús interactivos, mensajes y mensajes en vivo
 ├── bots/
 │   ├── universal-bot/       # Todo-en-uno; Termux + web admin; sin NSFW/+18
-│   │   └── commands.json    # Los 202 comandos que usa este bot
+│   │   └── commands.json    # Catálogo completo: 247 comandos
 │   ├── tomioka/             # Stickers, packs, descargas e IA; Termux
-│   │   └── commands.json    # Los 36 comandos que usa este bot
-│   ├── izuku-bot/           # Estilo Deku (Plus Ultra); Termux
 │   │   └── commands.json    # Los 36 comandos que usa este bot
 │   └── _template/           # Plantilla ligera para nuevos bots
 │       └── commands.json    # Los comandos de la plantilla
@@ -51,9 +49,8 @@ MultiBot/
 
 | Bot | Plataforma | Qué incluye |
 |---|---|---|
-| **Universal Bot** | **Termux o runtime web autorizado** | RPG, juegos, IA, descargas, stickers, grupos y más; sin contenido NSFW/+18. QR/Pairing Code reales de Baileys. |
+| **Universal Bot** | **Termux o runtime web autorizado** | Los 247 comandos del repositorio: RPG, minijuegos interactivos, IA, descargas, stickers, grupos y más; sin contenido NSFW/+18. QR/Pairing Code reales de Baileys. |
 | **TomiOka** | **Termux** | Stickers, packs, descargas e IA con menú Tomioka. QR/Pairing Code reales de Baileys. |
-| **Izuku Bot** | **Termux** | Estilo Izuku Midoriya (Deku): stickers, packs, descargas e IA con menú Plus Ultra. QR/Pairing Code reales de Baileys. |
 | `_template` | Desarrollo | Plantilla pequeña, oculta del catálogo público. |
 
 > La ejecución web solo está disponible para bots con `webRuntime: true`. La primera cuenta del panel queda como propietaria del runtime (o puedes definir `WEB_RUNTIME_ADMIN_EMAILS`). Por límites de Render Free se inicia **un proceso de bot a la vez**; el web service ofrece 512 MB de RAM y 0.1 CPU compartidos entre panel y bot, por lo que algunas tareas pesadas de IA/OCR pueden fallar. El servicio puede suspenderse/reiniciarse y las credenciales de Baileys se guardan en filesystem efímero; no hay garantía 24/7 ni persistencia de sesión.
