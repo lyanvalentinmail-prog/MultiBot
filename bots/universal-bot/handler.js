@@ -18,7 +18,7 @@ import { handleModoDescargas } from './lib/Modos/modo-descargas.js'
 import { isViewOnceCandidate, isKnownViewOnce, runAntiViewOnce } from './lib/viewOnce.js'
 import { checkGroupRental, isRentalBypassCommand } from './lib/alquiler.js'
 import { findGroupParticipant, findBotParticipant, candidatosJidRemitente, jidsSeSolapan } from './lib/group-participant.js'
-import { shouldSkipGroupMessageEarly } from './plugins/modo-sub.js'
+import { shouldSkipGroupMessageEarly } from '../../commands/modos/modo-sub.js'
 import { shouldBlockByGrupoOff } from './lib/bot-groups.js'
 import { sendMichiBoard } from './lib/michi-board.js'
 import { isInviteOpponent } from './lib/michi-users.js'
@@ -220,7 +220,25 @@ const user = (m.isGroup ? findGroupParticipant(participants, m, this) : null) ||
 const bot = (m.isGroup ? findBotParticipant(participants, this) : null) || {}  
 const isRAdmin = user?.admin == 'superadmin' || false  
 const isAdmin = isRAdmin || user?.admin == 'admin' || false  
-const isBotAdmin = bot?.admin || false  
+const isBotAdmin = bot?.admin || false
+
+// Contexto canónico de los comandos: es un superconjunto de lo que usaba el
+// bot, para que los comandos de commands/ sirvan para todos los bots.
+const baseCtx = {
+  m,
+  conn: this,
+  participants,
+  groupMetadata,
+  user,
+  bot,
+  isROwner,
+  isOwner,
+  isRAdmin,
+  isAdmin,
+  isBotAdmin,
+  isPrems,
+  chatUpdate
+}  
 
 if (shouldBlockByGrupoOff(m, this)) return
 
@@ -289,7 +307,7 @@ if (global.modoPublico === false && m.isGroup && !isRentalBypassCommand(m, this,
     console.error('Error processing muted list:', err)
   }
 
-const ___dirname = path.join(path.dirname(fileURLToPath(import.meta.url)), './plugins')  
+const ___dirname = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../commands')  
 
 let usedPrefix = '.'  
 
@@ -306,10 +324,12 @@ for (let name in global.plugins) {
   let pluginNormalizado = {
     name: name,
     handler: plugin.handler || plugin,
-    command: plugin.command || [],
+    // Formato canónico: name + aliases son los nombres con los que responde.
+    command: plugin.command || [plugin.name, ...(plugin.aliases || [])].filter(Boolean),
     tags: plugin.tags || [],
-    help: plugin.help || [],
+    help: plugin.help || (plugin.description ? [plugin.description] : []),
     all: plugin.all || plugin.handler?.all,
+    before: plugin.before || plugin.handler?.before,
     customPrefix: plugin.customPrefix || plugin.handler?.customPrefix
   }
   
@@ -329,9 +349,9 @@ for (let name in global.plugins) {
 const pluginsSesion = []
 
 for (let plugin of pluginsProcesados) {
-  if (plugin.handler && typeof plugin.handler.before === 'function' && pluginsSesion.includes(plugin.name)) {
+  if (typeof plugin.before === 'function' && pluginsSesion.includes(plugin.name)) {
     try {
-      await plugin.handler.before.call(this, m, {
+      await plugin.before.call(this, { ...baseCtx,
         conn: this,
         participants,
         groupMetadata,
@@ -361,7 +381,7 @@ for (let plugin of pluginsProcesados) {
   
   if (typeof plugin.all === 'function') {
     try {
-      await plugin.all.call(this, m, {
+      await plugin.all.call(this, { ...baseCtx,
         conn: this,
         participants,
         groupMetadata,
@@ -466,7 +486,8 @@ for (let plugin of pluginsProcesados) {
     
     comandoEjecutado = true
     try {
-      await plugin.handler.call(this, m, {
+      await plugin.handler.run.call(this, {
+        ...baseCtx,
         match,
         conn: this,
         participants,
@@ -601,7 +622,7 @@ if (m.text && !comandoEjecutado && global.db.data.adivinanzasActivas && global.d
         let modulo
         if (invitacion.type === 'miner') modulo = await import(`./lib/logic-miner.js`)
         else if (invitacion.type === 'bomba') modulo = await import(`./lib/logic-bomba.js`)
-        else modulo = await import(`./plugins/rpg-michi.js`)
+        else modulo = await import(`../../commands/rpg/rpg-michi.js`)
         const { acceptInvite } = modulo
         return acceptInvite.call(this, m, this, invitacion, participants)
       } catch (e) {
@@ -612,7 +633,7 @@ if (m.text && !comandoEjecutado && global.db.data.adivinanzasActivas && global.d
         let modulo
         if (invitacion.type === 'miner') modulo = await import(`./lib/logic-miner.js`)
         else if (invitacion.type === 'bomba') modulo = await import(`./lib/logic-bomba.js`)
-        else modulo = await import(`./plugins/rpg-michi.js`)
+        else modulo = await import(`../../commands/rpg/rpg-michi.js`)
         const { rejectInvite } = modulo
         return rejectInvite.call(this, m, this, invitacion)
       } catch (e) {
@@ -646,7 +667,7 @@ if (m.text && !comandoEjecutado && global.db.data.adivinanzasActivas && global.d
 
     try {
       
-      const { handleGameEnd } = await import(`./plugins/rpg-michi.js`)
+      const { handleGameEnd } = await import(`../../commands/rpg/rpg-michi.js`)
 
       
       const resultado = game.makeMove(posicion, m.sender)

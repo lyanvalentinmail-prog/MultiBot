@@ -6,11 +6,23 @@ Repositorio para mantener **bots de WhatsApp aislados por carpeta**, con Baileys
 
 ```text
 MultiBot/
+├── commands/                # ⭐ ÚNICA carpeta con los comandos de todos los bots
+│   ├── <categoría>/         # audio, busqueda, grupos, ia, rpg, stickers, top…
+│   ├── categories.json      # Listado oficial de categorías
+│   └── README.md            # Cómo se escribe y carga un comando
+├── lib/                     # Kit compartido (sticker, media, ffmpeg, IA, texto…)
+│   ├── commands.js          # Cargador común de comandos y registro
+│   ├── runtime.js           # Raíz y marca (branding) del bot activo
+│   └── branding.js          # Helpers de nombre y emojis para los comandos
 ├── bots/
 │   ├── universal-bot/       # Todo-en-uno; Termux + web admin; sin NSFW/+18
+│   │   └── commands.json    # Los 202 comandos que usa este bot
 │   ├── tomioka/             # Stickers, packs, descargas e IA; Termux
+│   │   └── commands.json    # Los 35 comandos que usa este bot
 │   ├── izuku-bot/           # Estilo Deku (Plus Ultra); Termux
+│   │   └── commands.json    # Los 35 comandos que usa este bot
 │   └── _template/           # Plantilla ligera para nuevos bots
+│       └── commands.json    # Los comandos de la plantilla
 ├── web/                     # SPA/PWA MultiBot (diseño adaptado de TomiOka)
 ├── scripts/serve-web.js     # Servidor/API del catálogo, cuentas y runtime (más rutas heredadas)
 ├── scripts/web-runtime.js   # Gestión protegida de procesos hijos
@@ -20,6 +32,11 @@ MultiBot/
 ├── termux.sh                # Terminal personalizada Termux (menú, QR, pairing code)
 └── render.yaml              # Blueprint Free: panel + PostgreSQL
 ```
+
+> **Una sola carpeta de comandos.** Las implementaciones viven en `commands/`,
+> separadas por categoría. Cada bot declara en su `commands.json` cuáles usa, y
+> el cargador común (`lib/commands.js`) las monta en su registro.
+> Ver [`commands/README.md`](commands/README.md).
 
 ## Bots
 

@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { PackStore } from '../src/lib/sessions.js'
-import { finishPack } from '../src/commands/pack.js'
+import { finishPack } from '../../../commands/extras/pack.js'
 import { createStore } from '../src/handler.js'
-import { readSticker } from '../src/lib/sticker.js'
+import { readSticker } from '../../../lib/sticker.js'
 import { fakeSock, ffmpegAvailable, silentLogger, testConfig, withLiveMessages } from './helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -240,7 +240,7 @@ test('finishPack cae al .wasticker si el pack nativo falla', async () => {
 })
 
 test('acceptedKinds incluye fotos y videos según la configuración', async () => {
-  const { acceptedKinds } = await import('../src/commands/pack.js')
+  const { acceptedKinds } = await import('../../../commands/extras/pack.js')
   const config = testConfig()
   assert.deepEqual(acceptedKinds(config), ['sticker', 'image', 'video', 'document'])
 
@@ -250,7 +250,7 @@ test('acceptedKinds incluye fotos y videos según la configuración', async () =
 
 test('.pack accepta una foto y la convierte en sticker', async (t) => {
   if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
-  const { addMediaToSession } = await import('../src/commands/pack.js')
+  const { addMediaToSession } = await import('../../../commands/extras/pack.js')
   const { createStore } = await import('../src/handler.js')
   const config = testConfig()
   const store = createStore(config, silentLogger)
@@ -286,7 +286,7 @@ test('.pack accepta una foto y la convierte en sticker', async (t) => {
 
 test('un pack con fotos genera el .wasticker con varios stickers', async (t) => {
   if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
-  const { addMediaToSession } = await import('../src/commands/pack.js')
+  const { addMediaToSession } = await import('../../../commands/extras/pack.js')
   const config = testConfig()
   const store = createStore(config, silentLogger)
   const base = fakeContext(config, store)
@@ -345,7 +345,7 @@ test('.pack como pie de foto inicia el pack y agrega esa foto', async (t) => {
     }
   }
 
-  const { default: pack } = await import('../src/commands/pack.js')
+  const { default: pack } = await import('../../../commands/extras/pack.js')
   await pack.run(ctx)
   const session = store.packs.findByChat(ctx.chatJid, ctx.senderJid)
   assert.ok(session, 'la sesión existe')

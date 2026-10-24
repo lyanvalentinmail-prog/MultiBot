@@ -19,7 +19,7 @@ import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync,
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { loadConfig } from '../src/config.js'
-import { inspectSession, describeSession } from '../src/lib/session.js'
+import { inspectSession, describeSession } from '../../../lib/session.js'
 import { isInteractive } from '../src/lib/prompt.js'
 import { stripAnsi } from '../src/lib/colors.js'
 
@@ -1376,7 +1376,7 @@ async function main() {
   const loadCommands = async () => {
     if (!commandsModule) {
       try {
-        commandsModule = await import('../src/commands/index.js')
+        commandsModule = await import('../src/registry.js')
         menuModule = await import('../src/menu.js')
       } catch {
         commandsModule = null

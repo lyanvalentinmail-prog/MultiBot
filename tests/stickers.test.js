@@ -12,6 +12,8 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const botDir = path.join(repoRoot, 'bots', 'universal-bot')
+// Todos los comandos viven en la carpeta compartida commands/.
+const commandsDir = path.join(repoRoot, 'commands')
 
 test('sticker-search: URLs bien formadas y codificadas', () => {
   assert.equal(construirUrlDelirius('gato feliz'), 'https://api.delirius.online/search/tenor?q=gato%20feliz')
@@ -49,7 +51,7 @@ test('sticker-search: normaliza data/result/results/arreglo y deduplica', () => 
 })
 
 test('stickers .s: el pad va sobre rgba (fondo transparente, no negro)', async () => {
-  const source = await readFile(path.join(botDir, 'plugins', 'stickers-sticker.js'), 'utf8')
+  const source = await readFile(path.join(commandsDir, 'stickers', 'stickers-sticker.js'), 'utf8')
   const vf = source.match(/format=rgba,pad=512:512:[^']*/g) || []
   assert.equal(vf.length, 2, 'vf estático y animado deben forzar rgba antes del pad')
   assert.ok(vf.every((f) => f.includes('color=0x00000000')))
@@ -57,7 +59,7 @@ test('stickers .s: el pad va sobre rgba (fondo transparente, no negro)', async (
 })
 
 test('bsticker: usa respaldo Tenor, await getName y parseo flexible', async () => {
-  const source = await readFile(path.join(botDir, 'plugins', 'search-sticker.js'), 'utf8')
+  const source = await readFile(path.join(commandsDir, 'busqueda', 'search-sticker.js'), 'utf8')
   assert.match(source, /construirUrlTenor/)
   assert.match(source, /normalizarResultados/)
   assert.match(source, /await conn\.getName\(m\.sender\)/)

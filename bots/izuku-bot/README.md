@@ -33,56 +33,8 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
 - 🧪 **Tests** con `node --test` (345 pruebas) y `npm run doctor` para diagnóstico.
-- 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **Izuku**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints web contiene solo los nueve endpoints de servicio (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
-
-## 🌐 Plataforma web
-
-```bash
-npm run web        # http://localhost:3000  (variable PORT para cambiar el puerto)
-```
-
-SPA/PWA en HTML, CSS y JavaScript copiada de la web de Project, con la marca y los
-datos de Izuku. El servidor local (`scripts/serve-web.js`) sirve la app y una API
-acotada y veraz. Incluye:
-
-1. **Landing y panel** con las rutas de la referencia: `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`.
-2. **Registro local de sub-bots**: `POST /api/instances` guarda cada sub-bot en `data/web-subbots.json` con su `sessions/<slug>` y su comando de vinculación por terminal (`SESSION_DIR=sessions/<slug> PAIRING_PHONE=... npm run pair` o `npm run qr`).
-3. **Pairing code real desde el panel**: `POST /api/instances/:id/pairing` abre un socket de Baileys para ese sub-bot y le pide el código a WhatsApp (formato `XXXX-XXXX`, ~60 s de vigencia); el estado se sigue en vivo por `/api/instances/:id/link` y SSE (`/api/stream`). Al vincularse, el sub-bot queda en línea **y respondiendo comandos de verdad** desde el mismo proceso del panel: al conectar se engancha el handler real (`src/handler.js`) en ese socket, con **su** prefijo, sus comandos personalizados, sus números owner y su menú. El estado de vinculación y `botActive` se ven en `/api/instances/:id/link`. También se puede detener/reiniciar desde Mis Bots.
-4. **Endpoints**: solo los nueve comandos de WhatsApp del menú —TikTok downloader, Instagram downloader, Pinterest downloader, Youtube Mp3 y Youtube Mp4 en **Descargas**; Brat, Attp, Ttp y Sticker en **Stickers**—, servidos por `/api/endpoints/catalog` y `/api/v1`.
-5. **Comandos reales del bot** en `/api/commands`, generados desde `src/commands/index.js`, y telemetría local del proceso en `/api/system` y `/api/health`.
-6. **PWA completa**: `manifest.webmanifest`, `sw.js`, `icon.svg` y fuentes locales (Outfit y JetBrains Mono).
-
-> **Cómo corre el bot del panel.** `scripts/lib/panel-bot.js` crea un runtime por sub-bot
-> (config, store, cooldown y hooks de personalización) y `attach({ instance, sock })` lo engancha
-> al socket de Baileys: ahí escucha `messages.upsert` y ejecuta los comandos como el bot principal.
-> Si ese enganche falla, el panel **no** muestra el sub-bot como conectado: avisa el motivo en
-> `lastError` en vez de dejar un bot vinculado pero sordo. El modo QR entrega el código como imagen
-> (`qrDataUrl`), generada con la dependencia opcional `qrcode`; sin ella, el panel sigue ofreciendo
-> el pairing code.
-
-> El panel tiene cuentas locales reales: registro/login con contraseña cifrada
-> (scrypt, en `data/web-accounts.json`), sesiones con token y API keys propias.
-> Los emails de `OWNER_EMAIL` (por defecto `Lyanvalentinmail@gmail.com`) tienen
-> rol **OWNER** y acceso al panel de administración de Endpoints. Lo que guardas
-> en **Editar bot** se aplica en vivo a ese sub-bot: sus categorías reales son
-> Descargas, Stickers, Herramientas e Información; el único estilo de menú es el
-> de Izuku; los comandos/categorías deshabilitados dejan de responder, los
-> alias extra y los comandos personalizados funcionan, y los «números owner»
-> son los dueños de ese sub-bot. Además, `npm start` instala las dependencias
-> si faltan (scripts/boot.js). No vende planes
-> ni guarda tickets: esos endpoints responden `501` con el motivo. La vinculación
-> de WhatsApp sí es real desde el panel (pairing code de Baileys) o, si
-> prefieres, por terminal con `npm run pair`/`npm run qr`.
-
-### Panel local (opcional)
-
-El panel web corre en local con `npm run web` (sirve `web/` + API real en `scripts/serve-web.js`):
-estado del bot, telemetría, registro de sub-bots y vinculación real por pairing code.
-
-> El bot de WhatsApp (Baileys) necesita una sesión persistente y un proceso siempre activo:
-> correlo en Termux con la terminal MultiBot (`bash termux.sh` desde la raíz del repo).
 
 ## 📋 Requisitos
 
@@ -257,8 +209,19 @@ Escanea el QR de la terminal con **WhatsApp → Dispositivos vinculados → Vinc
 
 ---
 
-## 🕹️ Comandos
+## 📂 Comandos compartidos
 
+Las implementaciones de los comandos **no viven en este bot**: viven en la
+carpeta única `commands/` de la raíz del repo, separadas por categoría. Este
+bot declara en `commands.json` cuáles usa, y el cargador común
+(`lib/commands.js`) los monta en su registro.
+
+- `commands/` → `comandos/` …`comandos/` → `sticker/` …` (19 categorías)
+- `commands.json` → la lista de comandos de este bot
+- Contrato canónico: `{ name, aliases, category, description, usage, examples, run(ctx) }`
+- Guía completa: [`commands/README.md`](../../commands/README.md)
+
+## 🕹️ Comandos
 El prefijo por defecto es `.` (se cambia en `config.json`).
 
 | Comando | Alias | Qué hace |
@@ -709,36 +672,25 @@ izuku-bot/
 │   ├── menu.js              # menú aesthetic y ayuda por comando
 │   ├── config.js            # defaults, env, validaciones
 │   ├── doctor.js            # diagnóstico (FFmpeg, dependencias, espacio)
-│   ├── commands/            # un archivo por comando
-│   ├── lib/
-│   │   ├── ffmpeg.js        # detección de FFmpeg + argumentos
-│   │   ├── downloaders.js   # TikTok/Instagram/Pinterest/YouTube con yt-dlp
-│   │   ├── ai.js            # cliente de IA (OpenCode: Gemini, ChatGPT, DeepSeek)
-│   │   ├── sticker-search.js # búsqueda de stickers y paquetes (Sticker.ly)
-│   │   ├── searches.js      # selección temporal de `.searchpack`
-│   │   ├── cache.js         # caché LRU de conversiones (stickers al instante)
-│   │   ├── concurrency.js   # mapLimit y avisos en segundo plano
-│   │   ├── text-sticker.js  # stickers de texto Brat / ATTP / TTP
-│   │   ├── media.js         # imagen/GIF/video ↔ sticker
-│   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
-│   │   ├── webp.js          # edición de chunks WebP sin re-mux (alfa intacto)
-│   │   ├── session.js       # detecta/valida/respalda la sesión guardada
-│   │   ├── link-session.js  # pairing code real de Baileys para el panel web
-│   │   ├── live-messages.js # edita el menú/progreso en vez de repetir mensajes
-│   │   ├── sticker-pack.js  # envía el paquete nativo de stickers a WhatsApp
-│   │   ├── banner.js        # banner del menú (Drive/URL/local) con caché
-│   │   ├── tmp.js           # carpetas temporales con respaldo para Termux
-│   │   ├── emojimix.js      # catálogo Emoji Kitchen con caché
-│   │   ├── zip.js           # generador ZIP sin dependencias
-│   │   ├── sessions.js      # sesiones de packs con expiración
-│   │   ├── message.js       # extracción de media y citas
-│   │   └── context.js       # helpers que usan los comandos
-├── web/                     # SPA/PWA (index.html, styles.css, app.js, sw.js, manifest.webmanifest, icon.svg, fonts/)
+│   ├── lib/                  # utilidades propias del bot
+│   │   ├── colors.js          # paletas y estilos de la terminal
+│   │   ├── context.js         # contexto canónico que reciben los comandos
+│   │   ├── interactive.js      # lista interactiva de WhatsApp
+│   │   ├── link-session.js    # pairing code real de Baileys
+│   │   ├── logger.js          # logs con niveles
+│   │   ├── prompt.js          # preguntas del terminal
+│   │   ├── quoted.js          # citas al responder
+│   │   ├── searches.js        # selección temporal de .searchpack
+│   │   ├── sessions.js        # sesiones de packs con expiración
+│   │   └── ui.js              # interfaz de la terminal
+├── commands.json            # Los comandos que usa este bot (viven en commands/)
+├── ../commands/              # ⭐ Carpeta única de comandos de todos los bots (en la raíz)
+├── ../lib/                   # Kit compartido (sticker, media, ffmpeg, IA, texto…)
 ├── scripts/
 │   ├── setup-termux.sh      # instalación automática en Termux
 │   ├── start.sh             # arranque con wake-lock
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
-│   ├── serve-web.js         # sirve la plataforma web (npm run web)
+
 │   ├── verify-commands.js   # prueba end-to-end de todos los comandos
 │   └── test-search.js       # llamada REAL a la búsqueda de stickers
 ├── tests/                   # node --test (345 pruebas)

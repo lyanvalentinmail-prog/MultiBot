@@ -2,7 +2,7 @@
   "name": "multibot",
   "version": "1.1.0",
   "private": true,
-  "description": "Repositorio MultiBot y panel web para gestionar configuraciones de bots de WhatsApp.",
+  "description": "MultiBot: bots de WhatsApp con los comandos compartidos en commands/ y un panel web para gestionarlos.",
   "type": "module",
   "scripts": {
     "start": "node scripts/serve-web.js",
@@ -24,8 +24,28 @@
   ],
   "license": "GPL-3.0-or-later",
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
+    "@resvg/resvg-js": "^2.6.2",
+    "@whiskeysockets/baileys": "6.7.24",
+    "axios": "^1.11.0",
+    "chalk": "^5.1.0",
+    "file-type": "^18.0.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "form-data": "^4.0.0",
+    "jimp": "^1.6.1",
+    "jsqr": "^1.4.0",
+    "moment-timezone": "^0.5.34",
+    "node-cache": "^5.1.2",
+    "node-fetch": "^3.3.2",
+    "node-gtts": "^2.0.2",
+    "node-webpmux": "^3.2.1",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.13.1",
-    "qrcode": "^1.5.4"
+    "pino": "^8.6.1",
+    "qrcode": "^1.5.4",
+    "tesseract.js": "^7.0.0",
+    "ws": "^8.17.1",
+    "yt-search": "^2.10.3"
   },
   "repository": {
     "type": "git",

@@ -9,7 +9,7 @@ import { manejarModoHumano } from './Modos/modo-human.js'
 import { manejarModoSad } from './Modos/modo-sad.js'
 import { manejarModoPsico } from './Modos/modo-psico.js'
 import { manejarModoCustom } from './Modos/modo-custom.js'
-import { shouldSkipByModoSub } from '../plugins/modo-sub.js'
+import { shouldSkipByModoSub } from '../../../commands/modos/modo-sub.js'
 
 export async function manejarModosIA(m, conn) {
   if (m.isGroup) {

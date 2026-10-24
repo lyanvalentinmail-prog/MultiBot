@@ -22,8 +22,7 @@
     "verify": "node scripts/verify-commands.js",
     "ai:test": "node scripts/test-ai.js",
     "search:test": "node scripts/test-search.js",
-    "selftest": "node scripts/selftest.js",
-    "web": "node scripts/serve-web.js"
+    "selftest": "node scripts/selftest.js"
   },
   "keywords": [
     "whatsapp",
@@ -35,7 +34,6 @@
   "license": "MIT",
   "dependencies": {
     "@itsliaaa/baileys": "^0.3.18-final",
-    "@whiskeysockets/baileys": "6.7.24",
     "node-webpmux": "^3.2.1",
     "pino": "^9.6.0",
     "qrcode-terminal": "^0.12.0"

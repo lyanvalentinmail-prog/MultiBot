@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { CommandContext } from '../src/lib/context.js'
 import { createStore } from '../src/handler.js'
-import { findCommand } from '../src/commands/index.js'
+import { findCommand } from '../src/registry.js'
 import {
   askAi,
   buildBody,
@@ -24,7 +24,7 @@ import {
   resolveModelChain,
   runAiCommand,
   AiError
-} from '../src/lib/ai.js'
+} from '../../../lib/ai.js'
 import { fakeSock, silentLogger, testConfig, textMessage } from './helpers.js'
 
 /** Config de IA con los valores por defecto del proyecto */
@@ -640,11 +640,11 @@ test('friendlyAiError traduce los fallos típicos a lenguaje de chat', () => {
 // Los tres comandos
 // ---------------------------------------------------------------------------
 
-test('los tres comandos de IA están registrados en la categoría ai', () => {
+test('los tres comandos de IA están registrados en la categoría ia', () => {
   for (const name of ['gemini', 'chatgpt', 'deepseek']) {
     const command = findCommand(name)
     assert.ok(command, `falta ${name}`)
-    assert.equal(command.category, 'ai')
+    assert.equal(command.category, 'ia')
     assert.equal(typeof command.run, 'function')
     assert.match(command.usage, new RegExp(`\\.${name} <tu pregunta>`))
     assert.ok(command.examples.length >= 1)

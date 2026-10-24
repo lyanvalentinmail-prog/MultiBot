@@ -4,12 +4,12 @@ import { existsSync, rmSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { BufferCache, hashBuffer, signature } from '../src/lib/cache.js'
-import { fireAndForget, mapLimit } from '../src/lib/concurrency.js'
+import { BufferCache, hashBuffer, signature } from '../../../lib/cache.js'
+import { fireAndForget, mapLimit } from '../../../lib/concurrency.js'
 import { createStore, handleMessage } from '../src/handler.js'
-import { commands } from '../src/commands/index.js'
-import { stickerCacheKey } from '../src/lib/media.js'
-import { createWorkDir, prewarmWorkDir, withWorkDir } from '../src/lib/tmp.js'
+import { commands } from '../src/registry.js'
+import { stickerCacheKey } from '../../../lib/media.js'
+import { createWorkDir, prewarmWorkDir, withWorkDir } from '../../../lib/tmp.js'
 import { commandContext, silentLogger, testConfig } from './helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -200,7 +200,7 @@ test('la caché de stickers se puede apagar desde config', async () => {
   config.performance = { ...config.performance, stickerCache: false }
   const { ctx } = commandContext('.debug', { config })
   // createStore aplica la config; con la caché apagada no guarda nada nuevo.
-  const { stickerCacheStats } = await import('../src/lib/media.js')
+  const { stickerCacheStats } = await import('../../../lib/media.js')
   const before = stickerCacheStats()
   createStore(config, silentLogger)
   const after = stickerCacheStats()

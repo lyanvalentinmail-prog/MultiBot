@@ -9,6 +9,8 @@ import { buildWastickerZip, packStickerFileName, safeFileName } from '../bots/un
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const botDir = path.join(repoRoot, 'bots', 'universal-bot')
+// Todos los comandos viven en la carpeta compartida commands/.
+const commandsDir = path.join(repoRoot, 'commands')
 
 /** Extrae un archivo de un ZIP "store" (los datos siguen al nombre) */
 function extractStored(zip, name) {
@@ -125,10 +127,10 @@ test('pack-session: expira por inactividad y cancela', () => {
 })
 
 test('take: plugin registrado con comando, alias y metadatos', async () => {
-  const source = await readFile(path.join(botDir, 'plugins', 'stickers-take.js'), 'utf8')
+  const source = await readFile(path.join(commandsDir, 'stickers', 'stickers-take.js'), 'utf8')
   assert.match(source, /handler\.command = \['take', 'robar', 'rename', 'autor'\]/)
   assert.match(source, /handler\.tags = \['stickers'\]/)
-  assert.ok(source.includes("from '../lib/sticker.js'"), 'usa addExif del lib')
+  assert.ok(source.includes("from '../../bots/universal-bot/lib/sticker.js'"), 'usa addExif del lib')
   assert.ok(source.includes('addExif(webp, name, author)'))
   assert.ok(source.includes('resolverMetaSticker'), 'respeta .setmeta del usuario')
   assert.ok(source.includes('citado.download()'), 'descarga el citado o el propio mensaje')
@@ -136,11 +138,11 @@ test('take: plugin registrado con comando, alias y metadatos', async () => {
 })
 
 test('pack: plugin con comando, auto-colección y ZIP', async () => {
-  const source = await readFile(path.join(botDir, 'plugins', 'pack-stickers.js'), 'utf8')
+  const source = await readFile(path.join(commandsDir, 'stickers', 'pack-stickers.js'), 'utf8')
   assert.match(source, /handler\.command = \['pack', 'packsticker', 'stickerpack'\]/)
   assert.match(source, /handler\.all = async function/)
-  assert.ok(source.includes("from '../lib/pack-session.js'"))
-  assert.ok(source.includes("from '../lib/wasticker.js'"))
+  assert.ok(source.includes("from '../../bots/universal-bot/lib/pack-session.js'"))
+  assert.ok(source.includes("from '../../bots/universal-bot/lib/wasticker.js'"))
   assert.ok(source.includes('lastAddedId'), 'deduplica pie de foto vs auto-add')
   assert.ok(source.includes('.wasticker'), 'envía el archivo .wasticker')
   assert.ok(source.includes("DONE.has(first)"), 'soporta .pack done')

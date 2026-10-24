@@ -2,7 +2,7 @@
 * Sistema de bienvenidas y despedidas
 */
 
-import { shouldSkipByModoSub } from '../plugins/modo-sub.js'
+import { shouldSkipByModoSub } from '../../../commands/modos/modo-sub.js'
 
 export async function manejarBienvenidaDespedida(conn, update) {
     let { id, participants, action } = update

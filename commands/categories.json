@@ -1,0 +1,65 @@
+{
+  "description": "Categorías de la carpeta compartida de comandos (commands/<categoría>/).",
+  "categories": [
+    {
+      "id": "audio"
+    },
+    {
+      "id": "busqueda"
+    },
+    {
+      "id": "conversion"
+    },
+    {
+      "id": "descargas"
+    },
+    {
+      "id": "extras"
+    },
+    {
+      "id": "grupos"
+    },
+    {
+      "id": "herramientas"
+    },
+    {
+      "id": "ia"
+    },
+    {
+      "id": "imagen"
+    },
+    {
+      "id": "info"
+    },
+    {
+      "id": "juegos"
+    },
+    {
+      "id": "moderacion"
+    },
+    {
+      "id": "modos"
+    },
+    {
+      "id": "owner"
+    },
+    {
+      "id": "perfiles"
+    },
+    {
+      "id": "reacciones"
+    },
+    {
+      "id": "rpg"
+    },
+    {
+      "id": "stickers"
+    },
+    {
+      "id": "subbots"
+    },
+    {
+      "id": "top"
+    }
+  ]
+}

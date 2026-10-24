@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { findCommand } from '../src/commands/index.js'
-import { formatMs, parseDurationMs, stripDurations } from '../src/commands/timer.js'
-import { splitLyrics } from '../src/commands/lyrics.js'
+import { findCommand } from '../src/registry.js'
+import { formatMs, parseDurationMs, stripDurations } from '../../../commands/herramientas/timer.js'
+import { splitLyrics } from '../../../commands/herramientas/lyrics.js'
 
 function funCtx(argsText = '') {
   const replies = []

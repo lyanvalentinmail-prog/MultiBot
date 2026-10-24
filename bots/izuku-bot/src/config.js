@@ -1,15 +1,23 @@
 import { readFileSync, existsSync, mkdirSync } from 'node:fs'
+import { setBrand, setRoot } from '../../../lib/runtime.js'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
+// El kit compartido (lib/) resuelve rutas relativas a la raíz del bot.
+setRoot(ROOT)
+
 /** Valores por defecto (se mezclan con config.json) */
 export const DEFAULTS = {
   bot: {
     name: 'Izuku',
+    // Identificador estable del bot (el nombre de abajo es decorativo).
+    id: 'Izuku',
     team: '💚 𝕴𝖟𝖚𝖐𝖚 ⚡',
     emojis: ['💚', '⚡', '👊', '💥', '🌪️'],
+    // Emoji con el que cada servicio de IA saluda (branding del bot).
+    aiEmojis: { chatgpt: '💚', deepseek: '👊', gemini: '💚' },
     prefix: '.',
     version: '1.0',
     status: '𝙿𝙻𝚄𝚂 𝚄𝙻𝚃𝚁𝙰',
@@ -22,6 +30,8 @@ export const DEFAULTS = {
   stickers: {
     packName: 'Izuku',
     packAuthor: '💚 𝕴𝖟𝖚𝖐𝖚 ⚡',
+    // Emojis con los que se firman los stickers que no traen metadatos.
+    defaultEmojis: ['⚡', '💚', '💚'],
     size: 512,
     fps: 15,
     maxAnimatedSeconds: 6.5,
@@ -260,6 +270,35 @@ export function defaultConfigFile() {
 }
 
 /**
+ * Publica la identidad del bot en el runtime compartido (lib/): la usan los
+ * metadatos de los stickers, las carpetas temporales y los nombres de archivo.
+ */
+function applyBrand(config) {
+  setBrand({
+    name: config.bot.id,
+    displayName: config.bot.name,
+    team: config.bot.team,
+    emojis: config.bot.emojis,
+    packName: config.stickers.packName,
+    packAuthor: config.stickers.packAuthor,
+    stickerEmojis: config.stickers.defaultEmojis,
+    slug: String(config.bot.id || 'bot')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, ''),
+    tmpEnv: `${String(config.bot.id || 'bot').toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_TMPDIR`,
+    tmpPrefix: `${String(config.bot.id || 'bot').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-`,
+    accent: config.bot.emojis?.[0] || '💙'
+  })
+}
+
+// La identidad del bot queda disponible desde el primer import.
+applyBrand({
+  bot: DEFAULTS.bot,
+  stickers: DEFAULTS.stickers
+})
+
+/**
  * Carga config.json (o config.example.json si no existe) + variables de
  * entorno y devuelve un objeto normalizado.
  */
@@ -293,6 +332,7 @@ export function loadConfig({ file = process.env.CONFIG_PATH || defaultConfigFile
   const config = { ...merged }
 
   config.bot = {
+    id: merged.bot.id || DEFAULTS.bot.id,
     ...merged.bot,
     prefix: merged.bot.prefix,
     prefixes: normalizePrefixes(merged.bot.prefix),
@@ -319,6 +359,10 @@ export function loadConfig({ file = process.env.CONFIG_PATH || defaultConfigFile
     tmp: config.tmpDir
   }
   config.ffmpegPath = merged.ffmpegPath || process.env.FFMPEG_PATH || ''
+
+  // Identidad del bot para el kit compartido (lib/): la usan el runtime
+  // (carpetas temporales), los metadatos de stickers y los archivos descargados.
+  applyBrand(config)
 
   return config
 }

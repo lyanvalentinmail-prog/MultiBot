@@ -1,0 +1,8 @@
+{
+  "bot": "_template",
+  "description": "Comandos de la plantilla: se usan como base al crear un bot nuevo.",
+  "commands": [
+    "info/ping.js",
+    "info/template-menu.js"
+  ]
+}

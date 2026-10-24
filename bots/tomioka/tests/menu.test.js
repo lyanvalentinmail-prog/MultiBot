@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { commands, commandList, findCommand } from '../src/commands/index.js'
+import { commands, commandList, findCommand } from '../src/registry.js'
 import { buildCommandHelp, buildMenu, resolveCategoryCommands } from '../src/menu.js'
 import { testConfig } from './helpers.js'
 

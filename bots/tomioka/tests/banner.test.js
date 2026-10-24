@@ -11,7 +11,7 @@ import {
   imageCandidates,
   loadMenuImage,
   sniffImageType
-} from '../src/lib/banner.js'
+} from '../../../lib/banner.js'
 import { silentLogger, testConfig } from './helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))

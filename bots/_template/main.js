@@ -83,12 +83,11 @@ async function handleLogin(){
 }
 await handleLogin()
 
-// Cargar plugins
-const pluginFolder = join(__dirname, 'plugins')
-global.plugins = {}
-for(const f of readdirSync(pluginFolder).filter(x=>x.endsWith('.js'))){
-  try{ const mod = await import(join(pluginFolder, f)); global.plugins[f] = mod.default || mod } catch(e){ console.error('plugin',f,e) }
-}
+// Cargar comandos: viven en commands/ (carpeta única del repo) y este bot
+// usa los que declara bots/_template/commands.json.
+const { loadBotCommands } = await import('../../lib/commands.js')
+const { commandList } = await loadBotCommands(__dirname)
+global.plugins = Object.fromEntries(commandList.map((command) => [command.id, command]))
 
 // Handler minimalista
 conn.ev.on('messages.upsert', async ({messages})=>{
@@ -101,13 +100,11 @@ conn.ev.on('messages.upsert', async ({messages})=>{
     let [command, ...args] = noPrefix.split(/\s+/)
     command = (command||'').toLowerCase()
     let text = args.join(' ')
-    for(let name in global.plugins){
-      let plugin = global.plugins[name]; if(!plugin.command) continue
-      let cmds = Array.isArray(plugin.command) ? plugin.command : [plugin.command]
-      if(cmds.includes(command)){
-        try{ await plugin.call(conn, m, { conn, args, text, usedPrefix, command }) 
-        } catch(e){ console.error(e); await conn.sendMessage(m.chat,{text:'Error: '+e.message},{quoted:m}) }
-      }
+    for(const plugin of commandList){
+      const cmds = [plugin.name, ...(plugin.aliases || [])]
+      if(!cmds.includes(command)) continue
+      try{ await plugin.run({ conn, m, args, text, usedPrefix, command })
+      } catch(e){ console.error(e); await conn.sendMessage(m.chat,{text:'Error: '+e.message},{quoted:m}) }
     }
   } catch(e){ console.error(e) }
 })

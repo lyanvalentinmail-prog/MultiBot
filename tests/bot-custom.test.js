@@ -21,6 +21,8 @@ import { sinMarcasReenviado, quiereReenviado } from '../bots/universal-bot/lib/s
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const botDir = path.join(repoRoot, 'bots', 'universal-bot')
+// Todos los comandos viven en la carpeta compartida commands/.
+const commandsDir = path.join(repoRoot, 'commands')
 const template = await readFile(path.join(botDir, 'config.example.js'), 'utf8')
 
 test('bot-settings: get/set escalares con defaults sanos', () => {
@@ -173,28 +175,28 @@ test('bot: personalización cableada (comandos, reenviados, banner, lista, stick
   assert.match(dual, /aplicarPreferenciaReenviado\(content\)/)
   const menuCtx = await readFile(path.join(botDir, 'lib', 'menu-categories.js'), 'utf8')
   assert.match(menuCtx, /global\.botBanner \|\| '.\/storage\/img\/banner-default\.jpg'/)
-  const menu = await readFile(path.join(botDir, 'plugins', 'main-menu2.js'), 'utf8')
+  const menu = await readFile(path.join(commandsDir, 'info', 'main-menu2.js'), 'utf8')
   assert.match(menu, /global\.menuLista === true/)
   assert.match(menu, /enviarMenuLista/)
-  const sticker = await readFile(path.join(botDir, 'plugins', 'stickers-sticker.js'), 'utf8')
+  const sticker = await readFile(path.join(commandsDir, 'stickers', 'stickers-sticker.js'), 'utf8')
   assert.match(sticker, /global\.packname/)
   assert.match(sticker, /global\.author/)
 })
 
 test('bot: álbumes y audios usan los helpers', async () => {
-  for (const plugin of ['download-img.js', 'download-pinterest.js', 'tiktok-2.js', 'tiktok-search.js']) {
-    const source = await readFile(path.join(botDir, 'plugins', plugin), 'utf8')
+  for (const plugin of ['descargas/download-img.js', 'descargas/download-pinterest.js', 'descargas/tiktok-2.js', 'busqueda/tiktok-search.js']) {
+    const source = await readFile(path.join(commandsDir, plugin), 'utf8')
     assert.match(source, /conn\.sendAlbum\(/, plugin)
   }
-  for (const plugin of ['audio-slow.js', 'audio-speed.js', 'audio-toaudio.js', 'tiktok-2.js']) {
-    const source = await readFile(path.join(botDir, 'plugins', plugin), 'utf8')
+  for (const plugin of ['audio/audio-slow.js', 'audio/audio-speed.js', 'audio/audio-toaudio.js', 'descargas/tiktok-2.js']) {
+    const source = await readFile(path.join(commandsDir, plugin), 'utf8')
     assert.match(source, /conn\.sendAudio\(/, plugin)
   }
-  const tagall = await readFile(path.join(botDir, 'plugins', 'tag-all.js'), 'utf8')
+  const tagall = await readFile(path.join(commandsDir, 'grupos', 'tag-all.js'), 'utf8')
   assert.match(tagall, /esNotaVoz/)
   // Resultados numerados (cada foto con su leyenda) siguen por separado.
-  for (const plugin of ['download-igsearch.js', 'search-wallcraft.js']) {
-    const source = await readFile(path.join(botDir, 'plugins', plugin), 'utf8')
+  for (const plugin of ['busqueda/download-igsearch.js', 'busqueda/search-wallcraft.js']) {
+    const source = await readFile(path.join(commandsDir, plugin), 'utf8')
     assert.doesNotMatch(source, /conn\.sendAlbum\(/, plugin)
   }
 })
@@ -328,8 +330,8 @@ test('menú: TIPO y carga diferida de modo-sub en el código', async () => {
   const source = await readFile(path.join(botDir, 'lib', 'menu-categories.js'), 'utf8')
   assert.match(source, /'Principal bot Bot'/)
   assert.match(source, /'Sub bot Bot'/)
-  assert.match(source, /await import\('..\/plugins\/modo-sub\.js'\)/)
-  assert.doesNotMatch(source, /from '..\/plugins\/modo-sub\.js'/)
+  assert.match(source, /await import\('\.\.\/\.\.\/\.\.\/commands\/modos\/modo-sub\.js'\)/)
+  assert.doesNotMatch(source, /from '\.\.\/\.\.\/\.\.\/commands\/modos\/modo-sub\.js'/)
 })
 
 test('alquiler: línea del menú coherente con el modo público', async () => {

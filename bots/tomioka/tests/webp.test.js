@@ -14,8 +14,8 @@ import {
   readExifPayload,
   stripExif,
   webpInfo
-} from '../src/lib/webp.js'
-import { EXIF_HEADER, buildExifChunk, buildExifPayload, writeStickerMetadata } from '../src/lib/sticker.js'
+} from '../../../lib/webp.js'
+import { EXIF_HEADER, buildExifChunk, buildExifPayload, writeStickerMetadata } from '../../../lib/sticker.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const staticSticker = await readFile(path.join(here, 'fixtures/sticker-static.webp'))

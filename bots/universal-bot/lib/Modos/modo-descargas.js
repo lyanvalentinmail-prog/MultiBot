@@ -1,6 +1,6 @@
 import fetch from 'node-fetch'
 import { estaModoActivo } from './modo-utils.js'
-import { downloadTikTok as downloadTikTokApi, absMedia, sanitizeTikTokUrl } from '../../plugins/tiktok-2.js'
+import { downloadTikTok as downloadTikTokApi, absMedia, sanitizeTikTokUrl } from '../../../../commands/descargas/tiktok-2.js'
 
 const REGEX_TIKTOK = /(?:https?:\/\/)?(?:www\.|vm\.|vt\.|m\.|t\.)?tiktok\.com\/[^\s<>'"\]]+/i
 const REGEX_IG = /(?:https?:\/\/)?(?:www\.)?instagram\.com\/(?:reel|reels|p|tv)\/[\w-]+/i

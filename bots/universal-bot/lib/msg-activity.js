@@ -1,5 +1,5 @@
 import { resolveDbUser } from './michi-users.js'
-import { cleanBotNum, getActiveBotForGroup } from '../plugins/modo-sub.js'
+import { cleanBotNum, getActiveBotForGroup } from '../../../commands/modos/modo-sub.js'
 import { participantJids } from './group-participant.js'
 
 const idsMsgRecientes = new Map()
