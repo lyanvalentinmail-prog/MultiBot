@@ -1,0 +1,19 @@
+{
+  "id": "izuku-bot",
+  "name": "Izuku Bot",
+  "description": "Bot de WhatsApp estilo Izuku Midoriya (Deku): stickers, packs, descargas, IA y menú heroico Plus Ultra. Compatible con Termux.",
+  "executionMode": "termux",
+  "webRuntime": false,
+  "supportsPairingCode": true,
+  "supportsQr": true,
+  "adultContent": false,
+  "defaultPrefix": ".",
+  "features": [
+    "Stickers estáticos y animados",
+    "Packs de stickers",
+    "Descargas (TikTok, Instagram, Pinterest, YouTube)",
+    "IA (Gemini, ChatGPT, DeepSeek)",
+    "Búsqueda de stickers",
+    "Conexión Baileys por Pairing Code o QR real"
+  ]
+}

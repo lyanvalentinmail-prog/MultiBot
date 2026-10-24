@@ -1,0 +1,220 @@
+import path from 'node:path'
+import { CommandContext } from './lib/context.js'
+import { getContentType } from '@whiskeysockets/baileys'
+import { PackStore } from './lib/sessions.js'
+import { SearchStore } from './lib/searches.js'
+import { configureStickerCache } from './lib/media.js'
+import { LiveMessages } from './lib/live-messages.js'
+import { findCommand } from './commands/index.js'
+import { getContent, getText } from './lib/message.js'
+import { truncate } from './lib/text.js'
+import { c, sym } from './lib/colors.js'
+
+const IGNORED_JID_SUFFIXES = ['@broadcast', '@newsletter', 'status@broadcast']
+
+export function createStore(config, logger, { persistLiveMessages = false } = {}) {
+  // La caché de conversiones se ajusta con la config de rendimiento
+  // (`performance` en config.json).
+  configureStickerCache({
+    enabled: config.performance?.stickerCache !== false,
+    entries: config.performance?.stickerCacheEntries,
+    megabytes: config.performance?.stickerCacheMB
+  })
+
+  return {
+    packs: new PackStore({
+      ttlMinutes: config.pack.sessionMinutes,
+      maxStickers: config.pack.maxStickers,
+      logger
+    }),
+    cooldowns: new Map(),
+    // Última búsqueda de paquetes por chat (`.searchpack <número>`)
+    searches: new SearchStore({
+      ttlMinutes: config.search?.sessionMinutes ?? 10,
+      logger
+    }),
+    // Mensajes "vivos" (menú, progreso de .pack) que se editan en vez de repetirse.
+    // En producción el menú se persiste en disco: si el bot se reinicia, el
+    // próximo .menu igual retira los menús de la ejecución anterior.
+    messages: new LiveMessages({
+      persistFile: persistLiveMessages
+        ? path.join(config.paths.data, 'live-messages.json')
+        : null
+    }),
+    // IDs de mensajes enviados por el bot: evita procesar sus propias respuestas
+    sentIds: new Set()
+  }
+}
+
+function shouldIgnore(msg, config, store) {
+  if (!msg?.message) return true
+  const jid = msg.key?.remoteJid || ''
+  if (!jid) return true
+  if (IGNORED_JID_SUFFIXES.some((suffix) => jid.endsWith(suffix))) return true
+  if (msg.key.id && store?.sentIds?.has(msg.key.id)) return true
+  if (msg.key.fromMe && config.behavior.ignoreFromMe && !config.owner.allowFromMe) return true
+  const type = getContentType(getContent(msg))
+  if (!type || type === 'protocolMessage' || type === 'pollUpdateMessage') return true
+  return false
+}
+
+/** ¿Está el usuario en cooldown? */
+function inCooldown(store, key, cooldownMs) {
+  if (!cooldownMs || cooldownMs <= 0) return false
+  const now = Date.now()
+  const last = store.cooldowns.get(key) || 0
+  if (now - last < cooldownMs) return true
+  store.cooldowns.set(key, now)
+  if (store.cooldowns.size > 2000) {
+    for (const [id, time] of store.cooldowns) {
+      if (now - time > cooldownMs) store.cooldowns.delete(id)
+    }
+  }
+  return false
+}
+
+/** Interpreta el comando sin prefijo (solo chats privados, si está permitido) */
+function looseCommand(text, commands) {
+  if (typeof text !== 'string') return null
+  const trimmed = text.trim()
+  const match = trimmed.match(/^(\S+)\s*([\s\S]*)$/)
+  if (!match) return null
+  const name = match[1].toLowerCase()
+  if (!commands.has(name)) return null
+  const argsText = (match[2] || '').trim()
+  return {
+    prefix: '',
+    command: name,
+    args: argsText ? argsText.split(/\s+/) : [],
+    argsText,
+    raw: trimmed
+  }
+}
+
+async function runCommand(ctx, command) {
+  const { config } = ctx
+  const label = `${c.magenta(command.name)} ${c.gray(`← ${ctx.displayName}`)}`
+
+  if (command.ownerOnly && !ctx.isOwner) {
+    await ctx.reply('🔒 Este comando es solo para el dueño del bot.')
+    return
+  }
+
+  if (!ctx.isOwner && inCooldown(ctx.store, ctx.senderJid, config.behavior.cooldownMs)) {
+    ctx.logger.debug?.(`⏳ cooldown ${ctx.displayName}`)
+    return
+  }
+
+  // Los avisos ("escribiendo…" y la reacción ⏳) salen EN PARALELO con el
+  // comando: antes se esperaba la confirmación de WhatsApp de los dos (dos
+  // viajes de red completos) antes de convertir nada. Ahora el trabajo
+  // arranca de inmediato y los avisos llegan igual, un instante después.
+  const feedback = []
+  if (config.behavior.sendTyping) feedback.push(ctx.typing('composing'))
+  if (config.behavior.reactToCommands) feedback.push(ctx.react('⏳'))
+  const feedbackDone = Promise.allSettled(feedback)
+
+  try {
+    const summary = await command.run(ctx)
+    await feedbackDone
+    // Cierre en paralelo: el ✅ y el "dejó de escribir" no dependen entre sí.
+    await Promise.allSettled([
+      config.behavior.reactToCommands ? ctx.react('✅') : null,
+      ctx.typing('paused')
+    ])
+    ctx.logger.info(`${sym.ok} ${label} ${c.gray(`${ctx.latency}ms`)}${summary ? c.gray(` · ${summary}`) : ''}`)
+  } catch (error) {
+    await feedbackDone
+    await Promise.allSettled([
+      config.behavior.reactToCommands ? ctx.react('💥') : null,
+      ctx.typing('paused')
+    ])
+    ctx.logger.error(`${sym.err} ${label} · ${error.message}`)
+    const message = truncate(error.message || 'Error inesperado', 400)
+    const hint =
+      /FFmpeg|codificador WebP|conversión|temporal/i.test(message)
+        ? '\n\n💚 Envía *.debug* para ver qué está fallando en tu equipo.'
+        : ''
+    await ctx.reply(`❌ *No se pudo completar*\n${message}${hint}`).catch(() => {})
+  }
+}
+
+/**
+ * Procesa un mensaje individual.
+ */
+export async function handleMessage({ sock, msg, config, logger, store, commands = null, hooks = null }) {
+  if (shouldIgnore(msg, config, store)) return
+
+  const text = getText(msg)
+  const ctx = new CommandContext({ sock, msg, config, logger, store, text })
+  ctx.commands = commands
+
+  if (!config.behavior.respondInGroups && ctx.isGroup) return
+
+  // Sin prefijo: probar modo "sin prefijo" en privado o agregar sticker a un pack
+  let parsed = ctx.parsed
+  if (!parsed && !ctx.isGroup && !config.behavior.requirePrefixInDM) {
+    parsed = looseCommand(text, commands || new Map())
+  }
+
+  if (!parsed) {
+    // Fotos, videos, GIFs o stickers con un pack en curso se agregan solos
+    const packCommand = findCommand('pack')
+    if (ctx.current && packCommand?.onMedia) {
+      const handled = await packCommand.onMedia(ctx)
+      if (handled) logger.debug?.(`💚 ${ctx.current.kind} agregado al pack de ${ctx.displayName}`)
+    }
+    return
+  }
+
+  ctx.parsed = parsed
+  ctx.command = parsed.command
+  ctx.args = parsed.args
+  ctx.argsText = parsed.argsText
+  ctx.prefix = parsed.prefix
+
+  // Personalización por instancia (panel web): deshabilitar comandos o
+  // categorías, alias extra y comandos propios de texto. Sin hooks (bot
+  // principal) el flujo es exactamente el de siempre.
+  if (hooks?.beforeCommand) {
+    const decision = await hooks.beforeCommand({ ctx, parsed, sock, msg })
+    if (decision?.type === 'ignore') return
+    if (decision?.type === 'custom') { await ctx.reply(decision.response); return }
+    if (decision?.type === 'run' && decision.command) {
+      ctx.command = decision.command.name
+      await runCommand(ctx, decision.command)
+      return
+    }
+  }
+
+  const command = findCommand(parsed.command)
+  if (!command) {
+    if (config.behavior.replyUnknownCommand) {
+      await ctx
+        .reply(
+          `💥 No conozco *${parsed.prefix}${parsed.command}*.\nUsa *${config.prefixes[0]}help* para ver todos los comandos. ⚡`
+        )
+        .catch(() => {})
+      logger.debug?.(`comando desconocido: ${parsed.command} (${ctx.displayName})`)
+    }
+    return
+  }
+
+  await runCommand(ctx, command)
+}
+
+/**
+ * Crea el listener de Baileys.
+ */
+export function createUpsertHandler({ config, logger, store, commands, hooks = null }) {
+  return async function onUpsert(sock, { messages, type }) {
+    if (type !== 'notify' && type !== 'append') return
+    for (const msg of messages || []) {
+      try {
+        await handleMessage({ sock, msg, config, logger, store, commands, hooks })
+      } catch (error) {
+        logger.error(`${sym.err} Error procesando mensaje: ${error.stack || error.message}`)
+      }
+    }
+  }
+}
