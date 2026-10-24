@@ -18,6 +18,10 @@ const require = createRequire(import.meta.url)
 
 const REQUIRED = ['@whiskeysockets/baileys', 'node-webpmux', 'pino', 'qrcode-terminal']
 
+// Necesaria para el menú de lista interactiva. Si falta, el bot sigue
+// funcionando: el menú se manda como texto.
+const RECOMMENDED = ['@itsliaaa/baileys']
+
 function checkDependency(name) {
   try {
     require.resolve(name)
@@ -59,6 +63,16 @@ export async function runDoctor({ config = loadConfig(), probeAi = true } = {}) 
     else {
       error(`falta ${name}`)
       recommendations.push('Ejecuta "npm install" dentro de la carpeta del bot.')
+    }
+  }
+
+  // Dependencias opcionales (el bot funciona sin ellas)
+  for (const name of RECOMMENDED) {
+    const result = checkDependency(name)
+    if (result.ok) ok(`dependencia ${name}`)
+    else {
+      warn(`falta ${name} (el menú se mandará como texto)`)
+      recommendations.push('Ejecuta "npm install" para tener el menú de lista interactiva.')
     }
   }
 

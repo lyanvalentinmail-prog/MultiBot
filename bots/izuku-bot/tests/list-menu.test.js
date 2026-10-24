@@ -130,7 +130,7 @@ test('.help <comando> sigue mandando la tarjeta de texto aunque listMode esté a
   assert.ok(replies[0].includes('.sticker'))
 })
 
-test('ctx.sendList manda texto, pie, botón y secciones citando al usuario', async () => {
+test('ctx.sendList manda un listMessage real con botón, secciones y nodo biz', async () => {
   const sock = fakeSock()
   const msg = textMessage('.help')
   const ctx = new CommandContext({
@@ -144,12 +144,22 @@ test('ctx.sendList manda texto, pie, botón y secciones citando al usuario', asy
   const sections = [{ title: 'Demo', rows: [{ title: '.sticker', rowId: '.sticker', description: 'x' }] }]
   await ctx.sendList({ text: 'Hola', footer: 'Pie', sections })
 
-  assert.equal(sock.sent.length, 1)
-  assert.equal(sock.sent[0].content.text, 'Hola')
-  assert.equal(sock.sent[0].content.footer, 'Pie')
-  assert.equal(sock.sent[0].content.buttonText, LIST_BUTTON_TEXT)
-  assert.equal(sock.sent[0].content.sections, sections)
-  assert.equal(sock.sent[0].options.quoted, msg)
+  // La lista NO puede ir por sendMessage: Baileys descartaría el botón.
+  assert.equal(sock.sent.length, 0, 'no se manda como texto plano')
+  assert.equal(sock.relayed.length, 1, 'se retransmite el mensaje ya construido')
+
+  const { message, options } = sock.relayed[0]
+  assert.ok(message.listMessage, 'el mensaje es un listMessage')
+  assert.equal(message.listMessage.description, 'Hola')
+  assert.equal(message.listMessage.footerText, 'Pie')
+  assert.equal(message.listMessage.buttonText, LIST_BUTTON_TEXT)
+  assert.equal(message.listMessage.sections.length, 1)
+  assert.equal(message.listMessage.sections[0].rows[0].rowId, '.sticker')
+
+  // WhatsApp solo muestra el botón si el mensaje lleva su nodo <biz>.
+  const biz = (options.additionalNodes || []).find((node) => node.tag === 'biz')
+  assert.ok(biz, 'el mensaje lleva el nodo <biz> que exige WhatsApp')
+  assert.ok(biz.content.some((node) => node.tag === 'list'))
 })
 
 test('tocar una fila de la lista ejecuta el comando (listResponseMessage)', async () => {
@@ -176,8 +186,24 @@ test('.menu manda la lista interactiva por defecto', async () => {
   const sock = fakeSock()
   await handleMessage({ sock, msg: textMessage('.menu'), config: active, logger: silentLogger, store, commands })
 
-  const lists = sock.sent.filter((item) => item.content?.sections)
-  assert.equal(lists.length, 1)
-  assert.equal(lists[0].content.sections.length, 7)
-  assert.equal(lists[0].content.buttonText, LIST_BUTTON_TEXT)
+  assert.equal(sock.relayed.length, 1)
+  const list = sock.relayed[0].message.listMessage
+  assert.ok(list, '.menu manda un listMessage, no texto plano')
+  assert.equal(list.sections.length, 7)
+  assert.equal(list.buttonText, LIST_BUTTON_TEXT)
+  assert.ok(list.sections.every((section) => section.rows.length > 0))
+})
+
+test('si el socket no puede retransmitir, el menú se manda como texto', async () => {
+  const active = testConfig()
+  active.menu = { ...active.menu, image: '' }
+  const store = createStore(active, silentLogger)
+  const sock = fakeSock()
+  delete sock.relayMessage
+  await handleMessage({ sock, msg: textMessage('.menu'), config: active, logger: silentLogger, store, commands })
+
+  assert.equal(sock.relayed.length, 0)
+  const texts = sentTexts(sock)
+  assert.equal(texts.length, 1)
+  assert.ok(texts[0].content.text.includes(active.bot.name))
 })

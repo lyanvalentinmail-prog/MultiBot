@@ -34,6 +34,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@itsliaaa/baileys": "^0.3.18-final",
     "@whiskeysockets/baileys": "6.7.24",
     "node-webpmux": "^3.2.1",
     "pino": "^9.6.0",
