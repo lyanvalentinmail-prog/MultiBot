@@ -264,20 +264,40 @@ async function main() {
   try {
     // ---------- ayuda / menú ----------
     const helpStep = await step({
-      name: '.help (menú cargado junto con el banner)',
+      name: '.help (lista interactiva)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.help'),
+      expect: /Toca el botón y elige un comando/
+    })
+    const helpLists = helpStep.sent.filter((item) => (item.sections || []).length > 0)
+    record(
+      'menú lista con todas las secciones y botón',
+      helpLists.length === 1 &&
+        helpLists[0].sections.length === config.menu.categories.length &&
+        Boolean(helpLists[0].buttonText),
+      helpLists.length === 1 ? 'OK' : `list=${helpLists.length}`,
+      helpStep.sent
+    )
+    // El menú con banner sigue disponible con listMode: false
+    config.menu.listMode = false
+    const helpBanner = await step({
+      name: '.help sin lista (menú cargado junto con el banner)',
       config,
       store,
       sock,
       msg: textMessage('.help'),
       expect: /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼[\s\S]*\.debug[\s\S]*𝕰𝐍𝐃 𝐎𝐅 𝐌𝐄𝐍𝐔/
     })
-    const helpImages = helpStep.sent.filter((item) => item.image)
-    const helpTexts = helpStep.sent.filter((item) => typeof item.text === 'string')
+    config.menu.listMode = true
+    const helpImages = helpBanner.sent.filter((item) => item.image)
+    const helpTexts = helpBanner.sent.filter((item) => typeof item.text === 'string')
     record(
       'menú + banner en un solo mensaje (sin texto aparte)',
       helpImages.length === 1 && helpTexts.length === 0 && Boolean(helpImages[0]?.caption),
       helpImages.length === 1 && helpTexts.length === 0 ? 'OK' : `image=${helpImages.length} text=${helpTexts.length}`,
-      helpStep.sent
+      helpBanner.sent
     )
     await step({
       name: '.help take (ayuda puntual)',
@@ -293,7 +313,24 @@ async function main() {
       store,
       sock,
       msg: textMessage('.menu'),
-      expect: /𝕰𝐍𝐃 𝐎𝐅 𝐌𝐄𝐍𝐔/
+      expect: /Toca el botón y elige un comando/
+    })
+    await step({
+      name: '.dado (azar)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.dado'),
+      expect: /Salió el \*[1-6]\*/
+    })
+    await step({
+      name: '.timer sin tiempo (error claro)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.timer hola'),
+      expect: /tiempo válido/,
+      allowError: true
     })
     await step({
       name: '.comandoinexistente (aviso)',

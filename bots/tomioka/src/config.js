@@ -17,7 +17,7 @@ export const DEFAULTS = {
   },
   login: 'ask', // "ask" | "qr" | "pairing"
   pairingPhone: '',
-  owner: { numbers: [], allowFromMe: false },
+  owner: { numbers: [], mods: [], names: {}, allowFromMe: false },
   session: { dir: 'sessions' },
   stickers: {
     packName: 'TomiOka',
@@ -111,13 +111,19 @@ export const DEFAULTS = {
     respondInGroups: true,
     requirePrefixInDM: true,
     replyUnknownCommand: true,
-    ignoreFromMe: false
+    ignoreFromMe: false,
+    // Terminal → Personalizar (mismas llaves que el bot principal)
+    commandsEnabled: true, // false = solo el dueño puede usar comandos
+    publicMode: true, // false = en privado solo responde al dueño
+    forwardedStyle: false, // true = los mensajes salen como "reenviados"
+    estadoQuote: false // true = las respuestas citan con tarjeta de contacto
   },
   menu: {
     image: '', // URL (Drive incluido), ruta local o data URI del banner
     imageCacheMinutes: 720,
     imageTimeoutMs: 25000,
     sendAsCaption: true, // manda el menú como pie de foto del banner
+    listMode: true, // .help manda la lista interactiva (false = menú de texto/banner)
     showDescriptions: false,
     showUser: true,
     phrases: [
@@ -133,7 +139,7 @@ export const DEFAULTS = {
         description: '𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌',
         kaomoji: '( ˶ˆ꒳ˆ˵ )',
         divider: ['💧', '💦'],
-        commands: ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4']
+        commands: ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'fb']
       },
       {
         emoji: '💧',
@@ -168,12 +174,20 @@ export const DEFAULTS = {
         commands: ['gemini', 'chatgpt', 'deepseek']
       },
       {
+        emoji: '🐟',
+        title: '𝕲𝖗𝖚𝖕𝖔𝖘',
+        description: '𝖦𝗋𝗎𝗉𝗈𝗌',
+        kaomoji: '( ˶ˆ꒳ˆ˵ )',
+        divider: ['💙', '💧'],
+        commands: ['kick', 'promote', 'demote', 'add', 'tagall', 'open', 'close', 'infogrupo']
+      },
+      {
         emoji: '🌊',
         title: '𝕴𝖓𝖋𝖔',
         description: '𝖨𝗇𝖿𝗈',
         kaomoji: '( ᴗ͈ˬᴗ͈ )',
         divider: ['💧', '💙'],
-        commands: ['help', 'debug']
+        commands: ['help', 'debug', 'dado', 'moneda', 'timer', 'lyrics']
       }
     ]
   },

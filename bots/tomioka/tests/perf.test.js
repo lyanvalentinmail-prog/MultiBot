@@ -59,7 +59,7 @@ const msgFor = (text) => ({
 
 test('los avisos (⏳ y escribiendo…) no retrasan el resultado', async () => {
   const config = testConfig()
-  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
+  config.menu = { ...config.menu, listMode: false, image: 'tests/fixtures/sample.png', sendAsCaption: true }
   const store = createStore(config, silentLogger)
   const sock = latentSock()
 
@@ -95,7 +95,7 @@ test('si el comando falla se reacciona con 💦 y se avisa', async () => {
 
 test('los avisos se omiten cuando la configuración los apaga', async () => {
   const config = testConfig({ behavior: { reactToCommands: false, sendTyping: false } })
-  config.menu = { ...config.menu, image: 'no-existe.png' }
+  config.menu = { ...config.menu, listMode: false, image: 'no-existe.png' }
   const store = createStore(config, silentLogger)
   const sock = latentSock(5)
   await handleMessage({ sock, msg: msgFor('.help'), config, store, logger: silentLogger, commands })

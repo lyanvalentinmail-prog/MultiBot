@@ -230,7 +230,7 @@ test('.emojimix pide dos emojis cuando recibe uno solo', async () => {
 
 test('.help carga el menú completo junto con el banner en un único mensaje (no por separado)', async () => {
   const config = testConfig()
-  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
+  config.menu = { ...config.menu, listMode: false, image: 'tests/fixtures/sample.png', sendAsCaption: true }
   const { ctx, sock } = makeContext('.help', { config })
   await findCommand('help').run(ctx)
 
@@ -250,6 +250,7 @@ test('.help usa el banner como pie de foto cuando el menú es corto', async () =
   const config = testConfig()
   config.menu = {
     ...config.menu,
+    listMode: false,
     image: 'tests/fixtures/sample.png',
     sendAsCaption: true,
     categories: [
@@ -269,6 +270,7 @@ test('.help respeta sendAsCaption: false cuando se desactiva explícitamente', a
   const config = testConfig()
   config.menu = {
     ...config.menu,
+    listMode: false,
     image: 'tests/fixtures/sample.png',
     sendAsCaption: false
   }
@@ -281,7 +283,7 @@ test('.help respeta sendAsCaption: false cuando se desactiva explícitamente', a
 
 test('.help cae al texto si el banner no existe', async () => {
   const config = testConfig()
-  config.menu = { ...config.menu, image: 'no-existe/banner.png' }
+  config.menu = { ...config.menu, listMode: false, image: 'no-existe/banner.png' }
   const { ctx, sock } = makeContext('.help', { config })
   await findCommand('help').run(ctx)
   assert.equal(sentOf(sock, 'image').length, 0)
@@ -290,7 +292,7 @@ test('.help cae al texto si el banner no existe', async () => {
 
 test('.help deja los menús anteriores como "Menu eliminado."', async () => {
   const config = testConfig()
-  config.menu = { ...config.menu, image: 'no-existe/banner.png' }
+  config.menu = { ...config.menu, listMode: false, image: 'no-existe/banner.png' }
   const store = createStore(config, silentLogger)
   const sock = fakeSock()
 
@@ -317,7 +319,7 @@ test('.help deja los menús anteriores como "Menu eliminado."', async () => {
 
 test('.help con banner retira el mensaje único anterior (banner + menú) al pedir otro', async () => {
   const config = testConfig()
-  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
+  config.menu = { ...config.menu, listMode: false, image: 'tests/fixtures/sample.png', sendAsCaption: true }
   const store = createStore(config, silentLogger)
   const sock = fakeSock()
 
@@ -337,7 +339,7 @@ test('.help con banner retira el mensaje único anterior (banner + menú) al ped
 
 test('.help <comando> no retira el menú', async () => {
   const config = testConfig()
-  config.menu = { ...config.menu, image: 'no-existe/banner.png' }
+  config.menu = { ...config.menu, listMode: false, image: 'no-existe/banner.png' }
   const store = createStore(config, silentLogger)
   const sock = fakeSock()
 

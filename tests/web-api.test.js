@@ -36,7 +36,7 @@ test('MultiBot web API: auth, profile CRUD, catalog, and profile/runtime separat
   assert.equal(universal.executionMode, 'web')
   assert.equal(universal.webRuntime, true)
   assert.equal(universal.adultContent, false)
-  assert.equal(universal.pluginCount, 200)
+  assert.equal(universal.pluginCount, 202)
 
   const pluginCatalog = await call('/api/plugins?botId=universal-bot')
   assert.equal(pluginCatalog.response.status, 200)

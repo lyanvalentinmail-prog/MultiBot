@@ -42,12 +42,22 @@ export function getText(message) {
   return (
     content.conversation ||
     content.extendedTextMessage?.text ||
+    content.listResponseMessage?.singleSelectReply?.selectedRowId ||
     content.imageMessage?.caption ||
     content.videoMessage?.caption ||
     content.documentMessage?.caption ||
     content.ptvMessage?.caption ||
     ''
   )
+}
+
+/** JIDs mencionados en el mensaje (etiquetas @) */
+export function getMentionedJids(message) {
+  const content = getContent(message)
+  if (!content) return []
+  const type = getContentType(content)
+  const ids = content[type]?.contextInfo?.mentionedJid
+  return Array.isArray(ids) ? ids.filter(Boolean).map(String) : []
 }
 
 /** Devuelve el objeto de media (imagen/video/sticker/documento) del contenido */

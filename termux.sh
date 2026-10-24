@@ -541,6 +541,8 @@ bsettings() { # $1=id, resto args → corre scripts/bot-settings.js del bot
   (cd "$BOTS_DIR/$id" && node scripts/bot-settings.js "$@")
 }
 cs_val() { printf '%s' "$CUSTOM_CFG" | grep -m1 "^$1=" | cut -d= -f2-; }
+# ¿El bot trae este ajuste? (algunos bots no tienen moneda ni otros extras)
+cs_tiene() { printf '%s' "$CUSTOM_CFG" | grep -q "^$1="; }
 cs_onoff() {
   if [ "$(cs_val "$1")" = "true" ]; then printf '%bON%b' "$C_GREEN" "$C_RESET"
   else printf '%bOFF%b' "$C_RED" "$C_RESET"; fi
@@ -680,7 +682,7 @@ cmd_customize() { # $1 = bot id
     printf '%b  1)%b ✏️  Nombre del bot ...... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val namebot)" "$C_RESET"
     printf '%b  2)%b 📦 Nombre de stickers ... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val packname)" "$C_RESET"
     printf '%b  3)%b 👤 Autor de stickers .... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val author)" "$C_RESET"
-    printf '%b  4)%b 💰 Moneda ............... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val moneda)" "$C_RESET"
+    if cs_tiene moneda; then printf '%b  4)%b 💰 Moneda ............... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$(cs_val moneda)" "$C_RESET"; fi
     printf '%b  5)%b 🖼️  Banner ............... %b%s%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$bannerCur" "$C_RESET"
     printf '%b  6)%b 👑 Owners/admins ....... %b%s owner(s) · %s admin(s)%b\n' "$C_YELLOW" "$C_RESET" "$C_CYAN" "$nowners" "$nmods" "$C_RESET"
     printf '%b  7)%b ⚡ Comandos ............. %s\n' "$C_YELLOW" "$C_RESET" "$(cs_onoff comandosEnabled)"
@@ -696,7 +698,7 @@ cmd_customize() { # $1 = bot id
       1) cs_edit "$id" namebot "Nombre del bot"; sleep 1 ;;
       2) cs_edit "$id" packname "Nombre de stickers"; sleep 1 ;;
       3) cs_edit "$id" author "Autor de stickers"; sleep 1 ;;
-      4) cs_edit "$id" moneda "Moneda (ej. USD, UYU, MXN)" 1; sleep 1 ;;
+      4) if cs_tiene moneda; then cs_edit "$id" moneda "Moneda (ej. USD, UYU, MXN)" 1; else err "Este bot no tiene moneda."; fi; sleep 1 ;;
       5) cs_banner "$id" ;;
       6) cs_owners "$id" ;;
       7) cs_toggle "$id" comandosEnabled "Comandos"; sleep 1 ;;
