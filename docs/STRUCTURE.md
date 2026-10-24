@@ -8,6 +8,7 @@ MultiBot/
 ├── bots/
 │   ├── _template/                     # Base para crear bots (oculta del catálogo)
 │   ├── tomioka/                       # Stickers, packs, descargas e IA (Termux)
+│   ├── izuku-bot/                     # Estilo Deku: stickers, packs, IA (Termux)
 │   └── universal-bot/                 # Baileys, Termux + runtime web autorizado
 │       ├── bot.json                   # Metadatos y entrypoint web opt-in
 │       ├── config-loader.js           # config.js privado o defaults/env

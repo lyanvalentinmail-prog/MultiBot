@@ -62,6 +62,8 @@ bots/universal-bot/config.js
 bots/universal-bot/config.js.bak
 bots/tomioka/config.json
 bots/tomioka/config.json.bak
+bots/izuku-bot/config.json
+bots/izuku-bot/config.json.bak
 
 # Root app and Universal Bot lockfiles are tracked for reproducible Render installs.
 !/package-lock.json

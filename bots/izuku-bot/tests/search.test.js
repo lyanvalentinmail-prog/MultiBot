@@ -1,0 +1,334 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createStore } from '../src/handler.js'
+import { findCommand } from '../src/commands/index.js'
+import { looksLikePackCode } from '../src/commands/searchpack.js'
+import { parseSearchArgs } from '../src/commands/search.js'
+import { SearchStore } from '../src/lib/searches.js'
+import { resetSearchEndpoints } from '../src/lib/sticker-search.js'
+import { commandContext, fakeSock, silentLogger, testConfig } from './helpers.js'
+
+const here = path.dirname(fileURLToPath(import.meta.url))
+const sticker = readFileSync(path.join(here, 'fixtures/sticker-static.webp'))
+
+const json = (data, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
+const webp = () => new Response(sticker, { status: 200, headers: { 'content-type': 'image/webp' } })
+
+function stubFetch(routes) {
+  const original = globalThis.fetch
+  const calls = []
+  globalThis.fetch = async (url, options = {}) => {
+    const target = String(url)
+    calls.push({ url: target, headers: options.headers || {}, method: options.method || 'GET' })
+    for (const [matcher, responder] of routes) {
+      const match = typeof matcher === 'string' ? target.includes(matcher) : matcher.test(target)
+      if (!match) continue
+      const value = typeof responder === 'function' ? await responder(target, options) : responder
+      return value instanceof Response ? value : json(value)
+    }
+    return new Response('no encontrado', { status: 404 })
+  }
+  return {
+    calls,
+    restore() {
+      globalThis.fetch = original
+    }
+  }
+}
+
+const STICKERS_PAYLOAD = {
+  result: {
+    stickers: [
+      {
+        stickerUrl: 'https://cdn.example.com/uno.webp',
+        packId: 'AA11BB',
+        packName: 'Gatitos',
+        authorName: 'tomi',
+        tags: ['🐱']
+      },
+      {
+        stickerUrl: 'https://cdn.example.com/dos.webp',
+        packId: 'AA11BB',
+        packName: 'Gatitos',
+        authorName: 'tomi',
+        tags: []
+      }
+    ]
+  }
+}
+
+const PACKS_PAYLOAD = {
+  result: {
+    stickerPacks: [
+      { packId: 'CC22DD', name: 'Gatos graciosos', authorName: 'michi', stickerCount: 12, isAnimated: false },
+      { packId: 'EE33FF', name: 'Perritos', authorName: 'tomi', stickerCount: 8, isAnimated: true }
+    ]
+  }
+}
+
+const DETAIL_PAYLOAD = {
+  result: {
+    name: 'Gatos graciosos',
+    authorName: 'michi',
+    packId: 'CC22DD',
+    resourceVersion: 3,
+    resourceUrlPrefix: 'https://cdn.example.com/pack/CC22DD/3/',
+    stickers: [
+      { fileName: '1.webp', isAnimated: false, tags: ['🐱'] },
+      { fileName: '2.webp', isAnimated: false, tags: ['😹'] }
+    ]
+  }
+}
+
+function searchConfig(overrides = {}) {
+  const config = testConfig()
+  config.search = {
+    ...config.search,
+    enabled: true,
+    baseUrl: 'http://api.sticker.ly',
+    userAgent: 'test-agent/1.0',
+    timeoutMs: 5000,
+    maxResults: 2,
+    packStickerLimit: 30,
+    ...overrides
+  }
+  return config
+}
+
+const sentOf = (sock, kind) => sock.sent.filter((item) => item.content?.[kind])
+const textsOf = (sock) => sock.sent.filter((item) => typeof item.content?.text === 'string').map((item) => item.content.text)
+
+test('parseSearchArgs separa texto, cantidad y página', () => {
+  assert.deepEqual(parseSearchArgs('gatitos'), { query: 'gatitos', count: null, page: 1 })
+  assert.deepEqual(parseSearchArgs('anime 5'), { query: 'anime', count: 5, page: 1 })
+  assert.deepEqual(parseSearchArgs('-p 3 memes'), { query: 'memes', count: null, page: 3 })
+  assert.deepEqual(parseSearchArgs('anime 99'), { query: 'anime 99', count: null, page: 1 }, 'más de 10 no es cantidad')
+  assert.deepEqual(parseSearchArgs(''), { query: '', count: null, page: 1 })
+})
+
+test('looksLikePackCode distingue códigos de búsquedas', () => {
+  assert.equal(looksLikePackCode('OD5GZR'), true)
+  assert.equal(looksLikePackCode('https://sticker.ly/s/OD5GZR'), true)
+  assert.equal(looksLikePackCode('gatitos'), false)
+  assert.equal(looksLikePackCode('Anime'), false)
+  assert.equal(looksLikePackCode('gatos graciosos'), false)
+})
+
+test('.search manda los stickers como paquete nativo y cierra el progreso', async () => {
+  resetSearchEndpoints()
+  const stub = stubFetch([
+    [/\/search\/sticker/, STICKERS_PAYLOAD],
+    [/cdn\.example\.com\/.*\.webp/, webp]
+  ])
+  try {
+    const { ctx, sock } = commandContext('.search gatitos', { config: searchConfig() })
+    const summary = await findCommand('search').run(ctx)
+
+    assert.match(summary, /search "gatitos" pack 2 sticker/)
+    const documents = sentOf(sock, 'document')
+    assert.equal(documents.length, 1, 'envía un paquete como documento')
+    assert.match(documents[0].content.fileName, /\.wasticker$/, 'es un archivo .wasticker')
+    const texts = textsOf(sock)
+    assert.ok(texts.some((text) => /Buscando \*gatitos\*/.test(text)), 'avisa que está buscando')
+    assert.ok(texts.some((text) => /Paquete «Gatitos» enviado/.test(text)), 'resume con el nombre del paquete')
+    assert.ok(texts.some((text) => /De \*Gatitos\*/.test(text)), 'nombra el paquete de origen')
+  } finally {
+    stub.restore()
+    resetSearchEndpoints()
+  }
+})
+
+test('.search sin texto explica cómo usarlo', async () => {
+  const { ctx } = commandContext('.search', { config: searchConfig() })
+  await assert.rejects(() => findCommand('search').run(ctx), /Escribe qué quieres buscar/)
+})
+
+test('.search sin resultados no manda paquete y lo dice', async () => {
+  resetSearchEndpoints()
+  const stub = stubFetch([[/\/search\/sticker/, { result: { stickers: [] } }]])
+  try {
+    const { ctx, sock } = commandContext('.search dinosaurio', { config: searchConfig() })
+    const summary = await findCommand('search').run(ctx)
+    assert.match(summary, /sin resultados/)
+    assert.equal(sentOf(sock, 'document').length, 0, 'no envía paquete')
+    assert.ok(textsOf(sock).some((text) => /No encontré stickers/.test(text)))
+  } finally {
+    stub.restore()
+    resetSearchEndpoints()
+  }
+})
+
+test('.search explica el bloqueo del servicio', async () => {
+  resetSearchEndpoints()
+  const stub = stubFetch([[/./, () => new Response('nope', { status: 403 })]])
+  try {
+    const { ctx } = commandContext('.search gatitos', { config: searchConfig() })
+    await assert.rejects(() => findCommand('search').run(ctx), /rechazó la búsqueda \(403\)/)
+  } finally {
+    stub.restore()
+    resetSearchEndpoints()
+  }
+})
+
+test('.search respeta search.enabled = false', async () => {
+  const { ctx } = commandContext('.search gatitos', { config: searchConfig({ enabled: false }) })
+  await assert.rejects(() => findCommand('search').run(ctx), /desactivada/)
+})
+
+test('.search envía el paquete nativo cuando WhatsApp lo permite', async () => {
+  resetSearchEndpoints()
+  const stub = stubFetch([
+    [/\/search\/sticker/, STICKERS_PAYLOAD],
+    [/cdn\.example\.com\/.*\.webp/, webp]
+  ])
+  try {
+    const sock = fakeSock()
+    const relayed = []
+    sock.waUploadToServer = async () => ({ directPath: '/v/test', mediaUrl: 'https://mmg.whatsapp.net/v/test' })
+    sock.relayMessage = async (jid, message) => {
+      relayed.push({ jid, message })
+      return 'native-1'
+    }
+
+    const { ctx } = commandContext('.search gatitos', { config: searchConfig(), sock })
+    await findCommand('search').run(ctx)
+
+    assert.equal(relayed.length, 1, 'usa el mensaje nativo')
+    assert.ok(relayed[0].message.stickerPackMessage, 'relayea un stickerPackMessage')
+    assert.equal(relayed[0].message.stickerPackMessage.name, 'Gatitos', 'usa el nombre del pack de origen')
+    assert.equal(sentOf(sock, 'document').length, 0, 'no manda el respaldo')
+  } finally {
+    stub.restore()
+    resetSearchEndpoints()
+  }
+})
+
+test('.searchpack busca y envía el primer paquete automáticamente', async () => {
+  resetSearchEndpoints()
+  const stub = stubFetch([
+    [/\/stickerPack\/search/, PACKS_PAYLOAD],
+    [/\/stickerPack\/CC22DD/, DETAIL_PAYLOAD],
+    [/cdn\.example\.com\/.*\.webp/, webp]
+  ])
+  try {
+    const config = searchConfig()
+    const store = createStore(config, silentLogger)
+    const { ctx, sock } = commandContext('.searchpack gatitos', { config, store })
+    const summary = await findCommand('searchpack').run(ctx)
+
+    assert.match(summary, /Gatos graciosos/)
+    const documents = sentOf(sock, 'document')
+    assert.equal(documents.length, 1, 'envía el paquete como documento')
+    assert.match(documents[0].content.fileName, /\.wasticker$/)
+    assert.match(documents[0].content.caption, /Gatos graciosos/)
+    const texts = textsOf(sock)
+    assert.ok(texts.some((text) => /descargando \d+\/2/.test(text)), 'muestra el progreso')
+    assert.ok(texts.some((text) => /✅ \*Gatos graciosos\* enviado/.test(text)))
+  } finally {
+    stub.restore()
+    resetSearchEndpoints()
+  }
+})
+
+test('.searchpack <número> sin búsqueda previa da error claro', async () => {
+  const config = searchConfig()
+  const store = createStore(config, silentLogger)
+  const { ctx } = commandContext('.searchpack 1', { config, store })
+  await assert.rejects(() => findCommand('searchpack').run(ctx), /No hay ninguna búsqueda/)
+})
+
+test('.searchpack envía el paquete nativo cuando WhatsApp lo permite', async () => {
+  resetSearchEndpoints()
+  const stub = stubFetch([
+    [/\/stickerPack\/search/, PACKS_PAYLOAD],
+    [/\/stickerPack\/CC22DD/, DETAIL_PAYLOAD],
+    [/cdn\.example\.com\/.*\.webp/, webp]
+  ])
+  try {
+    const config = searchConfig()
+    const store = createStore(config, silentLogger)
+    const sock = fakeSock()
+    const relayed = []
+    sock.waUploadToServer = async () => ({ directPath: '/v/test', mediaUrl: 'https://mmg.whatsapp.net/v/test' })
+    sock.relayMessage = async (jid, message) => {
+      relayed.push({ jid, message })
+      return 'native-1'
+    }
+
+    const { ctx } = commandContext('.searchpack gatitos', { config, store, sock })
+    await findCommand('searchpack').run(ctx)
+
+    assert.equal(relayed.length, 1, 'usa el mensaje nativo')
+    assert.ok(relayed[0].message.stickerPackMessage, 'relayea un stickerPackMessage')
+    assert.equal(relayed[0].message.stickerPackMessage.name, 'Gatos graciosos')
+    assert.equal(sentOf(sock, 'document').length, 0, 'no manda el respaldo')
+  } finally {
+    stub.restore()
+    resetSearchEndpoints()
+  }
+})
+
+test('.searchpack get <código> importa un paquete privado por su código', async () => {
+  resetSearchEndpoints()
+  const stub = stubFetch([
+    [/\/stickerPack\/CC22DD/, DETAIL_PAYLOAD],
+    [/cdn\.example\.com\/.*\.webp/, webp]
+  ])
+  try {
+    const config = searchConfig()
+    const { ctx, sock } = commandContext('.searchpack get CC22DD', { config })
+    const summary = await findCommand('searchpack').run(ctx)
+    assert.match(summary, /Gatos graciosos/)
+    assert.equal(sentOf(sock, 'document').length, 1)
+  } finally {
+    stub.restore()
+    resetSearchEndpoints()
+  }
+})
+
+test('.searchpack 9 sin búsqueda previa explica el flujo', async () => {
+  const config = searchConfig()
+  const { ctx } = commandContext('.searchpack 9', { config })
+  await assert.rejects(() => findCommand('searchpack').run(ctx), /No hay ninguna búsqueda reciente/)
+})
+
+test('.searchpack cancel limpia la búsqueda guardada', async () => {
+  const config = searchConfig()
+  const store = createStore(config, silentLogger)
+  store.searches.save('59891111111@s.whatsapp.net', {
+    query: 'gatos',
+    kind: 'packs',
+    results: [{ id: 'CC22DD', name: 'Gatos' }]
+  })
+  const { ctx, sock } = commandContext('.searchpack cancel', { config, store })
+  await findCommand('searchpack').run(ctx)
+  assert.equal(store.searches.get('59891111111@s.whatsapp.net'), null)
+  assert.ok(textsOf(sock).some((text) => /Búsqueda descartada/.test(text)))
+})
+
+test('.searchpack sin argumentos muestra los ejemplos', async () => {
+  const { ctx } = commandContext('.searchpack', { config: searchConfig() })
+  await assert.rejects(() => findCommand('searchpack').run(ctx), /Dime qué paquete buscas/)
+})
+
+test('SearchStore vence las búsquedas y recorta el tamaño', () => {
+  let now = 1_000_000
+  const store = new SearchStore({ ttlMinutes: 1, maxEntries: 2, now: () => now })
+  store.save('a@s', { query: 'uno', results: [{ id: 'A' }] })
+  assert.equal(store.get('a@s').query, 'uno')
+  assert.deepEqual(store.pick('a@s', 1).item, { id: 'A' })
+  assert.equal(store.pick('a@s', 2).item, null)
+
+  now += 61_000
+  assert.equal(store.get('a@s'), null, 'vence sola')
+
+  store.save('a@s', { results: [{ id: '1' }] })
+  store.save('b@s', { results: [{ id: '2' }] })
+  store.save('c@s', { results: [{ id: '3' }] })
+  assert.equal(store.size, 2, 'respeta maxEntries')
+  assert.equal(store.get('a@s'), null, 'saca la más vieja')
+})
